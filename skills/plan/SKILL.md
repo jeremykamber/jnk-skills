@@ -35,6 +35,8 @@ Slice the work by what the user can see and touch — never by layer. No "all th
 
 5. **Gate.** Present the route. Ask: "Approve the plan and the order?"
 
+6. **Save (when it earns keeping).** If the plan is substantial or spans sessions, save it to `.ai/contexts/<dir>/plans/01-initial.md`; revisions get `02-`, `03-`. Skip for trivial plans.
+
 ## Output
 
 Numbered slices with checkpoints / Order and first slice / Blast radius / Overall verification strategy

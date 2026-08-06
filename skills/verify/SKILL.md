@@ -28,6 +28,8 @@ Verify the whole change with evidence, and say plainly what remains unverified. 
 
 7. **Gate.** Present the report. The user decides: fix, ship, debrief, or refactor. Do not declare done without their sign-off.
 
+8. **Save the report (when it earns keeping).** If anything remains unverified or squawked, save the report — what passed, what didn't, the squawk list — to `.ai/contexts/<dir>/verification/results.md`. A future session needs exactly this. If everything passed cleanly, skip it; the debrief records "all green".
+
 ## Output
 
 Verification report (what passed, what's unverified) / Squawk list / IOU reconciliation

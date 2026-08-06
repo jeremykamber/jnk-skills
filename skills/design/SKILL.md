@@ -1,6 +1,6 @@
 ---
 name: jnk-4-design
-description: Design the shape and experience of a change before planning it. User-invoked only via /skill:jnk-4-design. ASCII diagrams first, throwaway prototypes in .temp/design/ when needed, failure paths designed up front.
+description: Design the shape and experience of a change before planning it. User-invoked only via /skill:jnk-4-design. ASCII diagrams first, throwaway prototypes when needed, failure paths designed up front.
 disable-model-invocation: true
 ---
 
@@ -24,9 +24,11 @@ Shape the change before planning it. Decide = what. Design = how it feels and ho
 
 5. **The map is not the territory.** The diagram is a map; the real system will surprise you. Expect it. That is the map's job — to be improved, not to be perfect.
 
-6. **If ASCII is not enough — the simulator.** Build a throwaway prototype under `.temp/design/` (plain HTML/CSS or a minimal script — a spike). Open it, look, discuss, iterate. Contract: throwaway by definition — never promoted, never merged.
+6. **If ASCII is not enough — the simulator.** Build a throwaway prototype in `.ai/contexts/<dir>/designs/` (plain HTML/CSS or a minimal script — a spike). Open it, look, discuss, iterate. Contract: throwaway by definition — never promoted, never merged. The notebook is gitignored, so this holds by default.
 
 7. **Gate.** Present the shape and the failure paths. Ask: "Approve this shape?" Do not plan until the user says so.
+
+8. **Save the shape.** Write the agreed diagram to `designs/<name>.md` and the prototype alongside it. A future session should be able to see what the shape was.
 
 ## Output
 

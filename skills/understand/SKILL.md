@@ -32,6 +32,8 @@ Build the smallest sufficient understanding needed to make a confident change â€
 
 7. **Align.** Present the model and the ledger. Ask: "Is this right? What's missing?" Do not plan or implement until the user confirms the model.
 
+8. **Log the model.** Write the agreed model and IOU ledger to `.ai/contexts/YYYY-MM-DD-<slug>/understanding.md` â€” the engineering notebook. Create the dir if this work has none yet; reuse it if it does (the date is when the work started). The notebook is gitignored: it is memory, not documentation.
+
 ## Output
 
 Summary / Current behavior / Components / Ownership / Patterns / Assumptions / IOU ledger / Proposed next reads (if the user wants to go deeper)

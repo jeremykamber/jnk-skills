@@ -27,7 +27,7 @@ Close the session: log what happened, make sure the user still owns the understa
 
 3. **The process note.** One line: did the process work? Anything to change in the workflow itself? Failures are feedback; the workflow improves through use.
 
-4. **Where it lives.** Follow the repo's convention — the PR description, a decision record, or just the conversation. Ask; do not create ceremony. If the user keeps a memory or log system, offer to file the key facts there.
+4. **Where it lives.** Append the log to `.ai/contexts/<dir>/notes.md` — the engineering notebook — and name the context path in the next leg, so /skill:jnk-0-resume can find it. If the repo has a strong convention (PR description), follow that instead. The notebook is the default; no other ceremony.
 
 ## Do not
 

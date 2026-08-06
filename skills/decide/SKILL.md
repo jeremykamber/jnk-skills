@@ -32,7 +32,7 @@ Apply these to every option; name the lens you are using:
 
 4. **Make the call.** Recommend with reasons, then stop. The user owns the decision. If important uncertainty remains, return to /skill:jnk-2-brainstorm or /skill:jnk-1-understand.
 
-5. **Write the decision record.** Load `references/decision-record.md`: chosen approach, reason, runner-up, failure mode to watch, verification strategy. Where: the repo's existing convention (ADR folder, docs/decisions/) — if none, ask. About ten lines.
+5. **Write the decision record.** Load `references/decision-record.md`: chosen approach, reason, runner-up, failure mode to watch, verification strategy. Where: the repo's existing convention (ADR folder, docs/decisions/) — if none, append to `.ai/contexts/<dir>/decisions.md` (the engineering notebook), one record per decision, keyed by callsign. About ten lines.
 
 6. **Name the callsign.** A short slug from the decision — `oauth-c-github-module`. It threads through the branch, the plan, and the session log. One name, one story.
 
