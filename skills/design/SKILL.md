@@ -1,6 +1,6 @@
 ---
-name: jnk-design
-description: Design the shape and experience of a change before planning it. User-invoked only via /skill:jnk-design. ASCII diagrams first, throwaway prototypes in .temp/design/ when needed, failure paths designed up front.
+name: jnk-4-design
+description: Design the shape and experience of a change before planning it. User-invoked only via /skill:jnk-4-design. ASCII diagrams first, throwaway prototypes in .temp/design/ when needed, failure paths designed up front.
 disable-model-invocation: true
 ---
 

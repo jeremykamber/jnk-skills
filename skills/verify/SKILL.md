@@ -1,6 +1,6 @@
 ---
-name: jnk-verify
-description: Verify a completed change with evidence, honestly. User-invoked only via /skill:jnk-verify. Runs the narrowest verification that gives confidence, logs squawks, and reconciles the IOU ledger.
+name: jnk-7-verify
+description: Verify a completed change with evidence, honestly. User-invoked only via /skill:jnk-7-verify. Runs the narrowest verification that gives confidence, logs squawks, and reconciles the IOU ledger.
 disable-model-invocation: true
 ---
 
@@ -24,7 +24,7 @@ Verify the whole change with evidence, and say plainly what remains unverified. 
 
 5. **The squawk sheet.** Anything noticed but not fixed — duplication, debt, skipped tests — becomes a squawk: `[squawk] severity | location | what | why deferred`. Load `references/squawk-sheet.md` for the taxonomy. Squawks are logged and offered, never silently fixed during verification.
 
-6. **Reconcile the IOUs.** Which unknowns from /skill:jnk-understand got answered? Remaining ones become squawks or next steps.
+6. **Reconcile the IOUs.** Which unknowns from /skill:jnk-1-understand got answered? Remaining ones become squawks or next steps.
 
 7. **Gate.** Present the report. The user decides: fix, ship, debrief, or refactor. Do not declare done without their sign-off.
 

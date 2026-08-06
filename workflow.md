@@ -44,19 +44,19 @@ Software complexity outgrew the individual memory — the same problem cockpits 
 
 Nine skills, in order. The arc is a double diamond: widen, narrow, widen, narrow.
 
-1. `/skill:jnk-understand` — pre-flight inspection. Build ~70% understanding of the relevant code, map ownership, log unknowns as IOUs.
-2. `/skill:jnk-brainstorm` — the hammock. Think together with the tools off. No plans, no code, no verdicts. (Use this first when the problem is fuzzy; use understand first when the task is concrete.)
-3. `/skill:jnk-decide` — file the flight plan. Options weighed through lenses, a decision record, a callsign.
-4. `/skill:jnk-design` — the simulator. ASCII first, failure paths designed, prototypes when needed.
-5. `/skill:jnk-plan` — waypoints and checkpoints. Vertical slices, each with its own verification.
-6. `/skill:jnk-implement` — fly the route. One slice at a time, red-green-refactor, hold short between slices.
-7. `/skill:jnk-verify` — post-flight inspection. Data, not opinion. Squawk sheet, IOU reconciliation.
-8. `/skill:jnk-refactor` — maintenance in the hangar. Optional, always with permission.
-9. `/skill:jnk-debrief` — the captain's log. What landed, squawks, the next leg.
+1. `/skill:jnk-1-understand` — pre-flight inspection. Build ~70% understanding of the relevant code, map ownership, log unknowns as IOUs.
+2. `/skill:jnk-2-brainstorm` — the hammock. Think together with the tools off. No plans, no code, no verdicts. (Use this first when the problem is fuzzy; use understand first when the task is concrete.)
+3. `/skill:jnk-3-decide` — file the flight plan. Options weighed through lenses, a decision record, a callsign.
+4. `/skill:jnk-4-design` — the simulator. ASCII first, failure paths designed, prototypes when needed.
+5. `/skill:jnk-5-plan` — waypoints and checkpoints. Vertical slices, each with its own verification.
+6. `/skill:jnk-6-implement` — fly the route. One slice at a time, red-green-refactor, hold short between slices.
+7. `/skill:jnk-7-verify` — post-flight inspection. Data, not opinion. Squawk sheet, IOU reconciliation.
+8. `/skill:jnk-8-refactor` — maintenance in the hangar. Optional, always with permission.
+9. `/skill:jnk-9-debrief` — the captain's log. What landed, squawks, the next leg.
 
 It is a loop, not a pipeline: new information returns you to an earlier beat.
 
-Earlier stages of this workflow map onto the beats: **Define Success** is step 1 of `/skill:jnk-decide`; **Teach Back** is the through-line in `/skill:jnk-debrief`; **Refine** is the debrief's process note.
+Earlier stages of this workflow map onto the beats: **Define Success** is step 1 of `/skill:jnk-3-decide`; **Teach Back** is the through-line in `/skill:jnk-9-debrief`; **Refine** is the debrief's process note.
 
 ---
 
@@ -72,7 +72,7 @@ Slice the work by what the user can see and touch — never by layer. A vertical
 
 ## Using the skills
 
-- **Invocation.** `/skill:name` — e.g. `/skill:jnk-understand`.
+- **Invocation.** `/skill:name` — e.g. `/skill:jnk-1-understand`.
 - **User-invoked only.** Every skill sets `disable-model-invocation`, so the AI never picks one up on its own; you decide when a beat starts. This keeps the AI's context small and removes the unpredictability of model-invoked skills. The cost is that you carry the map — that is what this manual is for.
 - **Expedited mode.** For small changes: understand → decide → plan → implement → verify. Add brainstorm when the problem is fuzzy, design when the shape matters, refactor when asked. Debrief is always cheap — take it.
 - **Housekeeping.** `/skill:jnk-commit` — commit a session's work as a story of conventional commits.

@@ -1,6 +1,6 @@
 ---
-name: jnk-refactor
-description: Change structure without changing behavior — as its own beat, with permission. User-invoked only via /skill:jnk-refactor. Always asks, states value and risk, and verifies with unchanged tests.
+name: jnk-8-refactor
+description: Change structure without changing behavior — as its own beat, with permission. User-invoked only via /skill:jnk-8-refactor. Always asks, states value and risk, and verifies with unchanged tests.
 disable-model-invocation: true
 ---
 
