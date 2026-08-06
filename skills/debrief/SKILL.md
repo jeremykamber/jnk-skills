@@ -1,6 +1,6 @@
 ---
 name: jnk-debrief
-description: Close a session like a pilot closes a flight. User-invoked only via /skill:jnk-debrief. Writes the session log: what landed, squawks, IOUs reconciled, and the next leg.
+description: "Close a session like a pilot closes a flight. User-invoked only via /skill:jnk-debrief. Writes the session log: what landed, squawks, IOUs reconciled, and the next leg."
 disable-model-invocation: true
 ---
 
