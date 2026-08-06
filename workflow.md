@@ -75,6 +75,7 @@ Slice the work by what the user can see and touch — never by layer. A vertical
 - **Invocation.** `/skill:name` — e.g. `/skill:jnk-understand`.
 - **User-invoked only.** Every skill sets `disable-model-invocation`, so the AI never picks one up on its own; you decide when a beat starts. This keeps the AI's context small and removes the unpredictability of model-invoked skills. The cost is that you carry the map — that is what this manual is for.
 - **Expedited mode.** For small changes: understand → decide → plan → implement → verify. Add brainstorm when the problem is fuzzy, design when the shape matters, refactor when asked. Debrief is always cheap — take it.
+- **Housekeeping.** `/skill:jnk-commit` — commit a session's work as a story of conventional commits.
 - **Skill-writing standard.** These skills follow a checklist: user-invoked trigger; a small main file made of steps plus reference material hidden behind context pointers; leading words repeated so the AI adopts them ("vertical slice", "gate", "squawk"); and nothing that does not change behavior. Apply the same standard if you edit them.
 
 ---
