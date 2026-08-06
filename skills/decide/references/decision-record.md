@@ -1,6 +1,6 @@
 # Decision Record
 
-Written at the end of /skill:decide. About ten lines. One record per decision.
+Written at the end of /skill:jnk-decide. About ten lines. One record per decision.
 
 ## Template
 

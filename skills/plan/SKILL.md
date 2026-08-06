@@ -1,6 +1,6 @@
 ---
-name: plan
-description: Turn a decision and design into a slice-by-slice implementation plan. User-invoked only via /skill:plan. Vertical slices only, each with its own checkpoint. Riskiest slice first.
+name: jnk-plan
+description: Turn a decision and design into a slice-by-slice implementation plan. User-invoked only via /skill:jnk-plan. Vertical slices only, each with its own checkpoint. Riskiest slice first.
 disable-model-invocation: true
 ---
 
@@ -22,7 +22,7 @@ Slice the work by what the user can see and touch — never by layer. No "all th
 
 ## Steps
 
-1. **Confirm the decision and design.** If the plan reveals the decision was wrong, stop and return to /skill:decide. Do not paper over it.
+1. **Confirm the decision and design.** If the plan reveals the decision was wrong, stop and return to /skill:jnk-decide. Do not paper over it.
 
 2. **List the slices.** Each slice names:
    - What changes (files and areas)

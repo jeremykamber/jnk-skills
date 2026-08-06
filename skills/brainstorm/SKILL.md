@@ -1,6 +1,6 @@
 ---
-name: brainstorm
-description: Think together before committing to anything. User-invoked only via /skill:brainstorm. Explores the problem and candidate directions with no plans, no code, no verdicts. For "let's think" moments.
+name: jnk-brainstorm
+description: Think together before committing to anything. User-invoked only via /skill:jnk-brainstorm. Explores the problem and candidate directions with no plans, no code, no verdicts. For "let's think" moments.
 disable-model-invocation: true
 ---
 
@@ -32,5 +32,5 @@ Candidate directions (short list) / The questions that matter / What we're not r
 
 - Read files, search, or write code during hammock time (unless the user asks).
 - Present a verdict or push a favorite.
-- Converge early — judgment belongs to /skill:decide.
+- Converge early — judgment belongs to /skill:jnk-decide.
 - Let "we've always done it this way" stand unchallenged.

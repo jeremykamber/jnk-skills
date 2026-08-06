@@ -1,6 +1,6 @@
 ---
-name: implement
-description: Implement a plan one vertical slice at a time, staying conversational. User-invoked only via /skill:implement. Red-green-refactor inside each slice; a gate before each next slice.
+name: jnk-implement
+description: Implement a plan one vertical slice at a time, staying conversational. User-invoked only via /skill:jnk-implement. Red-green-refactor inside each slice; a gate before each next slice.
 disable-model-invocation: true
 ---
 
@@ -30,7 +30,7 @@ For each slice:
 ## Rules
 
 - **No mid-air engine changes.** Do not refactor or fix unrelated code during implementation. If you find something that needs fixing, log a squawk — `[squawk] severity | location | what | why deferred` — and move on. If it blocks the slice, stop and ask.
-- **The plan is a route, not a contract.** If reality contradicts the plan — a test reveals a wrong assumption — stop, tell the user, and adjust the slice or return to /skill:decide. Never improvise around a broken assumption silently.
+- **The plan is a route, not a contract.** If reality contradicts the plan — a test reveals a wrong assumption — stop, tell the user, and adjust the slice or return to /skill:jnk-decide. Never improvise around a broken assumption silently.
 - Touch only the files the slice needs. Follow existing conventions. No speculative improvements.
 
 ## Output

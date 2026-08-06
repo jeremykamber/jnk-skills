@@ -1,6 +1,6 @@
 ---
-name: understand
-description: Build a shared mental model of a codebase area before changing it. User-invoked only via /skill:understand. Locates relevant code, maps ownership, and makes unknowns explicit (the IOU ledger) before any design or implementation.
+name: jnk-understand
+description: Build a shared mental model of a codebase area before changing it. User-invoked only via /skill:jnk-understand. Locates relevant code, maps ownership, and makes unknowns explicit (the IOU ledger) before any design or implementation.
 disable-model-invocation: true
 ---
 

@@ -1,6 +1,6 @@
 ---
-name: decide
-description: Choose an implementation direction collaboratively before writing code. User-invoked only via /skill:decide. Weighs options through lenses, writes a decision record, names the session's callsign.
+name: jnk-decide
+description: Choose an implementation direction collaboratively before writing code. User-invoked only via /skill:jnk-decide. Weighs options through lenses, writes a decision record, names the session's callsign.
 disable-model-invocation: true
 ---
 
@@ -30,7 +30,7 @@ Apply these to every option; name the lens you are using:
 
 3. **Debate with the lenses.** Challenge your own and the user's assumptions. Seek the strongest reasoning, not agreement. Where lenses point in different directions, say so.
 
-4. **Make the call.** Recommend with reasons, then stop. The user owns the decision. If important uncertainty remains, return to /skill:brainstorm or /skill:understand.
+4. **Make the call.** Recommend with reasons, then stop. The user owns the decision. If important uncertainty remains, return to /skill:jnk-brainstorm or /skill:jnk-understand.
 
 5. **Write the decision record.** Load `references/decision-record.md`: chosen approach, reason, runner-up, failure mode to watch, verification strategy. Where: the repo's existing convention (ADR folder, docs/decisions/) — if none, ask. About ten lines.
 
