@@ -33,7 +33,7 @@ Software complexity outgrew the individual memory — the same problem cockpits 
 - **Aviate, navigate, communicate.** In that order: keep the system flying, then move, then talk. Protecting what works comes before adding what's new.
 - **Gates.** Every beat ends with a clearance question: "Sound good?", "Approve this shape?", "Ready for slice N?" The human is the pilot; the AI is the copilot. The gates are the workflow — they are not politeness.
 - **The hammock.** Thinking before deciding, with the tools off.
-- **The simulator.** Throwaway prototypes in `.temp/design/`. In the simulator, crashing is free.
+- **The simulator.** Throwaway prototypes in the notebook's `designs/`. In the simulator, crashing is free.
 - **No mid-air engine changes.** Refactoring is maintenance — done in the hangar, on its own beat, with permission.
 - **The squawk sheet.** Defects and debt are logged, never silently fixed, never silently forgiven.
 - **The captain's log.** Every session ends with an entry: what landed, what's left, what's next.
@@ -42,8 +42,9 @@ Software complexity outgrew the individual memory — the same problem cockpits 
 
 ## The beats
 
-Nine skills, in order. The arc is a double diamond: widen, narrow, widen, narrow.
+Ten skills, in order. The arc is a double diamond: widen, narrow, widen, narrow.
 
+0. `/skill:jnk-0-resume` — the pre-flight briefing. Find prior work in the notebook, read what was learned, pick up the thread. (Skip when starting fresh.)
 1. `/skill:jnk-1-understand` — pre-flight inspection. Build ~70% understanding of the relevant code, map ownership, log unknowns as IOUs.
 2. `/skill:jnk-2-brainstorm` — the hammock. Think together with the tools off. No plans, no code, no verdicts. (Use this first when the problem is fuzzy; use understand first when the task is concrete.)
 3. `/skill:jnk-3-decide` — file the flight plan. Options weighed through lenses, a decision record, a callsign.
@@ -57,6 +58,26 @@ Nine skills, in order. The arc is a double diamond: widen, narrow, widen, narrow
 It is a loop, not a pipeline: new information returns you to an earlier beat.
 
 Earlier stages of this workflow map onto the beats: **Define Success** is step 1 of `/skill:jnk-3-decide`; **Teach Back** is the through-line in `/skill:jnk-9-debrief`; **Refine** is the debrief's process note.
+
+---
+
+## The engineering notebook
+
+Every session writes to a notebook: `.ai/contexts/YYYY-MM-DD-<feature>/` — gitignored, local to the project, and the source of truth for *why*, which git cannot store.
+
+```text
+.ai/contexts/2026-08-06-oauth-login/
+├── understanding.md     # /skill:jnk-1-understand — the model and IOUs (converges)
+├── decisions.md         # /skill:jnk-3-decide — one record per decision, keyed by callsign
+├── notes.md             # /skill:jnk-9-debrief — what landed, squawks, the next leg
+├── plans/               # /skill:jnk-5-plan — when the plan earns keeping
+├── designs/             # /skill:jnk-4-design — shapes and throwaway prototypes
+└── verification/        # /skill:jnk-7-verify — results, when something remains unverified
+```
+
+The loop that makes it work: the debrief names the next leg and the context path; `/skill:jnk-0-resume` reads it at the start of the next session. Written memories are debt if nothing reads them — resume is the reader.
+
+Keep it small: understand, decide, and debrief always write; the rest write only when the artifact earns keeping. Squawks are never silently forgiven — they land in the notebook.
 
 ---
 
@@ -74,7 +95,7 @@ Slice the work by what the user can see and touch — never by layer. A vertical
 
 - **Invocation.** `/skill:name` — e.g. `/skill:jnk-1-understand`.
 - **User-invoked only.** Every skill sets `disable-model-invocation`, so the AI never picks one up on its own; you decide when a beat starts. This keeps the AI's context small and removes the unpredictability of model-invoked skills. The cost is that you carry the map — that is what this manual is for.
-- **Expedited mode.** For small changes: understand → decide → plan → implement → verify. Add brainstorm when the problem is fuzzy, design when the shape matters, refactor when asked. Debrief is always cheap — take it.
+- **Expedited mode.** For small changes: understand → decide → plan → implement → verify. Add brainstorm when the problem is fuzzy, design when the shape matters, refactor when asked. Debrief is always cheap — take it. When continuing prior work, start with /skill:jnk-0-resume.
 - **Housekeeping.** `/skill:jnk-commit` — commit a session's work as a story of conventional commits.
 - **Skill-writing standard.** These skills follow a checklist: user-invoked trigger; a small main file made of steps plus reference material hidden behind context pointers; leading words repeated so the AI adopts them ("vertical slice", "gate", "squawk"); and nothing that does not change behavior. Apply the same standard if you edit them.
 
