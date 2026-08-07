@@ -1,6 +1,6 @@
 ---
-name: jnk-8-refactor
-description: Change structure without changing behavior — as its own beat, with permission. User-invoked only via /skill:jnk-8-refactor. Always asks, states value and risk, and verifies with unchanged tests.
+name: jnk-refactor
+description: Change structure without changing behavior — housekeeping, always with permission. User-invoked only via /skill:jnk-refactor. Always asks, states value and risk, and verifies with unchanged tests.
 disable-model-invocation: true
 ---
 
@@ -10,7 +10,7 @@ disable-model-invocation: true
 
 ## Purpose
 
-Change structure without changing behavior. Refactoring is its own beat with its own gate — never mid-implementation, never without the user's call. First, do no harm.
+Change structure without changing behavior. Refactoring is its own pass with its own gate — never mid-implementation, never without the user's call. First, do no harm.
 
 ## Steps
 
@@ -26,11 +26,15 @@ Change structure without changing behavior. Refactoring is its own beat with its
 
 6. **Invert.** What would make this refactor dangerous? If you cannot name a failure mode, you have not thought enough.
 
-7. **Refactor incrementally.** One structural change at a time, tests green after each step. Then review: is it easier to understand? Did complexity actually decrease?
+7. **Refactor incrementally.** One structural change at a time, tests green after each step. Then review: is it easier to understand? Did complexity actually decrease — and did you remove more than you added? The simplest code is code that no longer exists.
 
 ## Output
 
 The refactor, or the decision to defer (logged as a squawk) / Post-refactor verification
+
+## Handoff
+
+After a refactor, recommend /skill:jnk-7-verify (unchanged tests prove behavior held) or back to /skill:jnk-8-debrief. Do not start them: the next beat begins when the user invokes it.
 
 ## Do not
 
