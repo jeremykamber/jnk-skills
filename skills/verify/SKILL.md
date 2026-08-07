@@ -34,6 +34,10 @@ Verify the whole change with evidence, and say plainly what remains unverified. 
 
 Verification report (what passed, what's unverified) / Squawk list / IOU reconciliation
 
+## Handoff
+
+If the user is satisfied, recommend /skill:jnk-8-debrief — the captain's log closes the loop. Do not start it: the next beat begins when the user invokes it.
+
 ## Do not
 
 - Silently fix problems found during verification.

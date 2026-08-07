@@ -28,6 +28,10 @@ Think before deciding. No plans, no code, no verdicts. Most of the valuable pair
 
 Candidate directions (short list) / The questions that matter / What we're not ready to decide yet
 
+## Handoff
+
+If we're ready, recommend /skill:jnk-3-decide. Do not start it: judgment is decide's, and the next beat begins when the user invokes it.
+
 ## Do not
 
 - Read files, search, or write code during hammock time (unless the user asks).

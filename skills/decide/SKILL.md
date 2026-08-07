@@ -19,6 +19,7 @@ Apply these to every option; name the lens you are using:
 - **Simple vs easy** (Hickey). Simple means unbraided — one notion. Easy means familiar. Call it out when "simpler" actually means "more familiar."
 - **Wrong abstraction** (Metz). Duplication is far cheaper than the wrong abstraction. Abstract at the third occurrence (Rule of Three), not the first.
 - **Smallest coherent change.** The least complex option that fully solves the problem. Start simple and let complexity be earned.
+- **The next engineer.** Which option will the next person to touch this find obvious? Write for readers, not authors.
 - **Inversion.** Ask: what would make this choice fail? Which failure mode can we survive? Pick the option whose failure you can foresee — and write that failure mode down.
 - **No futures yet.** Do not optimize for requirements that have not arrived.
 
@@ -39,6 +40,10 @@ Apply these to every option; name the lens you are using:
 ## Output
 
 Goal / Success criteria / Options considered / Decision / Tradeoffs / Failure mode to watch / Callsign / Open questions
+
+## Handoff
+
+If the decision holds, recommend the next beat — /skill:jnk-4-design when the shape matters, else /skill:jnk-5-plan. Do not start it: the next beat begins when the user invokes it.
 
 ## Do not
 

@@ -34,6 +34,10 @@ Shape the change before planning it. Decide = what. Design = how it feels and ho
 
 Agreed shape (diagram or prototype) / Design-level decisions / Failure paths designed
 
+## Handoff
+
+If the shape holds, recommend /skill:jnk-5-plan. Do not start it: planning is plan's beat, and it begins when the user invokes it.
+
 ## Do not
 
 - Write production code, or design the whole feature in detail (shape and failure paths only).
