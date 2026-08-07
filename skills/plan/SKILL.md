@@ -22,7 +22,7 @@ Slice the work by what the user can see and touch — never by layer. No "all th
 
 ## Steps
 
-1. **Confirm the decision and design.** If the plan reveals the decision was wrong, stop and return to /skill:jnk-3-decide. Do not paper over it.
+1. **Confirm the decision and design.** If no decision record exists (decide was skipped — check `.ai/contexts/<dir>/decisions.md` or the repo's ADR convention), write the decision first: one line each for chosen approach, why, and the failure mode to watch — and name the callsign. The plan needs a record to confirm, and the callsign threads through the branch, the plan, and the log. If the plan reveals the decision was wrong, stop and return to /skill:jnk-3-decide. Do not paper over it.
 
 2. **List the slices.** Each slice names:
    - What changes (files and areas)
@@ -35,11 +35,15 @@ Slice the work by what the user can see and touch — never by layer. No "all th
 
 5. **Gate.** Present the route. Ask: "Approve the plan and the order?"
 
-6. **Save (when it earns keeping).** If the plan is substantial or spans sessions, save it to `.ai/contexts/<dir>/plans/01-initial.md`; revisions get `02-`, `03-`. Skip for trivial plans.
+6. **Save (when it earns keeping).** If the plan is substantial, likely to be amended, or may outlive this sitting, save it to `.ai/contexts/<dir>/plans/01-initial.md`; revisions get `02-`, `03-`. Skip for trivial plans — but a plan that grows mid-flight (new slices, reordering) earns the file: that is where the amended route lives.
 
 ## Output
 
 Numbered slices with checkpoints / Order and first slice / Blast radius / Overall verification strategy
+
+## Handoff
+
+If the plan is approved, recommend /skill:jnk-6-implement. Do not start it: the route is flown when the user invokes implement.
 
 ## Do not
 
