@@ -1,0 +1,42 @@
+# Leading words measured in thinking traces, by category.
+# Format: regex|category   (matched case-insensitively on reasoning traces only)
+# Categories: discipline (gate-keeping behaviors), doctrine (planning/implementation
+# principles), artifact (things that must be written/created), scenery (identity/
+# metaphor — informative, not steering).
+
+# --- discipline: does the agent hold gates and log? ---
+\bgates?\b|discipline
+\bcheckpoints?\b|discipline
+\bsquawks?\b|discipline
+\biou(?:s)?\b|discipline
+\bblast radius\b|discipline
+\bhold short\b|discipline
+\bhandoffs?\b|discipline
+\beject(?:s|ed|ing)?\b|discipline
+
+# --- doctrine: planning/implementation principles ---
+\bvertical slices?\b|doctrine
+\btracer bullets?\b|doctrine
+\bwalking skeletons?\b|doctrine
+\bred[- ]green\b|doctrine
+
+# --- artifact: things the workflow must write or name ---
+\bcallsigns?\b|artifact
+\bledgers?\b|artifact
+\bowed\b|artifact
+\bnotebooks?\b|artifact
+\bdebriefs?\b|artifact
+understanding\.md|artifact
+decisions\.md|artifact
+notes\.md|artifact
+verification/results\.md|artifact
+\.ai/contexts|artifact
+
+# --- scenery: identity/metaphor; tells you nothing about behavior ---
+\bpre[- ]flight\b|scenery
+\bhangars?\b|scenery
+\brunways?\b|scenery
+\bhammocks?\b|scenery
+\bsimulators?\b|scenery
+\bcaptain'?s log\b|scenery
+\bflight plans?\b|scenery
