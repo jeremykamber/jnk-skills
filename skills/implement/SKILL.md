@@ -14,16 +14,16 @@ Fly the approved plan one vertical slice at a time. The user stays in control; y
 
 ## The slice ledger
 
-At every gate, state the plan's current shape in one compact block:
+At every gate, state the plan's current shape as a simple list, grouped by state:
 
-```
-Done:      slice 1 — strategy prompt fix (checkpoint passed)
-In flight: slice 3 — neutral names
-Owed:      slice 2 — ICP wiring (re-ordered behind slice 3)
-Deferred:  slice 5 — cluster prompt (squawked, user's call)
-```
+- **Done:** slice 1 — strategy prompt fix (checkpoint passed)
+- **In flight:** slice 3 — neutral names
+- **Owed:** slice 2 — ICP wiring (re-ordered behind slice 3)
+- **Deferred:** slice 5 — cluster prompt (squawked, user's call)
 
 **Owed** is the word that prevents lost work: any slice that exists but has not landed is owed. When the plan grows or reorders, the ledger says so out loud. A slice never falls out of the story silently.
+
+When nothing changed since the last gate, a one-line summary suffices — `Ledger: 1 done, 2 in flight, 3 owed, 4 deferred` — but every slice stays named in every form. The full list returns whenever something changes, and always in the final report.
 
 ## Steps
 
