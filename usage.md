@@ -7,13 +7,15 @@ You are the pilot; the agent is the copilot. You decide when each step starts, y
 - **You invoke, it works, it stops.** Type `/skill:jnk-N-name` to start a step. The agent never starts the next step on its own — it ends by *recommending* it.
 - **Every step ends with a question.** "Sound good?", "Approve the plan?", "Ready for slice N?" — that's a gate. Your answer is the workflow. One word usually suffices.
 - **Small fix → one-shot. Anything else → the beats.**
+- **Broken behavior → jnk-debug.** Reproduce first, gate the diagnosis, verify the fix on the original failure.
 - **Context at ~60% → finish the step, start a fresh session, resume.**
 
-## The three modes
+## The modes
 
 | Mode | Use it for | What happens |
 |---|---|---|
 | `/skill:jnk-oneshot` | Small, well-understood fixes — the ~80% case | One pass, no questions: reads just enough, smallest change, verifies, commits. |
+| `/skill:jnk-debug` | Behavior is wrong, cause unknown | Reproduce → diagnose → gate the diagnosis → smallest fix → verify on the original failure. Ejects when the fix is large-scale. |
 | **Expedited** (no skill — just skip beats) | Small feature that needs some thought | understand → decide → plan → implement → verify, with gates. |
 | **Full beats** | Anything fuzzy, architectural, or risky | All nine beats, gates between every one. |
 

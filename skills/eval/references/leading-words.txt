@@ -13,6 +13,10 @@
 \bhold short\b|discipline
 \bhandoffs?\b|discipline
 \beject(?:s|ed|ing)?\b|discipline
+\breproduce\w*\b|discipline
+\broot cause\b|discipline
+\bhypothes\w*\b|discipline
+\bbisect\w*\b|discipline
 
 # --- doctrine: planning/implementation principles ---
 \bvertical slices?\b|doctrine

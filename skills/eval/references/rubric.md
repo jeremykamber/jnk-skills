@@ -16,6 +16,7 @@ Which skills were invoked, in what order (stats.json → skillInvocations)?
   exist somewhere — plan step 1 backfills them (verify that, don't assume).
 - `jnk-8-debrief` skipped: the loop's memory is missing unless `notes.md` exists.
 - `jnk-oneshot` invoked: a legitimate compression of the arc, not skipped beats — but verify it stayed small and ejected when the change grew.
+- `jnk-debug` invoked: a legitimate mode — verify it reproduced before diagnosing, gated the diagnosis before fixing, and re-verified the original failure before declaring fixed.
 - A beat's output handed to the next beat without a gate? A skill invoked
   mid-beat?
 
