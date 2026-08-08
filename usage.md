@@ -14,7 +14,7 @@ You are the pilot; the agent is the copilot. You decide when each step starts, y
 
 | Mode | Use it for | What happens |
 |---|---|---|
-| `/skill:jnk-oneshot` | Small, well-understood fixes — the ~80% case | One pass, no questions: reads just enough, smallest change, verifies, commits. |
+| `/skill:jnk-oneshot` | Small, well-understood fixes — the ~80% case | One pass, no questions: reads just enough, smallest change, verifies, reports — the commit is your call via /skill:jnk-commit. |
 | `/skill:jnk-debug` | Behavior is wrong, cause unknown | Reproduce → diagnose → gate the diagnosis → smallest fix → verify on the original failure. Ejects when the fix is large-scale. |
 | **Expedited** (no skill — just skip beats) | Small feature that needs some thought | understand → decide → plan → implement → verify, with gates. |
 | **Full beats** | Anything fuzzy, architectural, or risky | All nine beats, gates between every one. |
@@ -63,7 +63,7 @@ One more thing the agent will name at decision time: a **callsign** (e.g. `perso
 > You: `/skill:jnk-oneshot`
 > Fix the stale "strategy (default)" log line in GeneratePersonasUseCase — it's misleading.
 >
-> Agent: one-line restate → reads the file → makes the smallest change → runs the test → reports → commits as `fix: correct misleading strategy-mode log line`.
+> Agent: one-line restate → reads the file → makes the smallest change → runs the test → reports — then suggests /skill:jnk-commit for the history.
 
 No gates. If the request is ambiguous it asks once, then goes. If the change turns out bigger than one shot, it stops and says so — that's the eject.
 

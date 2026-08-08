@@ -26,7 +26,7 @@ Turn "something's wrong" into a reproduced failure, a named root cause, a smalle
 
 6. **The smallest fix, verified.** Fix the root cause with the smallest change. Where a regression test can fail for the right reason, write it first and watch it fail. Then prove: the original reproduction is gone, the new test passes, nothing adjacent broke (narrow sweep; stash-baseline compare on any doubt). A fix you can't re-verify on the original failure is not a fix.
 
-7. **Report and handoff.** What was wrong, why, the fix, the evidence, squawks. Commit as one conventional commit, per the jeremy_writing_style skill.
+7. **Report and handoff.** What was wrong, why, the fix, the evidence, squawks. Do not commit — propose /skill:jnk-commit for the history.
 
 ## Context hygiene
 
@@ -38,7 +38,7 @@ If at any point the root cause implies a large-scale or wide-blast-radius fix �
 
 ## Handoff
 
-If it landed, nothing to hand off — the fix is verified and committed. If it ejected, the next beat is /skill:jnk-1-understand (user-invoked). Do not start it.
+If it landed, nothing to hand off — the fix is verified; propose /skill:jnk-commit for the history. If it ejected, the next beat is /skill:jnk-1-understand (user-invoked). Do not start it.
 
 ## Do not
 

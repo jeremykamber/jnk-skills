@@ -59,15 +59,16 @@ The user adds or reprioritizes work during implementation — the route changed.
 
 ## Output
 
-Per-slice reports (what changed, checkpoint result, squawks) / The final ledger — every slice listed as landed, owed, or deferred / "Implementation complete — ready to verify" when the last slice lands.
+Per-slice reports (plain-language what changed, checkpoint result, squawks) / The final ledger — every slice listed as landed (with its what-changed), owed, or deferred / "Implementation complete — ready to verify" when the last slice lands.
 
 ## Handoff
 
-When the last slice lands, recommend /skill:jnk-7-verify as the next beat — and /skill:jnk-8-debrief to write the captain's log. Do not run the full verification sweep here: per-slice checkpoints only. The next beat begins when the user invokes it.
+When the last slice lands, recommend /skill:jnk-7-verify — and after verification, /skill:jnk-commit (user-invoked) writes the history; /skill:jnk-8-debrief closes the loop. Do not run the full verification sweep here: per-slice checkpoints only. The next beat begins when the user invokes it.
 
 ## Do not
 
 - Implement more than one slice without a gate.
 - Touch files outside the slice, or fix squawks mid-flight without asking.
 - Reorder the plan silently — new slices re-order the ledger out loud, or not at all.
+- Commit anything — history is written at the end, via /skill:jnk-commit (user-invoked).
 - Stay silent for the whole implementation.

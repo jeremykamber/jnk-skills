@@ -10,7 +10,7 @@ disable-model-invocation: true
 
 ## Purpose
 
-Turn the session's work into a history that reads like the story of what happened: each chapter a coherent commit, each message one line, simple language. (Conventional Commits: `type(scope): summary` — feat, fix, refactor, docs, chore, test, perf.)
+Turn the session's work into a history that reads like the story of what happened: each chapter a coherent commit, each message one line, simple language. (Conventional Commits: `type(scope): summary` — feat, fix, refactor, docs, chore, test, perf.) The agent never commits during work — this skill is the only place history gets written.
 
 ## Steps
 

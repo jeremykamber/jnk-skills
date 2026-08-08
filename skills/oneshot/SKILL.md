@@ -1,6 +1,6 @@
 ---
 name: jnk-oneshot
-description: Make a small, well-understood change end to end in one pass — no beat ceremony, no gates. User-invoked only via /skill:jnk-oneshot. Reads just enough, makes the smallest change, verifies with evidence, commits — and escalates to the full workflow if the change outgrows one shot.
+description: Make a small, well-understood change end to end in one pass — no beat ceremony, no gates. User-invoked only via /skill:jnk-oneshot. Reads just enough, makes the smallest change, verifies with evidence, reports — and escalates to the full workflow if the change outgrows one shot.
 disable-model-invocation: true
 ---
 
@@ -10,7 +10,7 @@ disable-model-invocation: true
 
 ## Purpose
 
-Make a small, well-understood change end to end in one shot: just enough understanding, the smallest change, honest verification, one report, one commit. No gates, no slices, no notebook — the commit is the record. This is the default for the 80% of work that is small and clear; the full beats are for when it isn't.
+Make a small, well-understood change end to end in one shot: just enough understanding, the smallest change, honest verification, one report. No gates, no slices, no notebook — the report is the record; history is written at the end, your call, via /skill:jnk-commit. This is the default for the 80% of work that is small and clear; the full beats are for when it isn't.
 
 ## When to eject
 
@@ -26,11 +26,11 @@ One shot is for changes you understand at a glance: a bug with a clear cause, a 
 
 4. **Evidence, not opinion.** Run the narrowest check that gives confidence: the touched tests, typecheck. On a failure, compare against pristine (stash → run → pop) before blaming anything. Report the numbers.
 
-5. **Commit and done.** Report: what changed, the verification result, squawks. Commit as one conventional commit (`type(scope): summary`, per the jeremy_writing_style skill) — never folding in unrelated WIP. No notebook entry: the commit is the record.
+5. **Report and hand off.** Report: what changed, the verification result, squawks. Do not commit — propose /skill:jnk-commit and let the user run it. No notebook entry: the report is the record.
 
 ## Do not
 
 - Use this on fuzzy, architectural, or multi-unknown work — eject and escalate.
 - Run the ceremony (gates, slices, decision records, notebook) — that is what one shot is for skipping.
 - Skip verification, or claim green without the narrowest run.
-- Commit work that is not the change.
+- Commit anything — history is written via /skill:jnk-commit, user-invoked.
