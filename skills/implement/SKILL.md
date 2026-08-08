@@ -16,7 +16,7 @@ Fly the approved plan one vertical slice at a time. The user stays in control; y
 
 At every gate, state the plan's current shape as a simple list, grouped by state:
 
-- **Done:** slice 1 — strategy prompt fix (checkpoint passed)
+- **Done:** slice 1 — strategy prompt fix — enumerated the required fields in the prompt so psychographics come back filled (checkpoint passed)
 - **In flight:** slice 3 — neutral names
 - **Owed:** slice 2 — ICP wiring (re-ordered behind slice 3)
 - **Deferred:** slice 5 — cluster prompt (squawked, user's call)
@@ -36,7 +36,7 @@ For each slice:
    - Make it pass with the smallest change.
    - Refactor — work, right, fast, in that order.
 
-3. **Checkpoint.** Run the slice's verification, plus anything it could have broken. Report: what changed, the result, any squawks.
+3. **Checkpoint.** Run the slice's verification, plus anything it could have broken. Report in plain language what you actually did — files touched, behavior changed — then the result and any squawks.
 
 4. **Update the ledger.** Move the slice to Done. State what is now owed or deferred.
 
