@@ -11,7 +11,7 @@ an impression with no line number is not a finding.
 
 Which skills were invoked, in what order (stats.json → skillInvocations)?
 
-- `jnk-0-resume` skipped when starting fresh: fine.
+- `jnk-0-pickup` skipped when starting fresh: fine.
 - `jnk-3-decide` skipped: acceptable, but then a decision record and callsign must
   exist somewhere — plan step 1 backfills them (verify that, don't assume).
 - `jnk-8-debrief` skipped: the loop's memory is missing unless `notes.md` exists.

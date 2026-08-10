@@ -44,7 +44,7 @@ Software complexity outgrew the individual memory — the same problem cockpits 
 
 Nine beats, in order. The arc is a double diamond: widen, narrow, widen, narrow.
 
-0. `/skill:jnk-0-resume` — the pre-flight briefing. Find prior work in the notebook, read what was learned, pick up the thread. (Skip when starting fresh.)
+0. `/skill:jnk-0-pickup` — pick up the thread. Find prior work in the notebook, read what was learned. (Skip when starting fresh.)
 1. `/skill:jnk-1-understand` — pre-flight inspection. Build ~70% understanding of the relevant code, map ownership, log unknowns as IOUs.
 2. `/skill:jnk-2-brainstorm` — the hammock. Think together with the tools off. No plans, no code, no verdicts. (Use this first when the problem is fuzzy; use understand first when the task is concrete.)
 3. `/skill:jnk-3-decide` — file the flight plan. Options weighed through lenses, a decision record, a callsign.
@@ -74,7 +74,7 @@ Every session writes to a notebook: `.ai/contexts/YYYY-MM-DD-<feature>/` — git
 └── verification/        # /skill:jnk-7-verify — results, when something remains unverified
 ```
 
-The loop that makes it work: the debrief names the next leg and the context path; `/skill:jnk-0-resume` reads it at the start of the next session. Written memories are debt if nothing reads them — resume is the reader.
+The loop that makes it work: the debrief names the next leg and the context path; `/skill:jnk-0-pickup` reads it at the start of the next session. Written memories are debt if nothing reads them — pickup is the reader.
 
 Keep it small: understand, decide, and debrief always write; the rest write only when the artifact earns keeping. Squawks are never silently forgiven — they land in the notebook at verify (`verification/results.md`, when anything was squawked) or debrief (`notes.md`, always). Until then, they live in the conversation.
 
@@ -94,8 +94,8 @@ Slice the work by what the user can see and touch — never by layer. A vertical
 
 - **Invocation.** `/skill:name` — e.g. `/skill:jnk-1-understand`.
 - **User-invoked only.** Every skill sets `disable-model-invocation`, so the AI never picks one up on its own; you decide when a beat starts. This keeps the AI's context small and removes the unpredictability of model-invoked skills. The cost is that you carry the map — that is what this manual is for. Every skill ends by naming the next beat — never by starting it; a beat begins when you invoke its skill.
-- **Expedited mode.** For small changes: understand → decide → plan → implement → verify. Add brainstorm when the problem is fuzzy, design when the shape matters, refactor when asked. Debrief is always cheap — take it. When continuing prior work, start with /skill:jnk-0-resume.
-- **Session hygiene.** Keep context utilization under ~60% — above that, attention degrades no matter how large the window is. Hitting it is a signal to avoid new heavy work, not to drop everything: finish the current beat so it writes its artifact — every completed beat is a seam (understanding, decisions, plans, notes). Then start fresh with /skill:jnk-0-resume, which reads the artifact and proposes the next beat. If you must stop truly mid-beat, checkpoint-write the partial state — rough beats lost. Alignment is the safe place to split; implementation is why the after-plan seam exists.
+- **Expedited mode.** For small changes: understand → decide → plan → implement → verify. Add brainstorm when the problem is fuzzy, design when the shape matters, refactor when asked. Debrief is always cheap — take it. When continuing prior work, start with /skill:jnk-0-pickup.
+- **Session hygiene.** Keep context utilization under ~60% — above that, attention degrades no matter how large the window is. Hitting it is a signal to avoid new heavy work, not to drop everything: finish the current beat so it writes its artifact — every completed beat is a seam (understanding, decisions, plans, notes). Then start fresh with /skill:jnk-0-pickup, which reads the artifact and proposes the next beat. If you must stop truly mid-beat, checkpoint-write the partial state — rough beats lost. Alignment is the safe place to split; implementation is why the after-plan seam exists.
 - **One-shot mode.** For small, well-understood changes: `/skill:jnk-oneshot` — one pass, no gates; escalates to the beats when the change grows. The default for quick fixes.
 - **Debugging mode.** `/skill:jnk-debug` — for broken behavior with an unknown cause: reproduce → diagnose → gate the diagnosis before fixing → verify on the original failure. Ejects to the beats when the fix is large-scale.
 - **Housekeeping.** `/skill:jnk-worktree` — isolate the session in its own worktree before the beats begin. `/skill:jnk-refactor` — maintenance in the hangar; optional, always with permission, never mid-implementation. `/skill:jnk-commit` — commit a session's work as a story of conventional commits.

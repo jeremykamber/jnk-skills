@@ -1,12 +1,12 @@
 ---
-name: jnk-0-resume
-description: Pick up where a previous session left off. User-invoked only via /skill:jnk-0-resume. Finds the work in the engineering notebook (.ai/contexts/), reads what was learned and what's unfinished, and presents the state before any beat starts.
+name: jnk-0-pickup
+description: Pick up where a previous session left off. User-invoked only via /skill:jnk-0-pickup. Finds the work in the engineering notebook (.ai/contexts/), reads what was learned and what's unfinished, and presents the state before any beat starts.
 disable-model-invocation: true
 ---
 
-# Resume
+# Pickup
 
-> Pre-flight briefing. Read the previous flight's log before you take the controls.
+> Pick up the thread. The notebook holds where you left off.
 
 ## Purpose
 
@@ -24,11 +24,11 @@ Pick up where a previous session left off. Find the work in the engineering note
    - Squawks and IOUs still open
    - The next leg — as the previous session named it
 
-4. **Gate.** Ask: "Is this the right place to resume?" Then propose the next beat — usually /skill:jnk-1-understand or /skill:jnk-5-plan. Do not start it until the user confirms.
+4. **Gate.** Ask: "Is this the right place to pick up?" Then propose the next beat — usually /skill:jnk-1-understand or /skill:jnk-5-plan. Do not start it until the user confirms.
 
 ## Do not
 
-- Plan, design, or implement during resume.
+- Plan, design, or implement during pickup.
 - Re-read git history or the whole codebase — the notebook is the source of truth for state.
 - Create a new context dir for existing work — reuse the one that exists.
 - Pretend a memory exists when nothing matches — say so.

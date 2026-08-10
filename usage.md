@@ -8,12 +8,12 @@ You are the pilot; the agent is the copilot. You decide when each step starts, y
 - **Every step ends with a question.** "Sound good?", "Approve the plan?", "Ready for slice N?" — that's a gate. Your answer is the workflow. One word usually suffices.
 - **Small fix → one-shot. Anything else → the beats.**
 - **Broken behavior → jnk-debug.** Reproduce first, gate the diagnosis, verify the fix on the original failure.
-- **Context at ~60% → finish the step, start a fresh session, resume.**
+- **Context at ~60% → finish the step, start a fresh session, pickup.**
 
 ## The modes
 
 | Mode | Use it for | What happens |
-|---|---|---|
+| --- | --- | --- |
 | `/skill:jnk-oneshot` | Small, well-understood fixes — the ~80% case | One pass, no questions: reads just enough, smallest change, verifies, reports — the commit is your call via /skill:jnk-commit. |
 | `/skill:jnk-debug` | Behavior is wrong, cause unknown | Reproduce → diagnose → gate the diagnosis → smallest fix → verify on the original failure. Ejects when the fix is large-scale. |
 | **Expedited** (no skill — just skip beats) | Small feature that needs some thought | understand → decide → plan → implement → verify, with gates. |
@@ -32,9 +32,9 @@ Rule of thumb: start with one-shot. If it tells you the change outgrew it (it "e
 >
 > You: `/skill:jnk-1-understand` — and off you go.
 
-**Continuing work — just resume, it reads the notebook:**
+**Continuing work — just pickup, it reads the notebook:**
 
-> You: `/skill:jnk-0-resume`
+> You: `/skill:jnk-0-pickup`
 > Continue the persona work.
 >
 > Agent: "Resuming *persona-pipeline*: model agreed, IOUs 1–3 in scope, squawks open on the cluster prompt. Next beat: decide."
@@ -69,7 +69,7 @@ No gates. If the request is ambiguous it asks once, then goes. If the change tur
 
 ## The notebook — the memory you never read
 
-The agent writes its understanding, decisions, and session log to `.ai/contexts/<date>-<feature>/` (gitignored, local to the project). You don't need to look at it. It exists so a *future* session — or a crash, or a context split — can pick up the thread. `resume` reads it; nothing is remembered unless it's written.
+The agent writes its understanding, decisions, and session log to `.ai/contexts/<date>-<feature>/` (gitignored, local to the project). You don't need to look at it. It exists so a *future* session — or a crash, or a context split — can pick up the thread. `pickup` reads it; nothing is remembered unless it's written.
 
 ## Squawks — debt, logged not hidden
 
@@ -86,16 +86,16 @@ Attention degrades as the context fills, no matter how big the window is. **Keep
 **What to do at ~60%:**
 
 1. **Finish the current beat.** Its remaining work is usually small, and it writes its artifact to the notebook — every completed beat is a safe place to split.
-2. **Start a fresh session** with `/skill:jnk-0-resume`. It reads the artifact and proposes the next beat. Done.
+2. **Start a fresh session** with `/skill:jnk-0-pickup`. It reads the artifact and proposes the next beat. Done.
 3. **Only if you must stop truly mid-beat**: have the agent checkpoint-write its partial state first — a rough file beats a lost session.
 
 **Where you are decides how easy it is:**
 
 | Where you hit 60% | Pain | What to do |
-|---|---|---|
-| Mid-**alignment** (understand/decide/plan) | Low — the state is a few lines in the notebook | Finish the current beat, split, resume proposes the next beat. |
+| --- | --- | --- |
+| Mid-**alignment** (understand/decide/plan) | Low — the state is a few lines in the notebook | Finish the current beat, split, pickup proposes the next beat. |
 | **Before implementation** (after plan) | The ideal seam | The plan file *is* the alignment, serialized. Fresh session reads it and implements. |
-| **Mid-implementation** | The awkward one — state is the working tree + conversation | Finish the slice if you can; otherwise checkpoint the ledger + squawks, split, resume. |
+| **Mid-implementation** | The awkward one — state is the working tree + conversation | Finish the slice if you can; otherwise checkpoint the ledger + squawks, split, pickup. |
 
 **Example — the ideal split, before implementation:**
 
@@ -116,7 +116,7 @@ Attention degrades as the context fills, no matter how big the window is. **Keep
 > You: "We're at ~60% and I'm still mid-understand. Finish the beat."
 > Agent: writes `understanding.md` (model + open IOUs), then: "The next beat is decide — start it with /skill:jnk-3-decide when you're ready."
 > (New session)
-> You: `/skill:jnk-0-resume`
+> You: `/skill:jnk-0-pickup`
 > Agent: "Resuming: model agreed, IOU-2 still open, next beat is decide."
 
 **Example — emergency, truly mid-beat:**
