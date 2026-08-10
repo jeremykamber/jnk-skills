@@ -18,7 +18,7 @@ Think before deciding. No plans, no code, no verdicts. Most of the valuable pair
 
 2. **The right problem.** The stated problem is usually not the real problem. Ask: what is the goal under the goal? What would "done" feel like? Is this even the right problem to solve?
 
-3. **Diverge.** Generate several framings and candidate directions, including the wild one. Invite "what if we didn't have X at all?"
+3. **Diverge.** Generate several framings and candidate directions, including the wild one. Invite "what if we didn't have X at all?" The non-wild candidates must be genuinely good — real directions a reasonable engineer could take, not props to make a favorite look obvious.
 
 4. **First principles.** For each direction: what is the system for? What is the smallest thing that could possibly work?
 

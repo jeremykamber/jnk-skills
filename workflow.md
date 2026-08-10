@@ -23,6 +23,7 @@ A successful session produces two outcomes:
 - **The AI accelerates judgment; it does not replace it.** The AI never becomes a black box that writes code the human does not understand.
 - **Tests define success.** Before implementation, the human and AI agree on what success means and how it will be verified.
 - **Smallest coherent change.** Every change should be the smallest one that fully solves the problem, and should leave the system easier to understand, modify, and extend.
+- **No strawmen.** Every alternative, contrarian take, and failure path must be one a reasonable engineer could genuinely choose or believe. Filler options and token objections validate nothing — a decision is only real when its alternatives are.
 
 ---
 

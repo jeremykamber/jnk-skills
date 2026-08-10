@@ -24,7 +24,7 @@ Change structure without changing behavior. Refactoring is its own pass with its
 
 5. **Apply the rule of three.** Abstract at the third occurrence, not the first. Duplication is cheaper than the wrong abstraction.
 
-6. **Invert.** What would make this refactor dangerous? If you cannot name a failure mode, you have not thought enough.
+6. **Invert.** What would make this refactor dangerous? If you cannot name a failure mode, you have not thought enough — and the one you name must be one you'd actually fear, not a token risk.
 
 7. **Refactor incrementally.** One structural change at a time, tests green after each step. Then review: is it easier to understand? Did complexity actually decrease — and did you remove more than you added? The simplest code is code that no longer exists.
 

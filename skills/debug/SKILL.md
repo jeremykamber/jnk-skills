@@ -20,7 +20,7 @@ Turn "something's wrong" into a reproduced failure, a named root cause, a smalle
 
 3. **What changed?** Most bugs are regressions. Git archaeology: recent commits touching the area, blame, the diff from last-known-good. Name the change that introduced the behavior — or say clearly that the bug is old.
 
-4. **Hypotheses, one at a time.** State a falsifiable hypothesis, test it (bisect, instrument, minimize), record the result. Change one variable per test — every uncontrolled change destroys information. A failed hypothesis is evidence, not a dead end. If you've tried the same thing twice, stop and re-read the evidence instead of retrying.
+4. **Hypotheses, one at a time.** State a falsifiable hypothesis, test it (bisect, instrument, minimize), record the result. Change one variable per test — every uncontrolled change destroys information. A failed hypothesis is evidence, not a dead end. If you've tried the same thing twice, stop and re-read the evidence instead of retrying. Competing hypotheses must each be plausible — a strawman hypothesis tests nothing.
 
 5. **Name the root cause — gate.** State the cause precisely: what fails, where, why, since when. Then STOP. Present it and ask: "Does this feel right and true? Any hunches or instincts I should check first?" The user knows the system; their instinct is evidence. Wait for the answer. If the root cause implies a large-scale or wide-blast-radius fix, say so here — that is the eject.
 

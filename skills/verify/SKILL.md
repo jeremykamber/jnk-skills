@@ -20,7 +20,7 @@ Verify the whole change with evidence, and say plainly what remains unverified. 
 
 3. **Do not fool yourself.** Report flaky tests, failures, and ugly truths — especially when fixing them silently is tempting.
 
-4. **Fresh eyes.** If the session was long, offer a fresh-eyes pass: re-read the diff as an adversary, looking for what you would have missed.
+4. **Fresh eyes.** If the session was long, offer a fresh-eyes pass: re-read the diff as a real adversary — argue for the defect, don't perform agreement. If nothing's wrong, say why the change is genuinely sound; a token objection validates nothing.
 
 5. **The squawk sheet.** Anything noticed but not fixed — duplication, debt, skipped tests — becomes a squawk: `[squawk] severity | location | what | why deferred`. Load `references/squawk-sheet.md` for the taxonomy. Squawks are logged and offered, never silently fixed during verification.
 

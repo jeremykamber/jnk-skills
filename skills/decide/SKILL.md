@@ -20,14 +20,14 @@ Apply these to every option; name the lens you are using:
 - **Wrong abstraction** (Metz). Duplication is far cheaper than the wrong abstraction. Abstract at the third occurrence (Rule of Three), not the first.
 - **Smallest coherent change.** The least complex option that fully solves the problem. Start simple and let complexity be earned.
 - **The next engineer.** Which option will the next person to touch this find obvious? Write for readers, not authors.
-- **Inversion.** Ask: what would make this choice fail? Which failure mode can we survive? Pick the option whose failure you can foresee — and write that failure mode down.
+- **Inversion.** Ask: what would make this choice fail? Which failure mode can we survive? Pick the option whose failure you can foresee — and write down the failure mode you'd actually fear, not a token one.
 - **No futures yet.** Do not optimize for requirements that have not arrived.
 
 ## Steps
 
 1. **Define success together.** What behavior changes? What must not change? What does "done" mean? How will we verify? (Tests represent intent — not "the code runs".)
 
-2. **Generate options.** Meaningful alternatives only — the ones worth debating. For each: approach, pros, cons, cost. No filler options.
+2. **Generate options.** Meaningful alternatives only — the ones worth debating, and each one you could genuinely see implementing. For each: approach, pros, cons, cost. No filler options, no strawmen — if an option can't win on its merits, it isn't an option.
 
 3. **Debate with the lenses.** Challenge your own and the user's assumptions. Seek the strongest reasoning, not agreement. Where lenses point in different directions, say so.
 
