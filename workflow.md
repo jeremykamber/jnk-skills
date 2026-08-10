@@ -49,9 +49,9 @@ Nine beats, in order. The arc is a double diamond: widen, narrow, widen, narrow.
 1. `/skill:jnk-1-understand` — pre-flight inspection. Build ~70% understanding of the relevant code, map ownership, log unknowns as IOUs.
 2. `/skill:jnk-2-brainstorm` — the hammock. Think together with the tools off. No plans, no code, no verdicts. (Use this first when the problem is fuzzy; use understand first when the task is concrete.)
 3. `/skill:jnk-3-decide` — file the flight plan. Options weighed through lenses, a decision record, a callsign.
-4. `/skill:jnk-4-design` — the simulator. ASCII first, failure paths designed, prototypes when needed.
-5. `/skill:jnk-5-plan` — waypoints and checkpoints. Vertical slices, each with its own verification.
-6. `/skill:jnk-6-implement` — fly the route. One slice at a time, red-green-refactor, the slice ledger stays visible, hold short between slices.
+4. `/skill:jnk-4-design` — the simulator. ASCII first, contracts and failure paths designed, prototypes when needed.
+5. `/skill:jnk-5-plan` — waypoints and checkpoints. Vertical slices, each with its own verification and review intensity.
+6. `/skill:jnk-6-implement` — fly the route. One slice at a time, red-green-refactor, adversarial review where the plan calls for it, the slice ledger stays visible, hold short between slices.
 7. `/skill:jnk-7-verify` — post-flight inspection. Data, not opinion. Squawk sheet, IOU reconciliation.
 8. `/skill:jnk-8-debrief` — the captain's log. What landed, squawks, the next leg.
 

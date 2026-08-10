@@ -38,9 +38,11 @@ For each slice:
 
 3. **Checkpoint.** Run the slice's verification, plus anything it could have broken. Report in plain language what you actually did — files touched, behavior changed — then the result and any squawks.
 
-4. **Update the ledger.** Move the slice to Done. State what is now owed or deferred.
+4. **Adversarial review (when the plan calls for it).** If the plan marked this slice for review, spawn a skeptical senior-developer subagent over the slice's diff, briefed by `references/reviewer-brief.md`. Triage its findings: fix the real ones, squawk or reject the strawmen — the review either finds real defects or says plainly there are none, and says why.
 
-5. **Gate.** Show the ledger and ask: "Ready for the next slice?" Wait for the user. Do not proceed without clearance.
+5. **Update the ledger.** Move the slice to Done. State what is now owed or deferred.
+
+6. **Gate.** Show the ledger and ask: "Ready for the next slice?" Wait for the user. Do not proceed without clearance.
 
 ## Scope changes mid-flight
 

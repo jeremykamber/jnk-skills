@@ -28,6 +28,7 @@ Slice the work by what the user can see and touch — never by layer. No "all th
    - What changes (files and areas)
    - Its checkpoint — the narrowest verification that gives confidence (a test, a typecheck, a manual path)
    - What it leaves working
+   - Whether it earns an **adversarial review** before its gate, and why. Slices with subtle logic, state, concurrency, LLM-dependent output, parsing, or integration seams get one; mechanical slices don't. Spend the review budget where the risk is.
 
 3. **Order them.** Riskiest unknown first (tracer bullet), dependencies second. No slices for speculative features.
 
