@@ -10,7 +10,11 @@ disable-model-invocation: true
 
 ## Purpose
 
-Judge the workflow by its receipts: a real pi session's reasoning traces and behavior. Produce a per-skill verdict — worked / not exercised / needs change — backed by counts and quoted moments, and propose the smallest evidence-based edits. The workflow improves through use; this is the instrument that reads the flight recorder.
+Judge the workflow by its receipts: a real pi session's reasoning traces and behavior. Produce a per-skill verdict — worked / not exercised / needs change — backed by counts and quoted moments, and propose the smallest evidence-based edits. The workflow improves through use; this is the instrument that reads the trace.
+
+## When to eval
+
+On a failure moment — a session that went sideways, a catalog item that fired, a skill that confused you — not as routine. The workflow exists to ship; if you find yourself eval-ing more than building, stop and ship. Quarterly, ask the bigger question: does the workflow still pay for itself? If the beats feel heavier than the problems they solve, simplify — this skill is also the instrument that tells you which beats to cut.
 
 ## Steps
 

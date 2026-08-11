@@ -12,10 +12,10 @@ an impression with no line number is not a finding.
 Which skills were invoked, in what order (stats.json → skillInvocations)?
 
 - `jnk-0-pickup` skipped when starting fresh: fine.
-- `jnk-3-decide` skipped: acceptable, but then a decision record and callsign must
-  exist somewhere — plan step 1 backfills them (verify that, don't assume).
-- `jnk-8-debrief` skipped: the loop's memory is missing unless `notes.md` exists.
-- `jnk-oneshot` invoked: a legitimate compression of the arc, not skipped beats — but verify it stayed small and ejected when the change grew.
+- `jnk-3-decide` skipped: acceptable, but then a decision record and thread name must
+  exist somewhere — design step 1 backfills them (verify that, don't assume).
+- `jnk-7-debrief` skipped: the loop's memory is missing unless `notes.md` exists.
+- `jnk-oneshot` invoked: a legitimate compression of the arc, not skipped beats — but verify it stayed small and escalated when the change grew.
 - `jnk-debug` invoked: a legitimate mode — verify it reproduced before diagnosing, gated the diagnosis before fixing, and re-verified the original failure before declaring fixed.
 - A beat's output handed to the next beat without a gate? A skill invoked
   mid-beat?
@@ -29,6 +29,12 @@ Every beat and every slice ends with a clearance question, and the agent waits.
 - "continue" from the user clears the specific gate the agent asked — it is not a
   license to run the whole plan. If the agent never asked, "continue" changes
   nothing.
+- The debrief's teach-back: did the user articulate what changed in their own
+  words, or did the agent narrate and the user pass? The session's second
+  outcome is verified only by the user's own words. Check the message order:
+  if the agent's summary precedes the user's answer ("my version to compare"
+  in the asking message), the teach-back is contaminated — the user echoes
+  instead of recalls.
 - A scope change during implementation is clearance for that slice only. Check
   whether the slice ledger got re-stated (Lens 4, failure catalog #1).
 
@@ -36,11 +42,14 @@ Every beat and every slice ends with a clearance question, and the agent waits.
 
 The notebook is the loop's memory; resume reads it. Check *writes*, not mentions:
 
-- `understanding.md` (after jnk-1), `decisions.md` (after jnk-3), `plans/` (when
+- `understanding.md` (after jnk-1), `docs/adr/` (after jnk-3), `docs/designs/` (after jnk-4), `plans/` (when
   the plan earns keeping), `verification/results.md` (when something remains
-  unverified or squawked), `notes.md` (after jnk-9).
+  unverified or squawked), `notes.md` (after jnk-7).
 - stats.json → artifacts + artifactWrites: a toolCall named `write` whose path
-  contains `.ai/contexts` is a write; any other mention is not.
+  contains `.ai/contexts`, `docs/adr`, `docs/designs`, or `docs/external` is a write; any other
+  mention is not.
+- Durability: are `docs/adr/` and `notes.md` committed (or otherwise backed
+  up)? Zero durability = the loop has no backup.
 - Zero writes = memory dead, even if every beat went well. This is the biggest
   failure mode in real sessions.
 
@@ -49,15 +58,15 @@ The notebook is the loop's memory; resume reads it. Check *writes*, not mentions
 Reasoning traces are the adoption evidence (stats.json → leadingWords, counted
 as occurrences and distinct blocks).
 
-- **discipline** (gate, checkpoint, squawk, iou, blast radius, hold short): high
+- **discipline** (gate, checkpoint, squawk, iou, blast radius): high
   = the agent internalized the behaviors. Healthiest category.
 - **doctrine** (vertical slice, tracer bullet, walking skeleton, red-green):
   medium is normal. Zero occurrences with the behavior present = the words don't
   stick but the behavior does — acceptable; note it.
-- **artifact** (callsign, ledger, owed, notebook, debrief, the .md paths): high
+- **artifact** (thread name, ledger, owed, notebook, debrief, the .md paths): high
   is the goal (the thing was named because it was written). Low = the writes are
   being skipped — cross-check Lens 3 before concluding.
-- **scenery** (pre-flight, hangar, runway, hammock, simulator, captain's log):
+- **scenery** (metaphor words — near zero is healthy):
   tells you nothing about behavior. High scenery + missing behavior = the no-op
   tell: the agent mirrored the metaphor and did not do the thing.
 - **Echo effect:** right after a skill is invoked, the agent's reasoning restates
@@ -75,9 +84,9 @@ Check each; cite the moment if it fired.
 2. **Notebook never written.** See Lens 3.
 3. **No decision record when decide was skipped.** The plan "confirms the
    decision" but no record exists. Detection: plan text + nothing in
-   `decisions.md` / `.ai/contexts`.
+   `docs/adr/`.
 4. **Gate waved.** "continue" taken as blanket clearance, or a scope change
-   absorbed into the in-flight slice without announcing a new slice.
+   absorbed into the current slice without announcing a new slice.
 5. **Red-green skipped.** Tests written alongside the fix, never watched fail
    against the unfixed code. Detection: the toolCall order around a slice's
    first edit (edit → edit → run, versus write-test → run → fail → fix).
@@ -92,12 +101,19 @@ Check each; cite the moment if it fired.
    amended twice and spanned sittings, never saved. The plan file is where the
    amended route lives.
 10. **Scenery replacing engineering.** A leading word in a step is pure scenery
-    and the behavior it names has an engineering word available (hangar vs
-    worktree, runway vs main). Flag it — it fails the training-data test.
+    and the behavior it names has a plain engineering word available. Flag it —
+    it fails the training-data test.
 11. **Beat bleeding.** A skill produces the next beat's artifact — understand's
     output contains a plan, implement runs the full verification sweep. A beat
     ends with a handoff that names the next beat; it never starts it.
     Detection: the skill's output section vs its "Do not" list.
+12. **Teach-back skipped or contaminated.** The debrief's arc was narrated by
+    the agent, or the agent answered its own teach-back question before the
+    user replied ("my one-liner to compare" in the asking message), so the
+    user never articulated in their own words; the session's second outcome
+    went unverified. Detection: the debrief block — user's own words vs agent
+    narration, and the message order between the ask and the answer. The fix
+    lives in debrief.
 
 ## Lens 6 — The Pocock sweep
 
@@ -105,7 +121,7 @@ Load `references/pocock.md` and run the four-part checklist over the workflow's 
 
 - **Trigger** — user-invoked with `disable-model-invocation: true` and a description that says when to fire. (Consistent by design; flag any drift.)
 - **Structure** — steps and reference separated; branch-only material behind context pointers that resolve to real files; SKILL.md as small as it can be.
-- **Steering** — leading words pass the training-data test and are repeated, not stated once; no scenery word sitting where an engineering word exists (hangar vs worktree).
+- **Steering** — leading words pass the training-data test and are repeated, not stated once; no scenery word sitting where a plain engineering word exists.
 - **Pruning** — deletion test on non-step lines; no duplication across skills; no sediment.
 
 Per-skill verdict: **Matt would approve** — or the specific failing check, named.
@@ -139,7 +155,7 @@ fix, 2026-08-06):
 
 - Discipline adoption high: IOU 75, checkpoint 31, blast radius 15, squawk 15 —
   all in reasoning traces.
-- Artifact words near zero (callsign 0, notebook 0) and zero notebook writes:
+- Artifact words near zero (thread name 0, notebook 0) and zero notebook writes:
   that is the *unhealthy* pattern — the beats worked, the memory was still lost.
 - Scenery near zero (2): the aviation frame shaped the conversation, not the
   behavior — the engineering words did the steering.

@@ -10,13 +10,15 @@
 \bsquawks?\b|discipline
 \biou(?:s)?\b|discipline
 \bblast radius\b|discipline
-\bhold short\b|discipline
 \bhandoffs?\b|discipline
-\beject(?:s|ed|ing)?\b|discipline
+\bescalat\w*\b|discipline
 \breproduce\w*\b|discipline
 \broot cause\b|discipline
 \bhypothes\w*\b|discipline
 \bbisect\w*\b|discipline
+\bteach[- ]backs?\b|discipline
+\bmeasured by\b|discipline
+\buncertain choices?\b|discipline
 
 # --- doctrine: planning/implementation principles ---
 \bvertical slices?\b|doctrine
@@ -25,13 +27,16 @@
 \bred[- ]green\b|doctrine
 
 # --- artifact: things the workflow must write or name ---
-\bcallsigns?\b|artifact
+\bthread names?\b|artifact
 \bledgers?\b|artifact
 \bowed\b|artifact
 \bnotebooks?\b|artifact
 \bdebriefs?\b|artifact
 understanding\.md|artifact
 decisions\.md|artifact
+docs/adr|artifact
+docs/designs|artifact
+docs/external|artifact
 notes\.md|artifact
 verification/results\.md|artifact
 \.ai/contexts|artifact

@@ -14,6 +14,7 @@ Two kinds:
 Both cost something — the choice is which load you pay. Pocock prefers user-invoked for predictability; it removes a whole class of problem (does it fire at the right time?) instead of adding eval burden.
 
 Checks:
+
 - [ ] Which kind is it, and is that the right trade for this skill?
 - [ ] If model-invoked: does the description say *when* to fire? (A good context pointer.)
 
@@ -24,6 +25,7 @@ Two units: **steps** (the procedure) and **reference** (supporting information �
 Branches: when a skill is used several ways, reference material that only matters for one branch belongs in an *external reference* — a separate file behind a context pointer ("if you need the template, go to this file"), bundled with the skill. That keeps SKILL.md small.
 
 Checks:
+
 - [ ] Steps and reference are separated.
 - [ ] Branch-only material is behind a context pointer, not inline.
 - [ ] Every context pointer resolves to a real file.
@@ -35,7 +37,8 @@ Checks:
 **Leg work** — agents rush early steps toward a known goal (ask-clarifying-questions is the classic; it never does enough work when the plan step is visible). The fix: split phases into separate skills so the agent only sees the current step. Hiding the future goal increases effort on the present one.
 
 Checks:
-- [ ] Every leading word passes the training-data test: does the agent already associate it with the behavior? (vertical slice yes; hangar no.)
+
+- [ ] Every leading word passes the training-data test: does the agent already associate it with the behavior? (vertical slice yes; a metaphor word no.)
 - [ ] Leading words are repeated through the skill, not stated once.
 - [ ] Steps that need deep leg work aren't visible next to their payoff.
 
@@ -46,6 +49,7 @@ Checks:
 - **No-ops** — text that looks like it does something but doesn't change behavior. The **deletion test**: if you delete the line, does the agent behave differently? If not, it's a no-op.
 
 Checks:
+
 - [ ] Deletion test passes on every non-step line.
 - [ ] No duplication — single source of truth.
 - [ ] No sediment — nothing irrelevant or stale.

@@ -24,6 +24,7 @@ Notes:
 Usage:
   python3 scripts/extract.py <transcript.jsonl|transcript.html> [outdir]
 """
+
 import argparse
 import base64
 import json
@@ -31,19 +32,37 @@ import os
 import re
 import sys
 
+
+def read_or_exit(path):
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            return f.read()
+    except OSError as e:
+        sys.exit(f"extract.py: cannot read {path}: {e}")
+
+
+def write_or_exit(path, content):
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(content)
+    except OSError as e:
+        sys.exit(f"extract.py: cannot write {path}: {e}")
+
+
 # --------------------------------------------------------------------------
 # loading
 # --------------------------------------------------------------------------
 
+
 def load_entries(path):
-    data = open(path, "r", encoding="utf-8", errors="replace").read()
+    data = read_or_exit(path)
     if path.endswith(".html"):
         m = re.search(r"<script[^>]*>(.*?)</script>", data, re.S)
         if not m:
             sys.exit("extract.py: no <script> tag found in HTML export")
         try:
             obj = json.loads(base64.b64decode(m.group(1).strip()))
-        except Exception as e:
+        except ValueError as e:
             sys.exit(f"extract.py: could not base64-decode HTML export: {e}")
         entries = obj.get("entries") if isinstance(obj, dict) else obj
         if not isinstance(entries, list):
@@ -55,21 +74,28 @@ def load_entries(path):
             continue
         try:
             entries.append(json.loads(line))
-        except json.JSONDecodeError:
-            sys.exit(f"extract.py: line {i} is not valid JSON")
+        except json.JSONDecodeError as e:
+            sys.exit(f"extract.py: line {i} is not valid JSON: {e}")
     return entries
+
 
 # --------------------------------------------------------------------------
 # rendering
 # --------------------------------------------------------------------------
 
+
 def render_entry(entry):
     """Return a list of (kind, text) blocks for one entry."""
     etype = entry.get("type")
     if etype == "session":
-        return [("meta", f"SESSION {entry.get('id','?')} cwd={entry.get('cwd','?')}")]
+        return [("meta", f"SESSION {entry.get('id', '?')} cwd={entry.get('cwd', '?')}")]
     if etype in ("model_change", "thinking_level_change"):
-        return [("meta", f"{etype}: {json.dumps({k: v for k, v in entry.items() if k not in ('id','parentId')})}")]
+        return [
+            (
+                "meta",
+                f"{etype}: {json.dumps({k: v for k, v in entry.items() if k not in ('id', 'parentId')})}",
+            )
+        ]
     if etype != "message":
         return [("meta", f"{etype}: {json.dumps(entry, default=str)[:400]}")]
 
@@ -90,9 +116,9 @@ def render_entry(entry):
             if isinstance(args, str):
                 try:
                     args = json.loads(args)
-                except Exception:
-                    pass
-            blocks.append(("toolCall", f"{p.get('name','?')} {json.dumps(args)}"))
+                except json.JSONDecodeError as e:
+                    args = {"raw": args, "parseError": str(e)}
+            blocks.append(("toolCall", f"{p.get('name', '?')} {json.dumps(args)}"))
         elif t == "toolResult":
             txt = p.get("text")
             if txt is None:
@@ -101,21 +127,25 @@ def render_entry(entry):
                 txt = json.dumps(txt)
             blocks.append(("toolResult", str(txt)))
         else:
-            blocks.append(("meta", f"unknown part {t}: {json.dumps(p, default=str)[:400]}"))
+            blocks.append(
+                ("meta", f"unknown part {t}: {json.dumps(p, default=str)[:400]}")
+            )
     return blocks
+
 
 # --------------------------------------------------------------------------
 # assembly
 # --------------------------------------------------------------------------
 
 HEADER = {
-    "user":       "### [user TEXT] line{start}",
-    "assistant":  "### [assistant TEXT] line{start}",
-    "thinking":   "### [thinking] line{start}",
-    "toolCall":   ">>> [toolCall line{start}] {text}",
+    "user": "### [user TEXT] line{start}",
+    "assistant": "### [assistant TEXT] line{start}",
+    "thinking": "### [thinking] line{start}",
+    "toolCall": ">>> [toolCall line{start}] {text}",
     "toolResult": "<<< [toolResult line{start}]",
-    "meta":       "## {text}",
+    "meta": "## {text}",
 }
+
 
 def assemble(entries):
     """Build transcript lines + parallel block index.
@@ -143,56 +173,35 @@ def assemble(entries):
                 transcript.extend(text.split("\n"))
     return "\n".join(transcript), think_blocks, block_index
 
+
 # --------------------------------------------------------------------------
 # stats
 # --------------------------------------------------------------------------
 
+
 def load_leading_words(script_dir):
-    """word|category per line, regex allowed, case-insensitive."""
+    """word|category per line, regex allowed, case-insensitive.
+
+    Single source of truth: the file. An embedded default would drift
+    and become a second source of truth — refuse to run without the file.
+    """
     path = os.path.join(script_dir, "..", "references", "leading-words.txt")
-    default = [
-        (r"\bgates?\b", "discipline"),
-        (r"\bcheckpoints?\b", "discipline"),
-        (r"\bsquawks?\b", "discipline"),
-        (r"\biou(?:s)?\b", "discipline"),
-        (r"\bblast radius\b", "discipline"),
-        (r"\bhold short\b", "discipline"),
-        (r"\bvertical slices?\b", "doctrine"),
-        (r"\btracer bullets?\b", "doctrine"),
-        (r"\bwalking skeletons?\b", "doctrine"),
-        (r"\bred[- ]green\b", "doctrine"),
-        (r"\bcallsigns?\b", "artifact"),
-        (r"\bledgers?\b", "artifact"),
-        (r"\bowed\b", "artifact"),
-        (r"\bnotebooks?\b", "artifact"),
-        (r"\bdebriefs?\b", "artifact"),
-        (r"understanding\.md", "artifact"),
-        (r"decisions\.md", "artifact"),
-        (r"notes\.md", "artifact"),
-        (r"verification/results\.md", "artifact"),
-        (r"\.ai/contexts", "artifact"),
-        (r"\bpre[- ]flight\b", "scenery"),
-        (r"\bhangars?\b", "scenery"),
-        (r"\brunways?\b", "scenery"),
-        (r"\bhammocks?\b", "scenery"),
-        (r"\bsimulators?\b", "scenery"),
-        (r"\bcaptain'?s log\b", "scenery"),
-        (r"\bflight plans?\b", "scenery"),
-    ]
+    if not os.path.exists(path):
+        sys.exit(
+            f"extract.py: missing {path} — the leading-words list is the single source of truth"
+        )
     entries = []
-    if os.path.exists(path):
-        for raw in open(path, encoding="utf-8"):
-            raw = raw.strip()
-            if not raw or raw.startswith("#"):
-                continue
-            if "|" in raw:
-                pat, cat = raw.rsplit("|", 1)
-            else:
-                pat, cat = raw, "other"
-            entries.append((pat, cat.strip()))
-    else:
-        entries = default
+    for raw in read_or_exit(path).splitlines():
+        raw = raw.strip()
+        if not raw or raw.startswith("#"):
+            continue
+        if "|" in raw:
+            pat, cat = raw.rsplit("|", 1)
+        else:
+            pat, cat = raw, "other"
+        entries.append((pat, cat.strip()))
     return [(re.compile(p, re.IGNORECASE), c) for p, c in entries]
+
 
 def compute_stats(entries, think_blocks, block_index, script_dir):
     stats = {}
@@ -202,7 +211,7 @@ def compute_stats(entries, think_blocks, block_index, script_dir):
         if e.get("type") == "message":
             r = (e.get("message") or {}).get("role", "?")
             roles[r] = roles.get(r, 0) + 1
-    counts = {"entries": len(entries)}
+    counts: dict = {"entries": len(entries)}
     for e in entries:
         k = "entry_" + (e.get("type") or "?")
         counts[k] = counts.get(k, 0) + 1
@@ -217,7 +226,9 @@ def compute_stats(entries, think_blocks, block_index, script_dir):
     counts["blocks"] = block_kinds
     counts["toolCallNames"] = toolnames
     counts["thinkingBlocks"] = len(think_blocks)
-    counts["assistantChars"] = sum(len(t) for _, k, t in block_index if k == "assistant")
+    counts["assistantChars"] = sum(
+        len(t) for _, k, t in block_index if k == "assistant"
+    )
     counts["thinkingChars"] = sum(len(t) for _, t in think_blocks)
     stats["counts"] = counts
 
@@ -225,7 +236,8 @@ def compute_stats(entries, think_blocks, block_index, script_dir):
     stats["skillInvocations"] = [
         {"name": m.group(1), "line": start}
         for start, kind, text in block_index
-        if kind == "user" for m in re.finditer(r'<skill name="([^"]+)"', text)
+        if kind == "user"
+        for m in re.finditer(r'<skill name="([^"]+)"', text)
     ]
 
     # leading words on thinking traces: occurrences AND distinct blocks
@@ -239,7 +251,12 @@ def compute_stats(entries, think_blocks, block_index, script_dir):
             if n:
                 hits.append(start)
                 occ += n
-        words[pat.pattern] = {"category": cat, "occurrences": occ, "blocks": len(hits), "lines": hits}
+        words[pat.pattern] = {
+            "category": cat,
+            "occurrences": occ,
+            "blocks": len(hits),
+            "lines": hits,
+        }
         cats[cat] = cats.get(cat, 0) + occ
     stats["leadingWords"] = words
     stats["leadingWordCategories"] = cats
@@ -256,9 +273,12 @@ def compute_stats(entries, think_blocks, block_index, script_dir):
     artifacts = {}
     writes = []
     for start, kind, text in block_index:
-        if kind == "toolCall" and text.startswith("write "):
-            if re.search(r"\.ai/contexts", text):
-                writes.append({"line": start, "call": text[:200]})
+        if (
+            kind == "toolCall"
+            and text.startswith("write ")
+            and re.search(r"\.ai/contexts", text)
+        ):
+            writes.append({"line": start, "call": text[:200]})
         for pat, label in artifact_pats:
             if pat.search(text):
                 a = artifacts.setdefault(label, {"count": 0, "lines": []})
@@ -268,39 +288,65 @@ def compute_stats(entries, think_blocks, block_index, script_dir):
     stats["artifactWrites"] = writes
 
     # gates in visible assistant text
-    gate_pat = re.compile(r"\bReady for\b|\bReady to\b|\bApprove\b|\bSound good\b|\bIs this right\b", re.I)
-    gates = [start for start, kind, text in block_index if kind == "assistant" and gate_pat.search(text)]
+    gate_pat = re.compile(
+        r"\bReady for\b|\bReady to\b|\bApprove\b|\bSound good\b|\bIs this right\b", re.I
+    )
+    gates = [
+        start
+        for start, kind, text in block_index
+        if kind == "assistant" and gate_pat.search(text)
+    ]
     stats["gates"] = {"count": len(gates), "lines": gates}
 
     # squawks
     sq_pat = re.compile(r"\[squawk\]", re.I)
-    squawks = [start for start, kind, text in block_index if kind in ("assistant", "thinking") and sq_pat.search(text)]
+    squawks = [
+        start
+        for start, kind, text in block_index
+        if kind in ("assistant", "thinking") and sq_pat.search(text)
+    ]
     stats["squawks"] = {"count": len(squawks), "lines": squawks}
 
     # slices + owed in assistant text
     sl_pat = re.compile(r"\bslice\b", re.I)
-    slices = [start for start, kind, text in block_index if kind == "assistant" and sl_pat.search(text)]
+    slices = [
+        start
+        for start, kind, text in block_index
+        if kind == "assistant" and sl_pat.search(text)
+    ]
     ow_pat = re.compile(r"\bowed\b", re.I)
-    owed = [start for start, kind, text in block_index if kind in ("assistant", "thinking") and ow_pat.search(text)]
+    owed = [
+        start
+        for start, kind, text in block_index
+        if kind in ("assistant", "thinking") and ow_pat.search(text)
+    ]
     stats["slices"] = {"count": len(slices), "lines": slices}
     stats["owed"] = {"count": len(owed), "lines": owed}
 
     return stats
 
+
 # --------------------------------------------------------------------------
 # summary + main
 # --------------------------------------------------------------------------
+
 
 def print_summary(stats):
     c = stats["counts"]
     r = c.get("messages", {})
     print("== counts ==")
-    print(f"  entries: {c.get('entries',0)}  messages: user {r.get('user',0)}, "
-          f"assistant {r.get('assistant',0)}, toolResult {r.get('toolResult',0)}")
+    print(
+        f"  entries: {c.get('entries', 0)}  messages: user {r.get('user', 0)}, "
+        f"assistant {r.get('assistant', 0)}, toolResult {r.get('toolResult', 0)}"
+    )
     b = c.get("blocks", {})
-    print(f"  blocks: thinking {b.get('thinking',0)}, text {b.get('assistant',0)+b.get('user',0)}, "
-          f"toolCall {b.get('toolCall',0)}, toolResult {b.get('toolResult',0)}")
-    print(f"  assistant chars: {c.get('assistantChars',0)}  thinking chars: {c.get('thinkingChars',0)}")
+    print(
+        f"  blocks: thinking {b.get('thinking', 0)}, text {b.get('assistant', 0) + b.get('user', 0)}, "
+        f"toolCall {b.get('toolCall', 0)}, toolResult {b.get('toolResult', 0)}"
+    )
+    print(
+        f"  assistant chars: {c.get('assistantChars', 0)}  thinking chars: {c.get('thinkingChars', 0)}"
+    )
     print("== skill invocations ==")
     for s in stats["skillInvocations"]:
         print(f"  {s['name']}  (line {s['line']})")
@@ -308,31 +354,50 @@ def print_summary(stats):
         print("  (none)")
     print("== leading-word adoption (thinking traces): occurrences (blocks) ==")
     for cat in ("discipline", "doctrine", "artifact", "scenery"):
-        items = [(w, d) for w, d in stats["leadingWords"].items() if d["category"] == cat]
+        items = [
+            (w, d) for w, d in stats["leadingWords"].items() if d["category"] == cat
+        ]
         if items:
-            print(f"  [{cat}] total occurrences {stats['leadingWordCategories'].get(cat,0)}")
+            print(
+                f"  [{cat}] total occurrences {stats['leadingWordCategories'].get(cat, 0)}"
+            )
             for w, d in sorted(items, key=lambda kv: -kv[1]["occurrences"]):
                 print(f"    {w:28s} {d['occurrences']} ({d['blocks']})")
     print("== artifacts ==")
     for label, a in stats["artifacts"].items():
         print(f"  {label}: {a['count']} mention(s)  lines {a['lines'][:8]}")
-    print(f"  notebook WRITES (toolCall 'write' to .ai/contexts): {len(stats['artifactWrites'])}")
+    print(
+        f"  notebook WRITES (toolCall 'write' to .ai/contexts): {len(stats['artifactWrites'])}"
+    )
     for w in stats["artifactWrites"]:
         print(f"    line {w['line']}: {w['call'][:120]}")
     print(f"== gates: {stats['gates']['count']}  lines {stats['gates']['lines'][:12]}")
-    print(f"== squawks: {stats['squawks']['count']}  lines {stats['squawks']['lines'][:12]}")
-    print(f"== slices mentioned: {stats['slices']['count']}  owed: {stats['owed']['count']}")
+    print(
+        f"== squawks: {stats['squawks']['count']}  lines {stats['squawks']['lines'][:12]}"
+    )
+    print(
+        f"== slices mentioned: {stats['slices']['count']}  owed: {stats['owed']['count']}"
+    )
+
+
 def main():
-    ap = argparse.ArgumentParser(description="Extract a pi session export for workflow evaluation.")
+    ap = argparse.ArgumentParser(
+        description="Extract a pi session export for workflow evaluation."
+    )
     ap.add_argument("transcript", help="path to .jsonl or .html pi export")
-    ap.add_argument("outdir", nargs="?", help="output dir (default: <transcript>.eval/)")
+    ap.add_argument(
+        "outdir", nargs="?", help="output dir (default: <transcript>.eval/)"
+    )
     args = ap.parse_args()
 
     path = args.transcript
     if not os.path.exists(path):
         sys.exit(f"extract.py: no such file: {path}")
     outdir = args.outdir or (path + ".eval")
-    os.makedirs(outdir, exist_ok=True)
+    try:
+        os.makedirs(outdir, exist_ok=True)
+    except OSError as e:
+        sys.exit(f"extract.py: cannot create {outdir}: {e}")
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
     entries = load_entries(path)
@@ -340,16 +405,18 @@ def main():
     stats = compute_stats(entries, think_blocks, block_index, script_dir)
     stats["input"] = path
 
-    open(os.path.join(outdir, "transcript.txt"), "w").write(transcript)
-    open(os.path.join(outdir, "thinking.txt"), "w").write(
-        "\n\n".join(f"===== line {s} =====\n{t}" for s, t in think_blocks)
+    write_or_exit(os.path.join(outdir, "transcript.txt"), transcript)
+    write_or_exit(
+        os.path.join(outdir, "thinking.txt"),
+        "\n\n".join(f"===== line {s} =====\n{t}" for s, t in think_blocks),
     )
-    open(os.path.join(outdir, "stats.json"), "w").write(json.dumps(stats, indent=2))
+    write_or_exit(os.path.join(outdir, "stats.json"), json.dumps(stats, indent=2))
 
     print(f"== extracted to {outdir} ==")
     print(f"  transcript.txt ({len(transcript)} chars)  thinking.txt  stats.json")
     print()
     print_summary(stats)
+
 
 if __name__ == "__main__":
     main()
