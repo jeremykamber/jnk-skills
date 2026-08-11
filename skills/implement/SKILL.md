@@ -1,16 +1,16 @@
 ---
-name: jnk-6-implement
-description: Implement a plan one vertical slice at a time, staying conversational. User-invoked only via /skill:jnk-6-implement. Red-green-refactor inside each slice, a gate before each next slice, and the slice ledger stays visible.
+name: jnk-5-implement
+description: Implement the route one vertical slice at a time, staying conversational. User-invoked only via /skill:jnk-5-implement. Red-green-refactor inside each slice, a gate before each next slice, the uncertain choices named, and the slice ledger stays visible and is written back to the route file.
 disable-model-invocation: true
 ---
 
 # Implement
 
-> Fly the route. One slice at a time. No engine changes mid-air.
+> Follow the route. One slice at a time. No refactors mid-implementation.
 
 ## Purpose
 
-Fly the approved plan one vertical slice at a time. The user stays in control; you never disappear for the whole build. The route can change mid-flight — the ledger is what keeps it visible.
+Follow the approved route one vertical slice at a time. The user stays in control; you never disappear for the whole build. The route can change — the ledger is what keeps it visible.
 
 ## The slice ledger
 
@@ -29,33 +29,33 @@ When nothing changed since the last gate, a one-line summary suffices — `Ledge
 
 For each slice:
 
-1. **Announce from the ledger.** "Slice 3 (names): PersonaAdapter + its tests. Checkpoint: unit tests green, live run shows curated names." Name the files and the checkpoint. Hold short until cleared.
+1. **Announce from the ledger.** "Slice 3 (names): PersonaAdapter + its tests. Checkpoint: unit tests green, live run shows curated names." Name the files and the checkpoint. Wait for the user's go before starting.
 
 2. **Build it, red-green-refactor:**
    - Where a test can fail for the right reason, write it first and watch it fail — against the unfixed code, before the fix.
    - Make it pass with the smallest change.
    - Refactor — work, right, fast, in that order.
 
-3. **Checkpoint.** Run the slice's verification, plus anything it could have broken. Report in plain language what you actually did — files touched, behavior changed — then the result and any squawks.
+3. **Checkpoint.** Run the slice's verification, plus anything it could have broken. Report in plain language: files touched, behavior changed, the result, any squawks — and the **uncertain choices**: the decisions in this slice you're least confident about, and why. The uncertain list is where the user's review attention goes — surface it at the gate, not after the review.
 
-4. **Adversarial review (when the plan calls for it).** If the plan marked this slice for review, spawn a skeptical senior-developer subagent over the slice's diff, briefed by `references/reviewer-brief.md`. Triage its findings: fix the real ones, squawk or reject the strawmen — the review either finds real defects or says plainly there are none, and says why.
+4. **Adversarial review (when the route calls for it).** If the route marked this slice for review, spawn a skeptical senior-developer subagent over the slice's diff, briefed by `references/reviewer-brief.md`. Triage its findings: fix the real ones, squawk or reject the strawmen — the review either finds real defects or says plainly there are none, and says why.
 
-5. **Update the ledger.** Move the slice to Done. State what is now owed or deferred.
+5. **Update the ledger.** Move the slice to Done. State what is now owed or deferred. When a route file exists (`plans/`), write the amended ledger back into it — the route is a **living document** and the file is the durable state of the work; the conversation is the transaction log. Keep the file current so a paused session or /skill:jnk-0-pickup reads truth.
 
-6. **Gate.** Show the ledger and ask: "Ready for the next slice?" Wait for the user. Do not proceed without clearance.
+6. **Gate.** Show the ledger and ask: "Ready for the next slice?" Wait for the user. Do not proceed without clearance. If the user is waving gates ("continue", "just go"), offer batching: "I'll gate after slices 2 and 4, not each one — approve?" A wave is a request for fewer gates, not none. **Reset is free between slices:** heavy session? Finish the slice so the ledger is written to the route file, then end and resume fresh with /skill:jnk-0-pickup — mid-implementation is the awkward split; never push on past degraded attention.
 
-## Scope changes mid-flight
+## Scope changes during implementation
 
 The user adds or reprioritizes work during implementation — the route changed. Then:
 
-- Treat the new work as a slice: announce it, name its checkpoint, and **re-state the full ledger** — done / in flight / owed / deferred — in the new order. Say out loud what got pushed back.
+- Treat the new work as a slice: announce it, name its checkpoint, and **re-state the full ledger** — done / in flight / owed / deferred — in the new order, and write the amended ledger back into the route file. Say out loud what got pushed back.
 - The user's request is clearance for the new slice, not for the rest of the plan. Other slices stay owed until they land.
 - Never reorder silently. Silent reordering is how a slice gets lost.
 
 ## Rules
 
-- **No mid-air engine changes.** Do not refactor or fix unrelated code during implementation. If you find something that needs fixing, log a squawk — `[squawk] severity | location | what | why deferred` — and move on. If it blocks the slice, stop and ask.
-- **The plan is a route, not a contract.** If reality contradicts the plan — a test reveals a wrong assumption — stop, tell the user, and adjust the slice or return to /skill:jnk-3-decide. Never improvise around a broken assumption silently.
+- **No mid-implementation refactors.** Do not refactor or fix unrelated code during implementation. If you find something that needs fixing, log a squawk — `[squawk] severity | location | what | why deferred` — and move on. If it blocks the slice, stop and ask.
+- **The route is a guide, not a contract.** If reality contradicts it — a test reveals a wrong assumption — stop, tell the user, and adjust the slice or return to /skill:jnk-3-decide. Never improvise around a broken assumption silently.
 - Touch only the files the slice needs. Follow existing conventions. No speculative improvements.
 - **Write for the next engineer.** Intent over cleverness; comments say why, not how. The simplest code is code that no longer exists — prefer removing to adding.
 
@@ -65,7 +65,7 @@ Per-slice reports (plain-language what changed, checkpoint result, squawks) / Th
 
 ## Handoff
 
-When the last slice lands, recommend /skill:jnk-7-verify — and after verification, /skill:jnk-commit (user-invoked) writes the history; /skill:jnk-8-debrief closes the loop. Do not run the full verification sweep here: per-slice checkpoints only. The next beat begins when the user invokes it.
+When the last slice lands, recommend /skill:jnk-6-verify — and after verification, /skill:jnk-commit (user-invoked) writes the history; /skill:jnk-7-debrief closes the loop. Do not run the full verification sweep here: per-slice checkpoints only. The next beat begins when the user invokes it.
 
 ## Do not
 

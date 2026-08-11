@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Commit
 
-> Every flight gets written down — one entry per leg.
+> Every session gets written down — one entry per change.
 
 ## Purpose
 

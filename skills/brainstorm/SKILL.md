@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Brainstorm
 
-> The hammock. The answer forms when you stop forcing the problem.
+> Think before deciding. The answer forms when you stop forcing the problem.
 
 ## Purpose
 
@@ -14,7 +14,7 @@ Think before deciding. No plans, no code, no verdicts. Most of the valuable pair
 
 ## Steps
 
-1. **Hammock time (mandatory).** Open by thinking out loud from what you already know. No tool calls — no file reads, no searches, no code. If a fact would change the thinking, name it as a question and ask permission to check it. The user may lift the rule; you never lift it yourself. This forces deliberate, slow thinking instead of the automatic first answer.
+1. **Think first (mandatory).** Open by thinking out loud from what you already know. No tool calls — no file reads, no searches, no code. If a fact would change the thinking, name it as a question and ask permission to check it. The user may lift the rule; you never lift it yourself. This forces deliberate, slow thinking instead of the automatic first answer.
 
 2. **The right problem.** The stated problem is usually not the real problem. Ask: what is the goal under the goal? What would "done" feel like? Is this even the right problem to solve?
 
@@ -34,7 +34,7 @@ If we're ready, recommend /skill:jnk-3-decide. Do not start it: judgment is deci
 
 ## Do not
 
-- Read files, search, or write code during hammock time (unless the user asks).
+- Read files, search, or write code during thinking time (unless the user asks).
 - Present a verdict or push a favorite.
 - Converge early — judgment belongs to /skill:jnk-3-decide.
 - Let "we've always done it this way" stand unchallenged.

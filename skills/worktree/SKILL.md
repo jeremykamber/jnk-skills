@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Worktree
 
-> Pre-flight setup. Roll the work into its own worktree — main stays clean.
+> Isolate the work. Roll the work into its own worktree — main stays clean.
 
 ## Purpose
 
@@ -16,8 +16,8 @@ Give the session an isolated workspace before any beat starts. One worktree per 
 
 1. **Where are we?** Already in a worktree (`git rev-parse --git-dir` differs from `git rev-parse --git-common-dir`)? Confirm the branch and skip to the baseline. Never nest.
 
-2. **The notebook rule.** `.ai/contexts/` is gitignored — it does not travel between worktrees.
-   - **Continuing work:** never work where the notebook is absent. Resume in the worktree that holds it, or carry it over (`cp -r .ai/contexts`).
+2. **The notebook rule.** `.ai/contexts/` is gitignored except `notes.md`, the worklog, which is committed with the code — it travels in git. Decisions and system facts live in `docs/adr/` and `docs/external/` — in the codebase, so they travel by definition. The rest — `understanding.md`, `plans/`, `designs/`, `verification/` — is local context and must be carried over by hand.
+   - **Continuing work:** never work where the local context is absent. Resume in the worktree that holds it, or carry it over (`cp -r .ai/contexts`). The durable files will be there via git; the rest may not be.
    - **Fresh work:** create the worktree from main — `git worktree add .worktrees/<slug> -b <slug>` (verify `.worktrees/` is gitignored first). The notebook is born here.
 
 3. **Baseline.** Install dependencies and run the project's tests in the worktree. A green start is the only honest baseline for the beats ahead.

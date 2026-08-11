@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Refactor
 
-> Maintenance in the hangar. Never at altitude.
+> Maintenance on its own pass. Never mid-implementation.
 
 ## Purpose
 
@@ -34,7 +34,7 @@ The refactor, or the decision to defer (logged as a squawk) / Post-refactor veri
 
 ## Handoff
 
-After a refactor, recommend /skill:jnk-7-verify (unchanged tests prove behavior held) or back to /skill:jnk-8-debrief. Do not start them: the next beat begins when the user invokes it.
+After a refactor, recommend /skill:jnk-6-verify (unchanged tests prove behavior held) or back to /skill:jnk-7-debrief. Do not start them: the next beat begins when the user invokes it.
 
 ## Do not
 

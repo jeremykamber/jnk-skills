@@ -1,12 +1,12 @@
 ---
 name: jnk-3-decide
-description: Choose an implementation direction collaboratively before writing code. User-invoked only via /skill:jnk-3-decide. Weighs options through lenses, writes a decision record, names the session's callsign.
+description: Choose an implementation direction collaboratively before writing code. User-invoked only via /skill:jnk-3-decide. Defines the product line (who, what problem, the pitch) and success — with a measurable outcome when one exists — weighs options through lenses, writes a decision record, names the work thread.
 disable-model-invocation: true
 ---
 
 # Decide
 
-> File the flight plan. Nothing moves until the route is committed.
+> Choose the direction. Nothing moves until the decision is made.
 
 ## Purpose
 
@@ -25,7 +25,7 @@ Apply these to every option; name the lens you are using:
 
 ## Steps
 
-1. **Define success together.** What behavior changes? What must not change? What does "done" mean? How will we verify? (Tests represent intent — not "the code runs".)
+1. **The product line.** Who is this for? What user problem does it solve? How would we pitch it to a user in one sentence? (The blog-post test: if we can't say why it matters to someone, the change isn't ready to decide on.) Then **define success together:** What behavior changes? What must not change? What does "done" mean? How will we verify? (Tests represent intent — not "the code runs".) When a measurable outcome exists — latency, cost per call, quality score, conversion — name it: `Measured by: <metric + target>`. Tests verify the code; the metric verifies the change. No metric? Say "no measurable outcome yet" and move on — don't invent one.
 
 2. **Generate options.** Meaningful alternatives only — the ones worth debating, and each one you could genuinely see implementing. For each: approach, pros, cons, cost. No filler options, no strawmen — if an option can't win on its merits, it isn't an option.
 
@@ -33,17 +33,17 @@ Apply these to every option; name the lens you are using:
 
 4. **Make the call.** Recommend with reasons, then stop. The user owns the decision. If important uncertainty remains, return to /skill:jnk-2-brainstorm or /skill:jnk-1-understand.
 
-5. **Write the decision record.** Load `references/decision-record.md`: chosen approach, reason, runner-up, failure mode to watch, verification strategy. Where: the repo's existing convention (ADR folder, docs/decisions/) — if none, append to `.ai/contexts/<dir>/decisions.md` (the engineering notebook), one record per decision, keyed by callsign. About ten lines.
+5. **Write the decision record.** Load `references/decision-record.md`: chosen approach, reason, runner-up, failure mode to watch, measured-by, verification strategy. Where: `docs/adr/<thread-name>.md` — one file per decision, committed with the code. Create the dir when missing: every project, even a small one, gets an ADR home — decisions are project truth, not session state, and the model finds them at a stable path in every feature. About ten lines.
 
-6. **Name the callsign.** A short slug from the decision — `oauth-c-github-module`. It threads through the branch, the plan, and the session log. One name, one story.
+6. **Name the thread.** A short name from the decision — `oauth-c-github-module`. It threads through the branch, the route, and the session log. One name, one story.
 
 ## Output
 
-Goal / Success criteria / Options considered / Decision / Tradeoffs / Failure mode to watch / Callsign / Open questions
+Product line (who / problem / pitch) / Goal / Success criteria / Measured by (when one exists) / Options considered / Decision / Tradeoffs / Failure mode to watch / Thread name / Open questions
 
 ## Handoff
 
-If the decision holds, recommend the next beat — /skill:jnk-4-design when the shape matters, else /skill:jnk-5-plan. Do not start it: the next beat begins when the user invokes it.
+If the decision holds, recommend /skill:jnk-4-design — the shape and the route are one beat. Do not start it: the next beat begins when the user invokes it.
 
 ## Do not
 

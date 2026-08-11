@@ -1,6 +1,6 @@
 ---
 name: jnk-debug
-description: Find and fix the root cause of broken behavior. User-invoked only via /skill:jnk-debug. Reproduce first, diagnose with evidence, gate the diagnosis before fixing, verify on the original failure — and eject to the beats when the fix is large-scale.
+description: Find and fix the root cause of broken behavior. User-invoked only via /skill:jnk-debug. Reproduce first, diagnose with evidence, gate the diagnosis before fixing, verify on the original failure — and escalate to the beats when the fix is large-scale.
 disable-model-invocation: true
 ---
 
@@ -22,7 +22,7 @@ Turn "something's wrong" into a reproduced failure, a named root cause, a smalle
 
 4. **Hypotheses, one at a time.** State a falsifiable hypothesis, test it (bisect, instrument, minimize), record the result. Change one variable per test — every uncontrolled change destroys information. A failed hypothesis is evidence, not a dead end. If you've tried the same thing twice, stop and re-read the evidence instead of retrying. Competing hypotheses must each be plausible — a strawman hypothesis tests nothing.
 
-5. **Name the root cause — gate.** State the cause precisely: what fails, where, why, since when. Then STOP. Present it and ask: "Does this feel right and true? Any hunches or instincts I should check first?" The user knows the system; their instinct is evidence. Wait for the answer. If the root cause implies a large-scale or wide-blast-radius fix, say so here — that is the eject.
+5. **Name the root cause — gate.** State the cause precisely: what fails, where, why, since when. Then STOP. Present it and ask: "Does this feel right and true? Any hunches or instincts I should check first?" The user knows the system; their instinct is evidence. Wait for the answer. If the root cause implies a large-scale or wide-blast-radius fix, say so here — that is the escalate signal.
 
 6. **The smallest fix, verified.** Fix the root cause with the smallest change. Where a regression test can fail for the right reason, write it first and watch it fail. Then prove: the original reproduction is gone, the new test passes, nothing adjacent broke (narrow sweep; stash-baseline compare on any doubt). A fix you can't re-verify on the original failure is not a fix.
 
@@ -32,13 +32,13 @@ Turn "something's wrong" into a reproduced failure, a named root cause, a smalle
 
 Debugging is the dirtiest phase — logs, traces, failed hypotheses. Keep the conversation lean: summarize logs and traces, never dump them raw. When the trail gets long, write it to a scratch file, not the chat. The audit trail matters; the raw dump doesn't.
 
-## Eject
+## Escalate
 
 If at any point the root cause implies a large-scale or wide-blast-radius fix — new architecture, a broad refactor, several subsystems — stop after naming the cause and recommend /skill:jnk-1-understand. Never half-fix a big bug. The user decides.
 
 ## Handoff
 
-If it landed, nothing to hand off — the fix is verified; propose /skill:jnk-commit for the history. If it ejected, the next beat is /skill:jnk-1-understand (user-invoked). Do not start it.
+If it landed, nothing to hand off — the fix is verified; propose /skill:jnk-commit for the history. If it escalated, the next beat is /skill:jnk-1-understand (user-invoked). Do not start it.
 
 ## Do not
 
@@ -47,5 +47,5 @@ If it landed, nothing to hand off — the fix is verified; propose /skill:jnk-co
 - Declare "fixed" without re-running the original failure.
 - Change several variables between tests — one at a time.
 - Dump logs and traces raw into the conversation.
-- Half-fix a large-scale bug — eject instead.
+- Half-fix a large-scale bug — escalate instead.
 - Fix adjacent bugs silently — squawk them.

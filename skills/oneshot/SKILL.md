@@ -1,6 +1,6 @@
 ---
 name: jnk-oneshot
-description: Make a small, well-understood change end to end in one pass — no beat ceremony, no gates. User-invoked only via /skill:jnk-oneshot. Reads just enough, makes the smallest change, verifies with evidence, reports — and escalates to the full workflow if the change outgrows one shot.
+description: Make a small, well-understood change end to end in one pass — no beat ceremony, no user gates. User-invoked only via /skill:jnk-oneshot. Checks what the repo already knows, builds in vertical slices with a checkpoint after each (no user gate between them), self-reviews the diff, verifies with evidence, writes durable facts to docs/external/, reports — and escalates to the full workflow if the change outgrows one shot.
 disable-model-invocation: true
 ---
 
@@ -12,25 +12,28 @@ disable-model-invocation: true
 
 Make a small, well-understood change end to end in one shot: just enough understanding, the smallest change, honest verification, one report. No gates, no slices, no notebook — the report is the record; history is written at the end, your call, via /skill:jnk-commit. This is the default for the 80% of work that is small and clear; the full beats are for when it isn't.
 
-## When to eject
+## When to escalate
 
-One shot is for changes you understand at a glance: a bug with a clear cause, a small bulk fix, a rename, a config tweak. If a quick read reveals design choices, uncertain behavior, or a real unknown — the change outgrew the one shot. Stop, say why, and recommend the full workflow, starting at /skill:jnk-1-understand. Do not start it; the user decides. Ejecting is the quality guarantee: the one shot never does shallow work on a big change.
+One shot is for changes you understand at a glance: a bug with a clear cause, a small bulk fix, a rename, a config tweak. If a quick read reveals design choices, uncertain behavior, or a real unknown — the change outgrew the one shot. Stop, say why, and recommend the full workflow, starting at /skill:jnk-1-understand. Do not start it; the user decides. The same applies mid-flight: if a slice reveals design choices, uncertain behavior, or a real unknown, stop — that is the escalate signal, not a reason to push on. Escalating is the quality guarantee: the one shot never does shallow work on a big change.
 
 ## Steps
 
 1. **One line.** Restate what changes and what must not change. If the request is ambiguous, ask once — the single human step. After the answer, go.
 
-2. **The minimum read.** The file to change, its tests, one caller or sibling. State the model in three lines: current behavior, the fix, the risk. A real unknown here is the eject signal.
+2. **The minimum read.** First, check what the repo already knows: a `.ai/contexts/` notebook entry, a `docs/adr/` decision, a `docs/designs/` blueprint, or a `docs/external/` fact that this change touches — read the relevant entry before the code; the repo may already know what you're about to re-derive. Then read the file to change, its tests, one caller or sibling. State the model in three lines: current behavior, the fix, the risk. A real unknown here is the escalate signal.
 
-3. **The smallest change.** Work on a branch — cut one if you're on main. Where a test can fail for the right reason, write it first and watch it fail, then fix. Touch only what the change needs. Write for the next engineer: intent over cleverness, comments say why. Anything noticed-but-not-fixed is a squawk — log it, never silently fix, never silently forgive.
+3. **The smallest change, in vertical slices.** Work on a branch — cut one if you're on main. When the change spans layers (backend → frontend → persistence), build it the same way the beats do — the thinnest end-to-end slice first, then thicken — minus the user gates: each slice is a thin end-to-end story that leaves the system working. Per slice, where a test can fail for the right reason, write it first and watch it fail, then fix. Touch only what the slice needs. Write for the next engineer: intent over cleverness, comments say why. Anything noticed-but-not-fixed is a squawk — log it, never silently fix, never silently forgive.
 
-4. **Evidence, not opinion.** Run the narrowest check that gives confidence: the touched tests, typecheck. On a failure, compare against pristine (stash → run → pop) before blaming anything. Report the numbers.
+4. **Checkpoint after every slice; gate only at the end.** Run the slice's narrowest check that gives confidence (the touched tests, typecheck), plus anything it could have broken — then the next slice, with no user gate. On a failure, compare against pristine (stash → run → pop) before blaming anything. Name the ledger out loud as you go — done / next — so nothing is lost. If a slice reveals design choices, uncertain behavior, or a real unknown, that is the escalate signal, not a reason to push on.
 
-5. **Report and hand off.** Report: what changed, the verification result, squawks. Do not commit — propose /skill:jnk-commit and let the user run it. No notebook entry: the report is the record.
+5. **The skeptic's pass.** Re-read your diff as a hostile reviewer before reporting: plausible-but-wrong logic, silent fallbacks, tests that pass for the wrong reason, over-engineering, hidden behavior changes. Fix the real ones — a one-shot must be right, not just green. Squawk the rest.
+
+6. **Report and hand off.** Report: what changed, the verification result, any **uncertain choices** (the decisions you're least confident about, and why), squawks. A durable fact learned (env schema, integration shape, convention) is written to `docs/external/` — create the dirs if missing; it is free context for the next one-shot. Do not commit — propose /skill:jnk-commit and let the user run it. No notebook entry: the report is the record.
 
 ## Do not
 
-- Use this on fuzzy, architectural, or multi-unknown work — eject and escalate.
+- Use this on fuzzy, architectural, or multi-unknown work — escalate instead.
 - Run the ceremony (gates, slices, decision records, notebook) — that is what one shot is for skipping.
 - Skip verification, or claim green without the narrowest run.
 - Commit anything — history is written via /skill:jnk-commit, user-invoked.
+- Leave a durable fact in the chat — it belongs in `docs/external/`.

@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Understand
 
-> Pre-flight inspection. You do not fly an aircraft you have not walked around.
+> Walk the code before you change it.
 
 ## Purpose
 
@@ -16,7 +16,7 @@ Build the smallest sufficient understanding needed to make a confident change �
 
 1. **The request.** Restate what must change, what must not change, and any constraints. If the request is ambiguous, ask before exploring.
 
-2. **The reading list.** Propose the files you want to read (entry point, implementation, tests, one similar pattern). Ask "Sound good?" — this is a **gate**; do not read yet. The user steers; you are the copilot.
+2. **The reading list.** Propose the files you want to read (entry point, implementation, tests, one similar pattern — plus any `docs/adr/`, `docs/designs/`, or `docs/external/` entries that touch the area). Ask "Sound good?" — this is a **gate**; do not read yet. The user steers; you are the copilot.
 
 3. **Read.** Only what was agreed. Report facts first: what the code does, not what you expect it to do. Label interpretations as interpretations.
 
@@ -30,9 +30,9 @@ Build the smallest sufficient understanding needed to make a confident change �
 
 6. **The IOU ledger.** Every unknown is an IOU, numbered and visible: `IOU-1: how does logout invalidate sessions?` An IOU is retired only when answered — never silently dropped. If you cannot name the gap precisely, you have not found the gap.
 
-7. **Align.** Present the model and the ledger. Ask: "Is this right? What's missing?" Do not plan or implement until the user confirms the model.
+7. **Align.** Present the model and the ledger. Ask the user first: "Where did this surprise you? What did you expect the code to do that it doesn't?" — the model is shared only when the user's expectation and the code's reality are both on the table. Then: "Is this right? What's missing?" Do not plan or implement until the user confirms the model.
 
-8. **Log the model — a gate, not a wrap-up.** Once the model is agreed, write it to `.ai/contexts/YYYY-MM-DD-<slug>/understanding.md` before anything else — no further reading, no planning, no moving on. Create the dir if this work has none yet; reuse it if it does (the date is when the work started). The notebook is gitignored: it is memory, not documentation — and it is the only thing /skill:jnk-0-pickup reads. If the model changes materially later, update the file; it stays true. If the session must end before the model is agreed, write the partial model and open IOUs anyway — a rough checkpoint beats a lost session.
+8. **Log the model — a gate, not a wrap-up.** Once the model is agreed, write it to `.ai/contexts/<slug>/understanding.md` before anything else — no further reading, no planning, no moving on. Create the dir if this work has none yet; reuse it if it does (one dir per work thread, keyed by the feature slug). The notebook is gitignored: it is memory, not documentation — and it is the only thing /skill:jnk-0-pickup reads. If the model changes materially later, update the file; it stays true. If the session must end before the model is agreed, write the partial model and open IOUs anyway — a rough checkpoint beats a lost session.
 
 ## Output
 
@@ -40,7 +40,7 @@ Summary / Current behavior / Components / Ownership / Patterns / Assumptions / I
 
 ## Handoff
 
-If the model holds, recommend the next beat — /skill:jnk-2-brainstorm when the problem is fuzzy, /skill:jnk-3-decide when it is concrete. Do not start it: this beat ends with the file, and the next begins when the user invokes it.
+If the model holds, recommend the next beat — /skill:jnk-2-brainstorm when the problem is fuzzy, /skill:jnk-3-decide when it is concrete. Do not start it: this beat ends with the file, and the next begins when the user invokes it. Present this handoff only after confirming `understanding.md` exists on disk — check, don't assume.
 
 ## Do not
 
