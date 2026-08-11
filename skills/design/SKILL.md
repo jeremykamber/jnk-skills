@@ -1,6 +1,6 @@
 ---
 name: jnk-4-design
-description: Design the shape and the route of a change before building it. User-invoked only via /skill:jnk-4-design. Shape first — ASCII, HTML mockups (user-facing), contracts, call stack, test shapes, failure paths — then the route: vertical slices, each with its own checkpoint and review intensity. Zero production code.
+description: "Design the shape and the route of a change before building it. User-invoked only via /skill:jnk-4-design. Shape first — ASCII, HTML mockups (user-facing), contracts, call stack, test shapes, failure paths — then the route: vertical slices, each with its own checkpoint and review intensity. Zero production code."
 disable-model-invocation: true
 ---
 

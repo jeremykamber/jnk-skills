@@ -22,7 +22,7 @@ Think before deciding. No plans, no code, no verdicts. Most of the valuable pair
 
 4. **First principles.** For each direction: what is the system for? What is the smallest thing that could possibly work?
 
-5. **No commitment.** Present the directions and the sharpest open questions. Do not argue for one. End by asking: "Ready to decide, or keep thinking?"
+5. **No commitment.** Present the directions and the sharpest open questions. Do not argue for one. End by asking: "Ready to decide, or keep thinking? — and which direction do you find yourself defending?" The user's lean is evidence, not a verdict — and not the choice: /skill:jnk-3-decide re-presents the directions and asks for the decision itself.
 
 ## Output
 
