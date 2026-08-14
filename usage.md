@@ -9,6 +9,7 @@ You are the pilot; the agent is the copilot. You decide when each step starts, y
 - **Checkpoints teach in layers.** Each implement checkpoint walks you through the slice — where it sits, the flow, the critical bits, the plumbing to skip — and invites your probes. You don't read every line; you pull where you care, and the agent backs its claims with lines.
 - **Small fix → one-shot. Anything else → the beats.**
 - **Broken behavior → jnk-debug.** Reproduce first, gate the diagnosis, verify the fix on the original failure.
+- **Own the understanding → /skill:jnk-interrogate.** The agent interrogates you on a repo or feature until your understanding is real — brutal Socratic chains, a teaching ladder where you gap, and a "two areas left" signal so it never runs forever.
 - **Context at ~60% → finish the step, start a fresh session, pickup.**
 
 ## The modes
@@ -19,6 +20,7 @@ You are the pilot; the agent is the copilot. You decide when each step starts, y
 | `/skill:jnk-debug` | Behavior is wrong, cause unknown | Reproduce → diagnose → gate the diagnosis → smallest fix → verify on the original failure. Escalates when the fix is large-scale. |
 | **Expedited** (no skill — just skip beats) | Small feature that needs some thought | understand → decide → design → implement → verify, with gates. |
 | **Full beats** | Anything fuzzy, architectural, or risky | The whole arc — understand, decide, design (shape + route), implement, verify, debrief — plus brainstorm when fuzzy, gates between every one. |
+| `/skill:jnk-interrogate` | You want to actually understand a repo or feature — not just approve it | The agent interrogates you across thirteen coverage areas: Socratic chains verified against the code, a teaching ladder where you gap (hint → concept → code → analogy → explain-back), and a "two areas left" signal before it ends. |
 
 Rule of thumb: start with one-shot. If it tells you the change outgrew it (it "escalates"), switch to the beats.
 
