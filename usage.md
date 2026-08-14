@@ -6,6 +6,7 @@ You are the pilot; the agent is the copilot. You decide when each step starts, y
 
 - **You invoke, it works, it stops.** Type `/skill:jnk-N-name` to start a step. The agent never starts the next step on its own — it ends by *recommending* it.
 - **Every step ends with a question.** "Sound good?", "Approve the route?", "Ready for slice N?" — that's a gate. Your answer is the workflow. One word usually suffices.
+- **Checkpoints teach in layers.** Each implement checkpoint walks you through the slice — where it sits, the flow, the critical bits, the plumbing to skip — and invites your probes. You don't read every line; you pull where you care, and the agent backs its claims with lines.
 - **Small fix → one-shot. Anything else → the beats.**
 - **Broken behavior → jnk-debug.** Reproduce first, gate the diagnosis, verify the fix on the original failure.
 - **Context at ~60% → finish the step, start a fresh session, pickup.**
@@ -59,6 +60,18 @@ Adding scope mid-implementation is normal. The agent should re-state the slice l
 Many gates now ask you something, not just "approve?": "Which option would you defend?", "Which slice scares you?", "What would you want to see to trust this?", and the debrief's teach-back. That's deliberate — a gate that makes you think is the anti-rubber-stamp. If you catch yourself saying "yep" without a thought, the workflow is telling you you're no longer in charge.
 
 One more thing the agent will name at decision time: a **thread name** (e.g. `persona-a-profile-backstory`). It threads through the branch, the route, and the log — useful when you're juggling several agents.
+
+## Reading what the agent wrote — the layered walkthrough
+
+The implement checkpoint (`/skill:jnk-5-implement`) teaches each slice in layers — where it sits, how data flows through it, the critical decisions (and the agent's least-confident choices), and what's mundane plumbing you can safely skip. Depth scales with the slice's risk: mechanical slices get the two-line version; risky ones get the full teach plus the adversarial reviewer's findings.
+
+Use the loop — the agent is your tutor, not your authority:
+
+> You: "Walk me through this — teach me why each abstraction exists and what it assumes."
+> You: "What are the failure modes?" / "Give me three ways this could be wrong."
+> You: "Show me exactly where that guarantee comes from."
+
+When you ask it to back a claim, it must point at specific lines — if it can't, that's a finding, not a shrug. Verify the claims you care about against the code; skip the rest. Waving the teach ("skip it, I trust this one") is always a valid answer — this is layered understanding, not line-by-line reading. The same loop works on any agent's output, opencode included.
 
 ## The one-shot, in practice
 
