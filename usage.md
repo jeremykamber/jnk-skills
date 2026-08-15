@@ -4,13 +4,14 @@ You are the pilot; the agent is the copilot. You decide when each step starts, y
 
 ## The short version
 
-- **You invoke, it works, it stops.** Type `/skill:jnk-N-name` to start a step. The agent never starts the next step on its own — it ends by *recommending* it.
+- **You invoke, it works, it stops.** Type `/skill:jnk-N-name` to start a step. The agent never starts the next step on its own — it ends by *recommending* it. (Grill is the one exception: the agent fires /skill:jnk-grill itself when a decision tree appears — it's a mode, not a step.)
 - **Every step ends with a question.** "Sound good?", "Approve the route?", "Ready for slice N?" — that's a gate. Your answer is the workflow. One word usually suffices.
 - **Checkpoints teach in layers.** Each implement checkpoint walks you through the slice — where it sits, the flow, the critical bits, the plumbing to skip — and invites your probes. You don't read every line; you pull where you care, and the agent backs its claims with lines.
 - **Small fix → one-shot. Anything else → the beats.**
 - **Broken behavior → jnk-debug.** Reproduce first, gate the diagnosis, verify the fix on the original failure.
+- **Unresolved decision → the agent fires /skill:jnk-grill.** One question at a time, it proposes an answer and researches facts; you decide.
 - **Own the understanding → /skill:jnk-interrogate.** The agent interrogates you on a repo or feature until your understanding is real — brutal Socratic chains, a teaching ladder where you gap, and a "two areas left" signal so it never runs forever.
-- **Context at ~60% → finish the step, start a fresh session, pickup.**
+- **Context at ~60% → finish the step and split, or /skill:jnk-handoff mid-beat; fresh session, pickup.**
 
 ## The modes
 
@@ -20,7 +21,9 @@ You are the pilot; the agent is the copilot. You decide when each step starts, y
 | `/skill:jnk-debug` | Behavior is wrong, cause unknown | Reproduce → diagnose → gate the diagnosis → smallest fix → verify on the original failure. Escalates when the fix is large-scale. |
 | **Expedited** (no skill — just skip beats) | Small feature that needs some thought | understand → decide → design → implement → verify, with gates. |
 | **Full beats** | Anything fuzzy, architectural, or risky | The whole arc — understand, decide, design (shape + route), implement, verify, debrief — plus brainstorm when fuzzy, gates between every one. |
+| `/skill:jnk-grill` | A decision that needs walking before it can be made | The agent fires it from any beat when a decision tree appears; one question at a time, you decide; back to that beat after. |
 | `/skill:jnk-interrogate` | You want to actually understand a repo or feature — not just approve it | The agent interrogates you across thirteen coverage areas: Socratic chains verified against the code, a teaching ladder where you gap (hint → concept → code → analogy → explain-back), and a "two areas left" signal before it ends. |
+| `/skill:jnk-handoff` | The live thread must cross a session boundary | Writes a compact thread checkpoint; pickup reads it next session. Split anywhere, not just at beat ends. |
 
 Rule of thumb: start with one-shot. If it tells you the change outgrew it (it "escalates"), switch to the beats.
 
@@ -59,7 +62,7 @@ Type the skill, then say what you want in plain language.
 
 Adding scope mid-implementation is normal. The agent should re-state the slice ledger out loud — *done / in flight / owed / deferred* — so nothing gets lost. If it reorders silently, that's a bug; the eval skill exists to catch it.
 
-Many gates now ask you something, not just "approve?": "Which option would you defend?", "Which slice scares you?", "What would you want to see to trust this?", and the debrief's teach-back. That's deliberate — a gate that makes you think is the anti-rubber-stamp. If you catch yourself saying "yep" without a thought, the workflow is telling you you're no longer in charge.
+Many gates now ask you something, not just "approve?": "Which option would you defend?", "Which slice scares you?", "What would you want to see to trust this?", and the debrief's teach-back. That's deliberate — a gate that makes you think is the anti-rubber-stamp. If you catch yourself saying "yep" without a thought, the workflow is telling you you're no longer in charge. And if the *agent* makes a call that should be yours, that's the same signal — it should have fired /skill:jnk-grill to walk it back through you, one question at a time (you can fire it yourself too).
 
 One more thing the agent will name at decision time: a **thread name** (e.g. `persona-a-profile-backstory`). It threads through the branch, the route, and the log — useful when you're juggling several agents.
 
@@ -88,11 +91,14 @@ No gates. If the request is ambiguous it asks once, then goes. If the change tur
 
 The agent writes its understanding and session log to `.ai/contexts/<date>-<feature>/` (gitignored, local to the project). You don't need to look at it. It exists so a *future* session — or a crash, or a context split — can pick up the thread. `pickup` reads it; nothing is remembered unless it's written. **Decisions, designs, and system facts live in the codebase instead**: `docs/adr/` (written by decide), `docs/designs/` (written by design — the mockups, contracts, call stacks, test shapes), and `docs/external/` (written by oneshot and debrief when they learn something durable) — committed, stable paths, free context for every future session.
 
+One principle governs what gets written: **don't serialize the conversation because you're afraid of losing it — serialize knowledge because the project actually needs it.** A beat artifact (`understanding.md`, the route file) is written when it earns keeping. When the *live thread* — the thinking, the rejected branches, the next move — must cross a session boundary, `/skill:jnk-handoff` carries it instead: a compact checkpoint, overwritten, gitignored, read by pickup, never a second source of truth.
+
 ## Where everything lives
 
 | Artifact | Written by | Lives in | Committed? |
 | --- | --- | --- | --- |
-| Understanding (model, IOUs) | jnk-1-understand | `.ai/contexts/<feature>/understanding.md` | no — session state, converges |
+| Understanding (model, IOUs) | jnk-1-understand | `.ai/contexts/<feature>/understanding.md` | no — session state, converges; written when it earns keeping |
+| Live thread checkpoint | jnk-handoff | `.ai/contexts/<feature>/handoff.md` | no — transient, overwritten |
 | Decision record | jnk-3-decide | `docs/adr/<thread>.md` | yes |
 | Program design (mockup, contracts, call stack, test shapes) | jnk-4-design | `docs/designs/<feature>/` | yes |
 | Route / slice ledger | jnk-4-design → jnk-5-implement | `.ai/contexts/<feature>/plans/01-initial.md` | no — living document |
@@ -101,7 +107,7 @@ The agent writes its understanding and session log to `.ai/contexts/<date>-<feat
 | Verification results | jnk-6-verify | `.ai/contexts/<feature>/verification/` | when needed |
 | System facts (env, integrations) | jnk-7-debrief / jnk-oneshot | `docs/external/` | yes |
 
-The one-line rule: **if a future session or future feature needs it, it's committed in `docs/`; if only this feature's continuation needs it, it's in the notebook.**
+The one-line rule: **if a future session or future feature needs it, it's committed in `docs/`; if only this feature's continuation needs it, it's in the notebook; if the live conversation must survive, it's a handoff.**
 
 ## Squawks — debt, logged not hidden
 
@@ -119,15 +125,15 @@ Attention degrades as the context fills, no matter how big the window is. **Keep
 
 1. **Finish the current beat.** Its remaining work is usually small, and it writes its artifact to the notebook — every completed beat is a safe place to split.
 2. **Start a fresh session** with `/skill:jnk-0-pickup`. It reads the artifact and proposes the next beat. Done.
-3. **Only if you must stop truly mid-beat**: have the agent checkpoint-write its partial state first — a rough file beats a lost session.
+3. **Only if you must stop truly mid-beat**: run /skill:jnk-handoff — a rough checkpoint beats a lost session.
 
 **Where you are decides how easy it is:**
 
 | Where you hit 60% | Pain | What to do |
 | --- | --- | --- |
-| Mid-**alignment** (understand/decide/plan) | Low — the state is a few lines in the notebook | Finish the current beat, split, pickup proposes the next beat. |
+| Mid-**alignment** (understand/decide/plan) | Low — the state is a few lines in the notebook | Finish the current beat if you can; otherwise /skill:jnk-handoff, split, pickup proposes the next beat. |
 | **Before implementation** (after design) | The ideal seam | The route file *is* the alignment, serialized. Fresh session reads it and implements. |
-| **Mid-implementation** | The awkward one — state is the working tree + conversation | Finish the slice if you can; otherwise checkpoint the ledger + squawks, split, pickup. |
+| **Mid-implementation** | The awkward one — state is the working tree + conversation | Finish the slice if you can; otherwise /skill:jnk-handoff (ledger + squawks + next move), split, pickup. |
 
 **Example — the ideal split, before implementation:**
 
@@ -154,7 +160,7 @@ Attention degrades as the context fills, no matter how big the window is. **Keep
 **Example — emergency, truly mid-beat:**
 
 > You: "I have to drop this session right now — save what we have."
-> Agent: "Writing a checkpoint of the partial model + open IOUs to `understanding.md`. Rough, but nothing is lost."
+> Agent: "Writing a handoff — where we are, what we decided, what's next — to `.ai/contexts/<dir>/handoff.md`. Rough, but nothing is lost. Resume with /skill:jnk-0-pickup."
 
 ## When things go sideways
 
@@ -162,6 +168,7 @@ Attention degrades as the context fills, no matter how big the window is. **Keep
 - **The agent wants a refactor**: it must ask first — `/skill:jnk-refactor`, with value and risk stated. "Not today" is a complete answer; it logs a squawk and moves on.
 - **The one-shot escalated**: it stopped because the change is bigger than one shot. Fine — that's the guard working. Invoke `/skill:jnk-1-understand` and do it properly.
 - **You don't like the direction**: gates work both ways. Answer with what you actually want — "stop", "rethink", "let's brainstorm instead" (`/skill:jnk-2-brainstorm`).
+- **The agent decided something that should be your call**: that's a silent decision — it should have fired /skill:jnk-grill; run it now and walk it back. The workflow makes you the pilot; the grill is the instrument that puts you back in the seat.
 
 ## Nice to know
 

@@ -43,7 +43,7 @@ Shape the change, then route it — still zero production code. Decide = what. D
    - **The call stack** — who calls whom, in what order, top to bottom.
    - **Test shapes** — what the tests will assert, named by scenario (not written yet — just the list of assertions).
 
-   "Drop `count`, derive it from the prompt" is a normal edit here, same as the ASCII. A contract is the small interface of a deep module: the complexity hides behind it. If a contract can't be stated simply, the module boundary is wrong — redraw it.
+   "Drop `count`, derive it from the prompt" is a normal edit here, same as the ASCII. A contract is the small interface of a deep module: the complexity hides behind it. If a contract can't be stated simply, the module boundary is wrong — redraw it. Where a contract, a failure path, or a placement hides an unresolved decision — who owns retry, what happens on partial failure, where the boundary lives — invoke /skill:jnk-grill; never silently choose on the user's behalf.
 
 7. **If a contract or the architecture hides an unknown — spike it.** Build a throwaway prototype in `.ai/contexts/<dir>/designs/` (a minimal script or one risky page). Open it, look, discuss, iterate. Promise: throwaway by definition — never promoted, never merged. The notebook is gitignored, so this holds by default.
 

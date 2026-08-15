@@ -52,7 +52,7 @@ For each slice:
 
 6. **Update the ledger.** Move the slice to Done. State what is now owed or deferred. When a route file exists (`plans/`), write the amended ledger back into it — the route is a **living document** and the file is the durable state of the work; the conversation is the transaction log. Keep the file current so a paused session or /skill:jnk-0-pickup reads truth.
 
-7. **Gate.** Invite the probe: "Where do you want to dig — flow, the assumptions, or a failure mode? Or shall I back a claim against the code?" Then show the ledger and ask: "Ready for the next slice?" Wait for the user. Do not proceed without clearance. If the user is waving gates ("continue", "just go"), offer batching: "I'll gate after slices 2 and 4, not each one — approve?" A wave is a request for fewer gates, not none. **Reset is free between slices:** heavy session? Finish the slice so the ledger is written to the route file, then end and resume fresh with /skill:jnk-0-pickup — mid-implementation is the awkward split; never push on past degraded attention.
+7. **Gate.** Invite the probe: "Where do you want to dig — flow, the assumptions, or a failure mode? Or shall I back a claim against the code?" Then show the ledger and ask: "Ready for the next slice?" Wait for the user. Do not proceed without clearance. If the user is waving gates ("continue", "just go"), offer batching: "I'll gate after slices 2 and 4, not each one — approve?" A wave is a request for fewer gates, not none. **Reset is free between slices:** heavy session? Finish the slice so the ledger is written to the route file, then end and resume fresh with /skill:jnk-0-pickup — mid-implementation is the awkward split; never push on past degraded attention. Mid-slice and can't finish? /skill:jnk-handoff carries the thread.
 
 ## Scope changes during implementation
 
@@ -65,7 +65,7 @@ The user adds or reprioritizes work during implementation — the route changed.
 ## Rules
 
 - **No mid-implementation refactors.** Do not refactor or fix unrelated code during implementation. If you find something that needs fixing, log a squawk — `[squawk] severity | location | what | why deferred` — and move on. If it blocks the slice, stop and ask.
-- **The route is a guide, not a contract.** If reality contradicts it — a test reveals a wrong assumption — stop, tell the user, and adjust the slice or return to /skill:jnk-3-decide. Never improvise around a broken assumption silently.
+- **The route is a guide, not a contract.** If reality contradicts it — a test reveals a wrong assumption — stop, tell the user, and adjust the slice, return to /skill:jnk-3-decide, or — when the contradiction is an unresolved decision — invoke /skill:jnk-grill. Never improvise around a broken assumption silently.
 - Touch only the files the slice needs. Follow existing conventions. No speculative improvements.
 - **Write for the next engineer.** Intent over cleverness; comments say why, not how. The simplest code is code that no longer exists — prefer removing to adding.
 

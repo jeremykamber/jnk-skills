@@ -266,6 +266,7 @@ def compute_stats(entries, think_blocks, block_index, script_dir):
         (re.compile(r"\.ai/contexts"), "notebook dir"),
         (re.compile(r"understanding\.md"), "understanding.md"),
         (re.compile(r"decisions\.md"), "decisions.md"),
+        (re.compile(r"handoff\.md"), "handoff.md"),
         (re.compile(r"notes\.md"), "notes.md"),
         (re.compile(r"plans/"), "plans/"),
         (re.compile(r"verification/results\.md"), "verification/results.md"),

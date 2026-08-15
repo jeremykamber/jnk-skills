@@ -9,6 +9,7 @@
 \bcheckpoints?\b|discipline
 \bsquawks?\b|discipline
 \biou(?:s)?\b|discipline
+\bgrills?\b|discipline
 \bblast radius\b|discipline
 \bhandoffs?\b|discipline
 \bescalat\w*\b|discipline
@@ -34,6 +35,7 @@
 \bdebriefs?\b|artifact
 understanding\.md|artifact
 decisions\.md|artifact
+handoff\.md|artifact
 docs/adr|artifact
 docs/designs|artifact
 docs/external|artifact

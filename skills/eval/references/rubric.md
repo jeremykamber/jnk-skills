@@ -17,6 +17,7 @@ Which skills were invoked, in what order (stats.json → skillInvocations)?
 - `jnk-7-debrief` skipped: the loop's memory is missing unless `notes.md` exists.
 - `jnk-oneshot` invoked: a legitimate compression of the arc, not skipped beats — but verify it stayed small and escalated when the change grew.
 - `jnk-debug` invoked: a legitimate mode — verify it reproduced before diagnosing, gated the diagnosis before fixing, and re-verified the original failure before declaring fixed.
+- `jnk-grill` fired mid-beat: legal — it is a primitive, not a phase, and the one model-invoked skill in the set (the agent fires it itself at a decision tree). Verify it asked one question at a time, proposed answers, and handed back to the calling beat with the decisions applied. A grill that wandered into planning is beat bleeding in disguise.
 - A beat's output handed to the next beat without a gate? A skill invoked
   mid-beat?
 
@@ -42,15 +43,19 @@ Every beat and every slice ends with a clearance question, and the agent waits.
 
 The notebook is the loop's memory; resume reads it. Check *writes*, not mentions:
 
-- `understanding.md` (after jnk-1), `docs/adr/` (after jnk-3), `docs/designs/` (after jnk-4), `plans/` (when
+- `understanding.md` (after jnk-1 — when the model earns keeping), `docs/adr/` (after jnk-3), `docs/designs/` (after jnk-4), `plans/` (when
   the plan earns keeping), `verification/results.md` (when something remains
-  unverified or squawked), `notes.md` (after jnk-7).
+  unverified or squawked), `notes.md` (after jnk-7), `handoff.md` (after jnk-handoff — a mid-beat split).
 - stats.json → artifacts + artifactWrites: a toolCall named `write` whose path
   contains `.ai/contexts`, `docs/adr`, `docs/designs`, or `docs/external` is a write; any other
   mention is not.
 - Durability: are `docs/adr/` and `notes.md` committed (or otherwise backed
   up)? Zero durability = the loop has no backup.
-- Zero writes = memory dead, even if every beat went well. This is the biggest
+- Zero writes = memory dead, even if every beat went well. (One caveat under
+  the persistence simplification: a small beat may legally skip its file when
+  the conversation holds the state — the failure is a full arc that leaves
+  nothing readable, or a mid-beat split with no handoff. The next session's
+  pickup is the test.) This is the biggest
   failure mode in real sessions.
 
 ## Lens 4 — Leading-word adoption
@@ -114,12 +119,17 @@ Check each; cite the moment if it fired.
     went unverified. Detection: the debrief block — user's own words vs agent
     narration, and the message order between the ask and the answer. The fix
     lives in debrief.
+13. **Silent decision.** A consequential unresolved decision was resolved by the
+    agent without the user — the grill signal was there and skipped. Detection:
+    a choice appears in the agent's narration with no preceding user decision,
+    no grill, and no named delegation ("I'll pick X unless you object"). The
+    fix lives in grill + the calling beat's grill line.
 
 ## Lens 6 — The Pocock sweep
 
 Load `references/pocock.md` and run the four-part checklist over the workflow's skills — at minimum the ones this session exercised and the ones with proposed edits:
 
-- **Trigger** — user-invoked with `disable-model-invocation: true` and a description that says when to fire. (Consistent by design; flag any drift.)
+- **Trigger** — user-invoked with `disable-model-invocation: true` and a description that says when to fire. (Consistent by design; the one deliberate exception is `jnk-grill`, model-invoked so the agent can fire the decision interview itself. Flag any *other* drift.)
 - **Structure** — steps and reference separated; branch-only material behind context pointers that resolve to real files; SKILL.md as small as it can be.
 - **Steering** — leading words pass the training-data test and are repeated, not stated once; no scenery word sitting where a plain engineering word exists.
 - **Pruning** — deletion test on non-step lines; no duplication across skills; no sediment.
