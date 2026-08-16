@@ -9,6 +9,7 @@ You are the pilot; the agent is the copilot. You decide when each step starts, y
 - **Checkpoints teach in layers.** Each implement checkpoint walks you through the slice — where it sits, the flow, the critical bits, the plumbing to skip — and invites your probes. You don't read every line; you pull where you care, and the agent backs its claims with lines.
 - **Small fix → one-shot. Anything else → the beats.**
 - **Broken behavior → jnk-debug.** Reproduce first, gate the diagnosis, verify the fix on the original failure.
+- **Ship it ironclad → /skill:jnk-attack.** Adversarial tests that try to break the feature; green is as strong as tests get, with residual risk named.
 - **Unresolved decision → the agent fires /skill:jnk-grill.** One question at a time, it proposes an answer and researches facts; you decide.
 - **Own the understanding → /skill:jnk-interrogate.** The agent interrogates you on a repo or feature until your understanding is real — brutal Socratic chains, a teaching ladder where you gap, and a "two areas left" signal so it never runs forever.
 - **Context at ~60% → finish the step and split, or /skill:jnk-handoff mid-beat; fresh session, pickup.**
@@ -19,6 +20,7 @@ You are the pilot; the agent is the copilot. You decide when each step starts, y
 | --- | --- | --- |
 | `/skill:jnk-oneshot` | Small, well-understood fixes — the ~80% case | One pass, no questions: reads just enough, smallest change, verifies, reports — the commit is your call via /skill:jnk-commit. |
 | `/skill:jnk-debug` | Behavior is wrong, cause unknown | Reproduce → diagnose → gate the diagnosis → smallest fix → verify on the original failure. Escalates when the fix is large-scale. |
+| `/skill:jnk-attack` | A feature must be ironclad before it ships | Adversarial tests that try to break it — boundary values, invalid classes, property invariants, state/time/concurrency. Green means ironclad against the attack catalog; each test is proven able to fail. |
 | **Expedited** (no skill — just skip beats) | Small feature that needs some thought | understand → decide → design → implement → verify, with gates. |
 | **Full beats** | Anything fuzzy, architectural, or risky | The whole arc — understand, decide, design (shape + route), implement, verify, debrief — plus brainstorm when fuzzy, gates between every one. |
 | `/skill:jnk-grill` | A decision that needs walking before it can be made | The agent fires it from any beat when a decision tree appears; one question at a time, you decide; back to that beat after. |
