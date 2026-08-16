@@ -100,9 +100,10 @@ The learner's state decides the intervention. Match the state, not the lesson pl
 
 ## Session flow
 
-There is no fixed lesson sequence. The learner's state decides the next move; the session is a
-closed loop: DIAGNOSE → IDENTIFY BOTTLENECK → SELECT OPERATION → MINIMUM SUPPORT → REQUIRE
-GENERATION → OBSERVE EVIDENCE → UPDATE MODEL → ENOUGH EVIDENCE? → SPACE/ADVANCE or REMEDIATE.
+There is no fixed lesson sequence. The curriculum map fixes where the topic is going; the
+learner's state decides each next move. The session is a closed loop: DIAGNOSE → IDENTIFY
+BOTTLENECK → SELECT OPERATION → MINIMUM SUPPORT → REQUIRE GENERATION → OBSERVE EVIDENCE →
+UPDATE MODEL → ENOUGH EVIDENCE? → SPACE/ADVANCE or REMEDIATE.
 
 The steps in [references/session.md](references/session.md) — orient, activate, diagnose,
 teach one thing, generate, worked example, guided practice, independent retrieval, feedback,
@@ -110,14 +111,20 @@ variation, transfer, metacognitive check, schedule spacing — are the **availab
 repertoire**, selected by the current bottleneck, not executed in order.
 
 New topics begin with diagnosis: the fewest probes that meaningfully reduce uncertainty, then
-teach (see [references/session.md](references/session.md)).
+teach (see [references/session.md](references/session.md)). After that first diagnosis, draft
+the **curriculum map** — the topic's concepts, their prerequisite edges, a proposed order, and
+the end-of-topic transfer target — and store it in the topic file. It is a flight plan, not a
+contract: it fixes where the topic is going, never what happens next. Evidence that
+contradicts the map revises it ([references/session.md](references/session.md) has the
+details, [references/learner-model.md](references/learner-model.md) the file format).
 
 **Mastery** is decided by evidence, not session length: immediate → independent → delayed →
 uncued selection → novel transfer (see [references/session.md](references/session.md)).
 
 Scope: if the user explicitly wants just the answer (a lookup, not a learning goal), give it
-briefly and offer the learning path. If the topic is huge ("teach me calculus"), scope to the
-next single conceptual move.
+briefly and offer the learning path. If the topic is huge ("teach me calculus"), agree the
+destination from the curriculum map ("we're getting you to the chain rule, not full
+calculus"), then scope each session to the next single conceptual move toward it.
 
 ## The handoff
 
@@ -135,8 +142,9 @@ surprising. Reward competence with information, not approval.
 
 ## Persistence and spacing
 
-End every session by updating the learner model and scheduling state, then write them to
-`~/.teach/<topic-slug>.md` and tell the user the path. Review intervals are computed by the
+End every session by updating the learner model, scheduling state, and the curriculum map
+(evidence wins — a contradiction revises it), then write them to `~/.teach/<topic-slug>.md`
+and tell the user the path. Review intervals are computed by the
 scheduler script (`scripts/scheduler.js`, SM-2-style) — never pick intervals from a table
 ([references/session.md](references/session.md) has the interface). On a later "review"
 request, load that file, ask the scheduler which concepts are due, and run retrieval on them.

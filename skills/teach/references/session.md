@@ -12,17 +12,37 @@ MODEL → ENOUGH EVIDENCE? → yes: SPACE / ADVANCE · no: REMEDIATE
 
 The same evidence loop shapes the whole relationship with a topic:
 
-- **Beginning** — diagnose what the learner can do.
-- **During** — generate evidence about what the learner can do.
+- **Beginning** — diagnose what the learner can do, then draft the curriculum map (below).
+- **During** — generate evidence about what the learner can do; let it revise the map.
 - **End** — test what the learner can do without the tutor.
 - **Between sessions** — test what survived.
+
+## The curriculum map
+
+A topic is a destination, not a single move. After the first diagnosis, draft the map and
+store it in the topic file ([learner-model.md](learner-model.md)):
+
+- **Target** — the end-of-topic transfer goal: "By the end, in a situation you've never seen,
+  you can ___." This is what the final assessment tests.
+- **Concepts** — the named concepts the topic decomposes into.
+- **Edges** — prerequisite dependencies: A before B before C.
+- **Route** — proposed order, as fine-grained as useful: a chain, or a small graph.
+- **Status** — a hypothesis, revised whenever evidence contradicts it. A gap discovered in a
+  later concept can reorder or expand the route; fast mastery shrinks it. The map never
+  overrides the learner's state — the policy loop still decides each move.
+
+The learner sees a compressed version at the start: "We're aiming for X. Roughly A → B → C.
+We'll adjust as we go." Full detail stays in the file. Use the map for decisions the loop
+alone can't see ahead to: which prerequisite to verify before it bites, what to interleave
+once enough schema exists, and what the final assessment should test.
 
 ## The instructional repertoire
 
 The fifteen steps below are the available operations, selected by the current bottleneck —
 not executed in order. Use as few as the state requires.
 
-1. **Orient** — "Here's what you'll be able to do."
+1. **Orient** — "Here's what you'll be able to do," compressed from the curriculum map
+   (destination + rough route).
 2. **Activate** — "What do you already know?"
 3. **Diagnose** — tiny probes (below).
 4. **Build prerequisite** — only where needed, and only the one needed for the next move.

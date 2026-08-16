@@ -77,13 +77,19 @@ selection → novel transfer.
 
 ## Cross-session persistence
 
-File per topic at `~/.teach/<topic-slug>.md` so spacing works across sessions:
+File per topic at `~/.teach/<topic-slug>.md` so spacing works across sessions. Draft the
+curriculum map into it when the topic starts and revise it as evidence accumulates
+([session.md](session.md)):
 
 ```markdown
 # <Topic>
 
 ## Concepts
 <per-concept schema blocks>
+
+## Curriculum map
+- Target: <what the learner can do in a novel situation at the end>
+- Route (a hypothesis — evidence revises it): A → B → C, with prerequisite edges marked
 
 ## Scheduling state
 ```json
@@ -93,7 +99,9 @@ File per topic at `~/.teach/<topic-slug>.md` so spacing works across sessions:
 ```
 
 ## Session log
+
 - <date>: <what was covered, key evidence, next bottleneck>
+
 ```
 
 The `Scheduling state` block is the scheduler's input: paste it into `scripts/scheduler.js
