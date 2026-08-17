@@ -1,4 +1,4 @@
-# jnk-0-pickup — notes
+# jnk-pickup — notes
 
 Private notes for the human. The agent never sees this file.
 
@@ -8,4 +8,4 @@ Private notes for the human. The agent never sees this file.
 
 **Why:** the notebook is the loop's memory and pickup is its reader. Written memories are debt if nothing reads them, and lost if nothing keeps them.
 
-**Fits:** reads what jnk-7-debrief wrote — the log names the next step; pickup proposes it, never starts it.
+**Fits:** reads what the previous session wrote — the log names the next step; pickup proposes it, never starts it.

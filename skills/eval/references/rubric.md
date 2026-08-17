@@ -11,10 +11,10 @@ an impression with no line number is not a finding.
 
 Which skills were invoked, in what order (stats.json → skillInvocations)?
 
-- `jnk-0-pickup` skipped when starting fresh: fine.
-- `jnk-3-decide` skipped: acceptable, but then a decision record and thread name must
+- `jnk-pickup` skipped when starting fresh: fine.
+- `jnk-design` skipped: acceptable, but then a decision record and thread name must
   exist somewhere — design step 1 backfills them (verify that, don't assume).
-- `jnk-7-debrief` skipped: the loop's memory is missing unless `notes.md` exists.
+- `jnk-commit` skipped: the loop's memory is missing unless `notes.md` exists.
 - `jnk-oneshot` invoked: a legitimate compression of the arc, not skipped beats — but verify it stayed small and escalated when the change grew.
 - `jnk-debug` invoked: a legitimate mode — verify it reproduced before diagnosing, gated the diagnosis before fixing, and re-verified the original failure before declaring fixed.
 - `jnk-grill` fired mid-beat: legal — it is a primitive, not a phase, and the one model-invoked skill in the set (the agent fires it itself at a decision tree). Verify it asked one question at a time, proposed answers, and handed back to the calling beat with the decisions applied. A grill that wandered into planning is beat bleeding in disguise.

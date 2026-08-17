@@ -10,7 +10,7 @@ disable-model-invocation: true
 
 ## Purpose
 
-Move the live conversational thread across a session boundary. A beat boundary and a context boundary are not the same thing: you can split mid-beat, mid-thought, mid-design — anywhere — without pretending you finished a beat. The handoff file is the checkpoint; /skill:jnk-0-pickup is the reader. Nothing is remembered unless it is written.
+Move the live conversational thread across a session boundary. A beat boundary and a context boundary are not the same thing: you can split mid-beat, mid-thought, mid-design — anywhere — without pretending you finished a beat. The handoff file is the checkpoint; /skill:jnk-pickup is the reader. Nothing is remembered unless it is written.
 
 ## When to hand off
 
@@ -41,7 +41,7 @@ Durable project knowledge does NOT go here — it belongs in `docs/adr/`, `docs/
 
 3. **Reference the durable files.** If this session wrote or updated `docs/` or the route file, the handoff points at them rather than duplicating — pickup reads both.
 
-4. **Gate.** "Handoff written to `<path>`. Resume with /skill:jnk-0-pickup." Then stop — no summary essay; the file is the record.
+4. **Gate.** "Handoff written to `<path>`. Resume with /skill:jnk-pickup." Then stop — no summary essay; the file is the record.
 
 ## Output
 
@@ -49,7 +49,7 @@ A compact handoff file / the resume path named
 
 ## Handoff
 
-The next session runs /skill:jnk-0-pickup, reads the handoff, and presents the state. The thread continues from the named next action.
+The next session runs /skill:jnk-pickup, reads the handoff, and presents the state. The thread continues from the named next action.
 
 ## Do not
 

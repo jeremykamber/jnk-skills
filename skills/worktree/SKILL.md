@@ -26,7 +26,7 @@ Give the session an isolated workspace before any beat starts. One worktree per 
 
 ## Handoff
 
-When cleared, the first beat is /skill:jnk-0-pickup (continuing work) or /skill:jnk-1-understand (fresh). Do not start it: the first beat begins when the user invokes it.
+When cleared, the first beat is /skill:jnk-pickup (continuing work) or /skill:jnk-explore (fresh). Do not start it: the first beat begins when the user invokes it.
 
 ## Do not
 

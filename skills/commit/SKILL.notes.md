@@ -8,6 +8,6 @@ Private notes for the human. The agent never sees this file.
 
 **Why:** history that reads like the story of what happened; the only place commits are written.
 
-**Fits:** after jnk-6-verify; proposes, never commits on its own.
+**Fits:** after jnk-verify; proposes, never commits on its own.
 
 **Refs:** conventional commits.

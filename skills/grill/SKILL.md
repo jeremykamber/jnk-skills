@@ -25,7 +25,7 @@ The test is not the phase — it is: *is there an unresolved decision here that 
 Before asking anything, classify it:
 
 1. **Obvious?** Don't ask.
-2. **Answerable from the code or docs?** Investigate, don't ask. (A deep investigation is /skill:jnk-1-understand's job — say so and return there.)
+2. **Answerable from the code or docs?** Investigate, don't ask. (A deep investigation is /skill:jnk-explore's job — say so and return there.)
 3. **Genuinely consequential or ambiguous?** Ask.
 4. **A small detail the agent can safely choose?** Choose it, say so in one line, move on.
 
@@ -47,7 +47,7 @@ Grilling every possible decision is noise. The user answers only the questions t
 
 7. **Check the tree.** After each branch: "Any consequential branch left on this decision?" When none remain, end.
 
-8. **Hand back.** Restate the decisions and where the calling beat stands: "Grill resolved: `<decisions>`. Back to decide — the options are A' and C; B is dead because `<reason>`." Unknowns the codebase must answer go back to /skill:jnk-1-understand. Do not start the next beat's work.
+8. **Hand back.** Restate the decisions and where the calling beat stands: "Grill resolved: `<decisions>`. Back to decide — the options are A' and C; B is dead because `<reason>`." Unknowns the codebase must answer go back to /skill:jnk-explore. Do not start the next beat's work.
 
 ## Output
 
@@ -64,5 +64,5 @@ Grill hands back to the beat it came from — restate that beat's state with the
 - Dump questions, or ask more than one at a time.
 - Decide for the user, or let "you decide" pass without a named confirmation.
 - Plan, design, or implement during a grill — resolve decisions only.
-- Turn the grill into an understand pass — deep investigation belongs to /skill:jnk-1-understand.
+- Turn the grill into an understand pass — deep investigation belongs to /skill:jnk-explore.
 - Write artifacts — durable knowledge lands in the beat that owns it.

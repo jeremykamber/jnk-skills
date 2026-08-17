@@ -1,6 +1,6 @@
 ---
-name: jnk-0-pickup
-description: Pick up where a previous session left off. User-invoked only via /skill:jnk-0-pickup. Finds the work in the engineering notebook (.ai/contexts/), reads what was learned and what's unfinished — including the live handoff — and presents the state before any beat starts.
+name: jnk-pickup
+description: Pick up where a previous session left off. User-invoked only via /skill:jnk-pickup. Finds the work in the engineering notebook (.ai/contexts/), reads what was learned and what's unfinished — including the live handoff — and presents the state before any beat starts.
 disable-model-invocation: true
 ---
 
@@ -14,7 +14,7 @@ Pick up where a previous session left off. Find the work in the engineering note
 
 ## Steps
 
-1. **Find the context.** Ask what work is being continued (or use the feature name). Search `.ai/contexts/*/` in the current directory and in the main checkout (`git worktree list`) — the notebook's permanent home is the main repo. Match the slug, or grep `understanding.md` and `notes.md` for the keywords. Skip contexts whose `notes.md` begins with `Abandoned` — and say you skipped them. If nothing matches, say so and propose /skill:jnk-1-understand.
+1. **Find the context.** Ask what work is being continued (or use the feature name). Search `.ai/contexts/*/` in the current directory and in the main checkout (`git worktree list`) — the notebook's permanent home is the main repo. Match the slug, or grep `understanding.md` and `notes.md` for the keywords. Skip contexts whose `notes.md` begins with `Abandoned` — and say you skipped them. If nothing matches, say so and propose /skill:jnk-explore.
 
 2. **Read.** `handoff.md` (the live thread checkpoint, when one exists — the latest handoff is where the previous session stopped), `understanding.md` (the mental model and IOUs), and `notes.md` (what landed, squawks, the next step). Read the thread's `docs/adr/` decision and `docs/designs/` doc, `verification/results.md`, and the latest `plans/` file if the work needs the detail — the route file is the living state of an ongoing implementation; its ledger says what's done, in flight, owed, deferred.
 
@@ -25,7 +25,7 @@ Pick up where a previous session left off. Find the work in the engineering note
    - Squawks and IOUs still open
    - The next step — the handoff's named next action when one exists, else the previous session's named next step
 
-4. **Gate.** Ask: "Is this the right place to pick up?" Offer to re-derive where things actually stand by running the open slices' checkpoints — the file is state, the tests are truth. Then propose the next beat — usually /skill:jnk-1-understand or /skill:jnk-4-design. Do not start it until the user confirms.
+4. **Gate.** Ask: "Is this the right place to pick up?" Offer to re-derive where things actually stand by running the open slices' checkpoints — the file is state, the tests are truth. Then propose the next beat — usually /skill:jnk-explore or /skill:jnk-design. Do not start it until the user confirms.
 
 ## Do not
 
