@@ -1,6 +1,6 @@
 ---
 name: jnk-oneshot
-description: Make a small, well-understood change end to end in one pass — no beat ceremony, no user gates. User-invoked only via /skill:jnk-oneshot. Checks what the repo already knows, builds in vertical slices with a checkpoint after each (no user gate between them), uses subagents for slice validation and implementation review, self-reviews the diff, verifies with evidence, writes durable facts to docs/external/, reports — and escalates to the full workflow if the change outgrows one shot.
+description: Make a small, well-understood change end to end in one pass — no beat ceremony, no user gates. User-invoked only via /skill:jnk-oneshot. Checks what the repo already knows, builds in vertical slices with a checkpoint after each (no user gate between them), uses subagents for slice validation, parallel execution with dependency graph, and implementation review, self-reviews the diff, verifies with evidence, writes durable facts to docs/external/, reports — and escalates to the full workflow if the change outgrows one shot.
 disable-model-invocation: true
 ---
 
@@ -52,11 +52,46 @@ task(
   2. Does each slice leave the system working?
   3. Are checkpoints actually verifiable?
   4. Are there hidden dependencies between slices?
+  5. Does each slice have clear dependencies and parallelization info?
   
   If invalid, reject and explain why.
   If valid, approve and note any concerns.
   """,
   run_in_background=false
+)
+```
+
+### Parallel Execution
+
+When slices are parallelizable, spawn multiple implementer subagents:
+
+```
+task(
+  category="quick",
+  load_skills=["jnk-oneshot"],
+  prompt="""
+  Implement slice 3: User profile endpoint
+  
+  Files: src/api/users.ts, src/ui/Profile.tsx
+  Checkpoint: Profile displays user data
+  
+  Follow red-green-refactor. Write tests first.
+  """,
+  run_in_background=true
+)
+
+task(
+  category="quick",
+  load_skills=["jnk-oneshot"],
+  prompt="""
+  Implement slice 4: Settings page
+  
+  Files: src/api/settings.ts, src/ui/Settings.tsx
+  Checkpoint: Settings save and display
+  
+  Follow red-green-refactor. Write tests first.
+  """,
+  run_in_background=true
 )
 ```
 
