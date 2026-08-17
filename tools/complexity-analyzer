@@ -1,0 +1,390 @@
+#!/usr/bin/env python3
+"""
+Code Complexity Analyzer
+Wraps Lizard to add Maintainability Index calculation.
+
+Metrics provided:
+- Cyclomatic Complexity (from Lizard)
+- Maintainability Index (calculated from LOC, CCN, tokens, comments)
+
+Usage:
+  complexity-analyzer <path>                    # Analyze file or directory
+  complexity-analyzer <path> --json             # JSON output
+  complexity-analyzer <path> --threshold 50     # Only show functions below MI threshold
+"""
+
+import subprocess
+import sys
+import json
+import math
+import os
+from pathlib import Path
+from dataclasses import dataclass, asdict
+from typing import List, Optional
+
+@dataclass
+class FunctionMetrics:
+    name: str
+    file: str
+    start_line: int
+    end_line: int
+    nloc: int
+    ccn: int
+    tokens: int
+    params: int
+    length: int
+    maintainability_index: float
+    mi_grade: str
+
+@dataclass
+class FileMetrics:
+    file: str
+    language: str
+    total_nloc: int
+    total_functions: int
+    avg_ccn: float
+    avg_mi: float
+    functions: List[FunctionMetrics]
+    warnings: List[str]
+
+def calculate_maintainability_index(nloc: int, ccn: int, tokens: int, comment_ratio: float = 0.0) -> float:
+    """
+    Calculate Maintainability Index using Microsoft's formula.
+    
+    MI = 171 - 5.2 * ln(V) - 0.23 * CCN - 16.2 * ln(LOC) + 50 * sin(sqrt(2.4 * CM))
+    
+    Where:
+    - V = Halstead volume (approximated by token count)
+    - CCN = Cyclomatic complexity
+    - LOC = Lines of code
+    - CM = Comment ratio
+    
+    Returns MI normalized to 0-100 scale.
+    """
+    # Avoid log(0) by ensuring minimum values
+    v = max(tokens, 1)
+    loc = max(nloc, 1)
+    cm = max(comment_ratio, 0)
+    
+    # Calculate raw MI
+    mi = (171 
+          - 5.2 * math.log(v) 
+          - 0.23 * ccn 
+          - 16.2 * math.log(loc) 
+          + 50 * math.sin(math.sqrt(2.4 * cm)))
+    
+    # Normalize to 0-100 scale (171 is max possible)
+    mi_normalized = max(0, min(100, mi * 100 / 171))
+    
+    return round(mi_normalized, 2)
+
+def get_mi_grade(mi: float) -> str:
+    """Convert MI score to letter grade."""
+    if mi >= 80:
+        return "A"
+    elif mi >= 60:
+        return "B"
+    elif mi >= 40:
+        return "C"
+    elif mi >= 20:
+        return "D"
+    else:
+        return "F"
+
+def count_comment_lines(file_path: str) -> tuple[int, int]:
+    """Count total lines and comment lines in a file."""
+    total_lines = 0
+    comment_lines = 0
+    
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            lines = f.readlines()
+            total_lines = len(lines)
+            
+            in_block_comment = False
+            for line in lines:
+                stripped = line.strip()
+                
+                # Python comments
+                if stripped.startswith('#'):
+                    comment_lines += 1
+                # JavaScript/TypeScript/Java block comments
+                elif in_block_comment:
+                    comment_lines += 1
+                    if '*/' in stripped:
+                        in_block_comment = False
+                elif stripped.startswith('//'):
+                    comment_lines += 1
+                elif stripped.startswith('/*'):
+                    comment_lines += 1
+                    if '*/' not in stripped:
+                        in_block_comment = True
+    except Exception:
+        pass
+    
+    return total_lines, comment_lines
+
+def run_lizard(file_path: str) -> List[dict]:
+    """Run lizard and parse CSV output."""
+    try:
+        # Run lizard with CSV output
+        result = subprocess.run(
+            ['python3', '-m', 'lizard', file_path, '--csv'],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        functions = []
+        for line in result.stdout.strip().split('\n'):
+            if not line:
+                continue
+            
+            # Parse CSV: nloc,ccn,tokens,param,length,"location","file","name","params",start,end
+            parts = []
+            current = ''
+            in_quotes = False
+            
+            for char in line:
+                if char == '"':
+                    in_quotes = not in_quotes
+                elif char == ',' and not in_quotes:
+                    parts.append(current.strip('"'))
+                    current = ''
+                else:
+                    current += char
+            parts.append(current.strip('"'))
+            
+            if len(parts) >= 10:
+                try:
+                    functions.append({
+                        'nloc': int(parts[0]),
+                        'ccn': int(parts[1]),
+                        'tokens': int(parts[2]),
+                        'params': int(parts[3]),
+                        'length': int(parts[4]),
+                        'location': parts[5],
+                        'file': parts[6],
+                        'name': parts[7],
+                        'start_line': int(parts[9]),
+                        'end_line': int(parts[10]) if len(parts) > 10 else int(parts[9]),
+                    })
+                except (ValueError, IndexError):
+                    continue
+        
+        return functions
+    except subprocess.TimeoutExpired:
+        print(f"Warning: Lizard timed out for {file_path}", file=sys.stderr)
+        return []
+    except Exception as e:
+        print(f"Error running lizard: {e}", file=sys.stderr)
+        return []
+
+def analyze_file(file_path: str) -> Optional[FileMetrics]:
+    """Analyze a single file and return metrics."""
+    if not os.path.isfile(file_path):
+        return None
+    
+    # Get file extension for language detection
+    ext = Path(file_path).suffix.lower()
+    lang_map = {
+        '.ts': 'typescript', '.tsx': 'typescript',
+        '.js': 'javascript', '.jsx': 'javascript', '.mjs': 'javascript',
+        '.py': 'python', '.go': 'go', '.rs': 'rust', '.java': 'java',
+        '.c': 'c', '.cpp': 'cpp', '.cs': 'csharp', '.rb': 'ruby',
+        '.php': 'php', '.swift': 'swift', '.kt': 'kotlin'
+    }
+    language = lang_map.get(ext, 'unknown')
+    
+    # Run lizard
+    raw_functions = run_lizard(file_path)
+    if not raw_functions:
+        return None
+    
+    # Get comment info for MI calculation
+    total_lines, comment_lines = count_comment_lines(file_path)
+    comment_ratio = comment_lines / total_lines if total_lines > 0 else 0
+    
+    # Calculate MI for each function
+    functions = []
+    warnings = []
+    
+    for fn in raw_functions:
+        mi = calculate_maintainability_index(
+            fn['nloc'], fn['ccn'], fn['tokens'], comment_ratio
+        )
+        grade = get_mi_grade(mi)
+        
+        func_metrics = FunctionMetrics(
+            name=fn['name'],
+            file=fn['file'],
+            start_line=fn['start_line'],
+            end_line=fn['end_line'],
+            nloc=fn['nloc'],
+            ccn=fn['ccn'],
+            tokens=fn['tokens'],
+            params=fn['params'],
+            length=fn['length'],
+            maintainability_index=mi,
+            mi_grade=grade
+        )
+        functions.append(func_metrics)
+        
+        # Check for warnings
+        if fn['ccn'] > 15:
+            warnings.append(f"High cyclomatic complexity ({fn['ccn']}) in {fn['name']} at line {fn['start_line']}")
+        if mi < 40:
+            warnings.append(f"Low maintainability index ({mi}, grade {grade}) in {fn['name']} at line {fn['start_line']}")
+        if fn['length'] > 50:
+            warnings.append(f"Long function ({fn['length']} lines) in {fn['name']} at line {fn['start_line']}")
+    
+    # Calculate file-level metrics
+    total_nloc = sum(f.nloc for f in functions)
+    avg_ccn = sum(f.ccn for f in functions) / len(functions) if functions else 0
+    avg_mi = sum(f.maintainability_index for f in functions) / len(functions) if functions else 0
+    
+    return FileMetrics(
+        file=file_path,
+        language=language,
+        total_nloc=total_nloc,
+        total_functions=len(functions),
+        avg_ccn=round(avg_ccn, 2),
+        avg_mi=round(avg_mi, 2),
+        functions=functions,
+        warnings=warnings
+    )
+
+def analyze_directory(dir_path: str, extensions: Optional[List[str]] = None) -> List[FileMetrics]:
+    """Analyze all code files in a directory."""
+    if extensions is None:
+        extensions = ['.ts', '.tsx', '.js', '.jsx', '.py', '.go', '.rs', '.java', '.c', '.cpp']
+    
+    results = []
+    exclude_dirs = {'node_modules', '.git', 'dist', 'build', '__pycache__', '.next', 'coverage'}
+    
+    for root, dirs, files in os.walk(dir_path):
+        # Skip excluded directories
+        dirs[:] = [d for d in dirs if d not in exclude_dirs]
+        
+        for file in files:
+            if any(file.endswith(ext) for ext in extensions):
+                file_path = os.path.join(root, file)
+                metrics = analyze_file(file_path)
+                if metrics:
+                    results.append(metrics)
+    
+    return results
+
+def print_text_report(results: List[FileMetrics], show_functions: bool = True):
+    """Print human-readable text report."""
+    if not results:
+        print("No files analyzed.")
+        return
+    
+    print("\n" + "=" * 80)
+    print("CODE COMPLEXITY REPORT")
+    print("=" * 80)
+    
+    total_functions = 0
+    total_warnings = 0
+    all_warnings = []
+    
+    for file_metrics in results:
+        print(f"\n📄 {file_metrics.file}")
+        print(f"   Language: {file_metrics.language} | NLOC: {file_metrics.total_nloc} | Functions: {file_metrics.total_functions}")
+        print(f"   Avg CCN: {file_metrics.avg_ccn} | Avg MI: {file_metrics.avg_mi} ({get_mi_grade(file_metrics.avg_mi)})")
+        
+        if show_functions and file_metrics.functions:
+            print(f"\n   {'Function':<40} {'NLOC':>6} {'CCN':>6} {'Tokens':>7} {'MI':>6} {'Grade':>6}")
+            print("   " + "-" * 75)
+            
+            for fn in sorted(file_metrics.functions, key=lambda x: x.maintainability_index):
+                name = fn.name[:38] + ".." if len(fn.name) > 40 else fn.name
+                print(f"   {name:<40} {fn.nloc:>6} {fn.ccn:>6} {fn.tokens:>7} {fn.maintainability_index:>6} {fn.mi_grade:>6}")
+        
+        if file_metrics.warnings:
+            print(f"\n   ⚠️  Warnings:")
+            for warning in file_metrics.warnings:
+                print(f"      - {warning}")
+            all_warnings.extend(file_metrics.warnings)
+        
+        total_functions += file_metrics.total_functions
+        total_warnings += len(file_metrics.warnings)
+    
+    # Summary
+    print("\n" + "=" * 80)
+    print("SUMMARY")
+    print("=" * 80)
+    print(f"Files analyzed: {len(results)}")
+    print(f"Total functions: {total_functions}")
+    print(f"Total warnings: {total_warnings}")
+    
+    if all_warnings:
+        print(f"\n⚠️  Top Issues:")
+        for i, warning in enumerate(all_warnings[:10], 1):
+            print(f"   {i}. {warning}")
+
+def print_json_report(results: List[FileMetrics]):
+    """Print JSON report for machine parsing."""
+    report = {
+        'files': [asdict(fm) for fm in results],
+        'summary': {
+            'files_analyzed': len(results),
+            'total_functions': sum(fm.total_functions for fm in results),
+            'total_warnings': sum(len(fm.warnings) for fm in results),
+        }
+    }
+    print(json.dumps(report, indent=2))
+
+def main():
+    import argparse
+    
+    parser = argparse.ArgumentParser(
+        description='Code Complexity Analyzer - Wraps Lizard with Maintainability Index',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s src/                    # Analyze all files in src/
+  %(prog)s file.ts                 # Analyze single file
+  %(prog)s src/ --json             # JSON output
+  %(prog)s src/ --threshold 50     # Show only functions with MI < 50
+  %(prog)s src/ --no-functions      # Hide per-function details
+        """
+    )
+    
+    parser.add_argument('path', help='File or directory to analyze')
+    parser.add_argument('--json', action='store_true', help='Output JSON format')
+    parser.add_argument('--threshold', type=int, default=0,
+                       help='Only show functions with MI below this threshold')
+    parser.add_argument('--no-functions', action='store_true',
+                       help='Hide per-function details')
+    parser.add_argument('--extensions', nargs='+',
+                       default=['.ts', '.tsx', '.js', '.jsx', '.py', '.go', '.rs', '.java'],
+                       help='File extensions to analyze')
+    
+    args = parser.parse_args()
+    
+    # Analyze
+    if os.path.isfile(args.path):
+        results = [analyze_file(args.path)]
+        results = [r for r in results if r is not None]
+    elif os.path.isdir(args.path):
+        results = analyze_directory(args.path, args.extensions)
+    else:
+        print(f"Error: {args.path} does not exist", file=sys.stderr)
+        sys.exit(1)
+    
+    # Filter by threshold if specified
+    if args.threshold > 0:
+        for fm in results:
+            fm.functions = [fn for fn in fm.functions if fn.maintainability_index < args.threshold]
+            fm.total_functions = len(fm.functions)
+    
+    # Output
+    if args.json:
+        print_json_report(results)
+    else:
+        print_text_report(results, show_functions=not args.no_functions)
+
+if __name__ == '__main__':
+    main()
