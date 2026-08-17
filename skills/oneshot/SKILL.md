@@ -1,6 +1,6 @@
 ---
 name: jnk-oneshot
-description: Make a small, well-understood change end to end in one pass — no beat ceremony, no user gates. User-invoked only via /skill:jnk-oneshot. Checks what the repo already knows, builds in vertical slices with a checkpoint after each (no user gate between them), uses subagents for slice validation, parallel execution with dependency graph, and implementation review, self-reviews the diff, verifies with evidence, writes durable facts to docs/external/, reports — and escalates to the full workflow if the change outgrows one shot.
+description: Make a small, well-understood change end to end in one pass — no beat ceremony, no user gates. User-invoked only via /skill:jnk-oneshot. Checks what the repo already knows, cuts its own worktree feature branch when the change warrants it, builds in vertical slices with a checkpoint after each (no user gate between them), uses subagents for slice validation, parallel execution with dependency graph, and implementation review, self-reviews the diff, verifies with evidence, writes durable facts to docs/external/, commits the work via /skill:jnk-commit, reports — and escalates to the full workflow if the change outgrows one shot.
 disable-model-invocation: true
 ---
 
@@ -10,7 +10,7 @@ disable-model-invocation: true
 
 ## Purpose
 
-Make a small, well-understood change end to end in one shot: just enough understanding, the smallest change, honest verification, one report. No gates, no slices, no notebook — the report is the record; history is written at the end, your call, via /skill:jnk-commit. This is the default for the 80% of work that is small and clear; the full beats are for when it isn't.
+Make a small, well-understood change end to end in one shot: just enough understanding, the smallest change, honest verification, one report. No gates, no slices, no notebook — the report is the record; history is written once, at the end, via /skill:jnk-commit. This is the default for the 80% of work that is small and clear; the full beats are for when it isn't.
 
 ## When to escalate
 
@@ -22,13 +22,15 @@ One shot is for changes you understand at a glance: a bug with a clear cause, a 
 
 2. **The minimum read.** First, check what the repo already knows: a `.ai/contexts/` notebook entry, a `docs/adr/` decision, a `docs/designs/` blueprint, or a `docs/external/` fact that this change touches — read the relevant entry before the code; the repo may already know what you're about to re-derive. Then read the file to change, its tests, one caller or sibling. State the model in three lines: current behavior, the fix, the risk. A real unknown here is the escalate signal.
 
-3. **The smallest change, in vertical slices.** Work on a branch — cut one if you're on main. When the change spans layers (backend → frontend → persistence), build it the same way the beats do — the thinnest end-to-end slice first, then thicken — minus the user gates: each slice is a thin end-to-end story that leaves the system working. Per slice, where a test can fail for the right reason, write it first and watch it fail, then fix. Touch only what the slice needs. Write for the next engineer: intent over cleverness, comments say why. Anything noticed-but-not-fixed is a squawk — log it, never silently fix, never silently forgive.
+3. **Own your branch; then the smallest change, in vertical slices.** When the change is big enough to want isolation — multi-file, cross-layer, or several slices — cut your own feature branch first, in a fresh worktree, and build there (follow the /skill:jnk-worktree pattern: `git worktree add .worktrees/<slug> -b <slug>`, after confirming `.worktrees/` is gitignored; verify the baseline tests pass before you start). A change you can make in one file in one step may skip the branch. When the change spans layers (backend → frontend → persistence), build it the same way the beats do — the thinnest end-to-end slice first, then thicken — minus the user gates: each slice is a thin end-to-end story that leaves the system working. Per slice, where a test can fail for the right reason, write it first and watch it fail, then fix. Touch only what the slice needs. Write for the next engineer: intent over cleverness, comments say why. Anything noticed-but-not-fixed is a squawk — log it, never silently fix, never silently forgive.
 
 4. **Checkpoint after every slice; gate only at the end.** Run the slice's narrowest check that gives confidence (the touched tests, typecheck), plus anything it could have broken — then the next slice, with no user gate. On a failure, compare against pristine (stash → run → pop) before blaming anything. Name the ledger out loud as you go — done / next — so nothing is lost. If a slice reveals design choices, uncertain behavior, or a real unknown, that is the escalate signal, not a reason to push on.
 
 5. **The skeptic's pass.** Re-read your diff as a hostile reviewer before reporting: plausible-but-wrong logic, silent fallbacks, tests that pass for the wrong reason, over-engineering, hidden behavior changes. Fix the real ones — a one-shot must be right, not just green. Squawk the rest.
 
-6. **Report and hand off.** Report: what changed, the verification result, any **uncertain choices** (the decisions you're least confident about, and why), squawks. A durable fact learned (env schema, integration shape, convention) is written to `docs/external/` — create the dirs if missing; it is free context for the next one-shot. Do not commit — propose /skill:jnk-commit and let the user run it. No notebook entry: the report is the record.
+6. **Report.** Report: what changed, the verification result, any **uncertain choices** (the decisions you're least confident about, and why), squawks, and — if you used subagents — which ones ran and what each found and how you resolved it. A skipped subagent shows up here as a blank, not a silent drop. A durable fact learned (env schema, integration shape, convention) is written to `docs/external/` — create the dirs if missing; it is free context for the next one-shot. No notebook entry: the report is the record.
+
+7. **Commit the history.** Run /skill:jnk-commit on the branch — it turns the session's work into good, small, one-line conventional commits that tell the story (one coherent chapter per commit, `type(scope): summary`), in the order the work happened. Don't squash the whole change into one giant commit, and don't sprinkle commits as you go — all history is written once, here, at the end.
 
 ## Subagents
 
@@ -55,5 +57,5 @@ Every subagent's outcome goes in the report (step 6): which ran, what it found, 
 - Use this on fuzzy, architectural, or multi-unknown work — escalate instead.
 - Run the ceremony (gates, slices, decision records, notebook) — that is what one shot is for skipping.
 - Skip verification, or claim green without the narrowest run.
-- Commit anything — history is written via /skill:jnk-commit, user-invoked.
+- Commit as you go — all history is written once, at the end, via /skill:jnk-commit.
 - Leave a durable fact in the chat — it belongs in `docs/external/`.

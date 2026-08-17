@@ -121,13 +121,13 @@ Per-slice reports (plain-language what changed, checkpoint result, squawks, the 
 
 ## Handoff
 
-When the last slice lands, recommend /skill:jnk-verify — and after verification, /skill:jnk-commit (user-invoked) writes the history. Do not run the full verification sweep here: per-slice checkpoints only. The next beat begins when the user invokes it.
+When the last slice lands, commit the work: run /skill:jnk-commit on the branch to write the implementation as good, small, one-line story-telling commits (one coherent chapter per commit, `type(scope): summary`, in the order the work happened). Don't sprinkle commits as you go — all history is written here, once, when the last slice lands. Then recommend /skill:jnk-verify, which verifies and commits any fixes it produces. Do not run the full verification sweep here: per-slice checkpoints only. The next beat begins when the user invokes it.
 
 ## Do not
 
 - Implement more than one slice without a gate.
 - Touch files outside the slice, or fix squawks mid-flight without asking.
 - Reorder the plan silently — new slices re-order the ledger out loud, or not at all.
-- Commit anything — history is written at the end, via /skill:jnk-commit (user-invoked).
+- Commit as you go — all history is written once, via /skill:jnk-commit, when the last slice lands.
 - Dump the whole diff at the checkpoint — teach in layers, and say plainly what's plumbing.
 - Stay silent for the whole implementation.

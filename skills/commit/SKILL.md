@@ -1,7 +1,6 @@
 ---
 name: jnk-commit
-description: Commit a session's work as a story of conventional commits. User-invoked only via /skill:jnk-commit. Assesses what was built and the steps taken, splits the work into coherent chapters, and commits each with a one-line conventional message.
-disable-model-invocation: true
+description: Commit a session's work as a story of conventional commits. Use for commit writing and when finished with one unit of change. Assesses what was built and the steps taken, splits the work into coherent chapters, and commits each with a one-line conventional message.
 ---
 
 # Commit

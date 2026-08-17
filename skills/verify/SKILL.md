@@ -73,7 +73,7 @@ Verification report (what passed, what's unverified) / Squawk list / IOU reconci
 
 ## Handoff
 
-If the user is satisfied, recommend /skill:jnk-commit — the session log closes the loop. Do not start it: the next beat begins when the user invokes it.
+If the user is satisfied, close the loop: run /skill:jnk-commit to write any fixes verification produced (or to confirm the approved work is already committed, clean). A verification that lands cleanly leaves the story as implemented, a small one-line commit per chapter; a verification that prompted fixes adds them as their own commits. Don't commit as you go — history is written here, at the end. Do not start the next beat; it begins when the user invokes it.
 
 ## Do not
 
