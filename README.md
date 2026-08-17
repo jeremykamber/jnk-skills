@@ -36,7 +36,7 @@ See `usage.md` for the full modes and day-to-day mechanics.
 ## Key features
 
 - **Write-in-the-moment persistence**: IOUs and squawks written to disk at every gate, not at debrief
-- **Subagent architecture**: Slice validator, parallel execution with dependency graph, implementation reviewer
+- **Subagent architecture**: Slice validator, parallel execution with dependency graph, implementation reviewer (used in both implement and oneshot)
 - **AGENTS.md enforcement**: Subagent checks diff against principles before verification
 - **Anti-rationalization tables**: Intercept model rationalizations for skipping gates
 - **Code complexity analysis**: CLI tool for cyclomatic complexity, maintainability index, letter grades

@@ -18,7 +18,7 @@ You are the pilot; the agent is the copilot. You decide when each step starts, y
 
 | Mode | Use it for | What happens |
 | --- | --- | --- |
-| `/skill:jnk-oneshot` | Small, well-understood fixes — the ~80% case | One pass, no questions: reads just enough, smallest change, verifies, reports — the commit is your call via /skill:jnk-commit. |
+| `/skill:jnk-oneshot` | Small, well-understood fixes — the ~80% case | One pass, no questions: reads just enough, builds vertical slices with subagent validation, verifies, reports — the commit is your call via /skill:jnk-commit. |
 | `/skill:jnk-debug` | Behavior is wrong, cause unknown | Reproduce → diagnose → gate the diagnosis → smallest fix → verify on the original failure. Escalates when the fix is large-scale. |
 | `/skill:jnk-attack` | A feature must be ironclad before it ships | Adversarial tests that try to break it — boundary values, invalid classes, property invariants, state/time/concurrency. Green means ironclad against the attack catalog; each test is proven able to fail. |
 | **Expedited** (no skill — just skip beats) | Small feature that needs some thought | explore → design → implement → verify, with gates. |

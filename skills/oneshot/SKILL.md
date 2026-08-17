@@ -1,6 +1,6 @@
 ---
 name: jnk-oneshot
-description: Make a small, well-understood change end to end in one pass — no beat ceremony, no user gates. User-invoked only via /skill:jnk-oneshot. Checks what the repo already knows, builds in vertical slices with a checkpoint after each (no user gate between them), self-reviews the diff, verifies with evidence, writes durable facts to docs/external/, reports — and escalates to the full workflow if the change outgrows one shot.
+description: Make a small, well-understood change end to end in one pass — no beat ceremony, no user gates. User-invoked only via /skill:jnk-oneshot. Checks what the repo already knows, builds in vertical slices with a checkpoint after each (no user gate between them), uses subagents for slice validation and implementation review, self-reviews the diff, verifies with evidence, writes durable facts to docs/external/, reports — and escalates to the full workflow if the change outgrows one shot.
 disable-model-invocation: true
 ---
 
@@ -29,6 +29,63 @@ One shot is for changes you understand at a glance: a bug with a clear cause, a 
 5. **The skeptic's pass.** Re-read your diff as a hostile reviewer before reporting: plausible-but-wrong logic, silent fallbacks, tests that pass for the wrong reason, over-engineering, hidden behavior changes. Fix the real ones — a one-shot must be right, not just green. Squawk the rest.
 
 6. **Report and hand off.** Report: what changed, the verification result, any **uncertain choices** (the decisions you're least confident about, and why), squawks. A durable fact learned (env schema, integration shape, convention) is written to `docs/external/` — create the dirs if missing; it is free context for the next one-shot. Do not commit — propose /skill:jnk-commit and let the user run it. No notebook entry: the report is the record.
+
+## Subagent Architecture
+
+Oneshot uses subagents for quality without ceremony. No user gates — validation happens automatically.
+
+### Slice Validator
+
+After proposing slices (before implementation), spawn a validator:
+
+```
+task(
+  subagent_type="oracle",
+  load_skills=[],
+  prompt="""
+  Validate these vertical slices for a coding workflow:
+  
+  [slice list from your plan]
+  
+  Check:
+  1. Is each slice truly end-to-end? (Not "all backend, then all UI")
+  2. Does each slice leave the system working?
+  3. Are checkpoints actually verifiable?
+  4. Are there hidden dependencies between slices?
+  
+  If invalid, reject and explain why.
+  If valid, approve and note any concerns.
+  """,
+  run_in_background=false
+)
+```
+
+### Implementation Reviewer
+
+After each slice, spawn a reviewer:
+
+```
+task(
+  subagent_type="oracle",
+  load_skills=[],
+  prompt="""
+  Review this diff for a coding workflow:
+  
+  [diff from slice implementation]
+  
+  Check:
+  1. Did the implementer follow the plan?
+  2. Did it skip any verification?
+  3. Did it refactor when it shouldn't have?
+  4. Did it write tests first (red-green-refactor)?
+  5. Does it follow AGENTS.md principles?
+  
+  If issues found, list them specifically.
+  If clean, say so and explain why.
+  """,
+  run_in_background=false
+)
+```
 
 ## Do not
 
