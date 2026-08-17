@@ -57,100 +57,31 @@ For each slice:
 ## Persistence Gate
 
 Before proceeding to the next slice, confirm:
+
 - [ ] Squawks are in `.ai/contexts/<slug>/squawks.md`
 - [ ] IOUs are in `.ai/contexts/<slug>/understanding.md`
 - [ ] Route file is updated with ledger
 - [ ] If any are missing, write them first
 
-## Subagent Architecture
+## Subagents
 
-### Slice Validator
+Implementation uses subagents at set points — validation up front, parallel execution where slices are independent, review on the slices the route called for. Say what you want done in plain language — *spawn a subagent to validate X, to review Y, to implement Z* — and let your harness's subagent mechanism pick the concrete form. Don't hard-code agent types or tool syntax; the harness decides.
 
-After proposing slices (before implementation), spawn a validator subagent:
+Scale the ceremony to the slice. Mechanical slices may want none; slices the route marked for review, and any parallel fanout, are where subagents earn their keep.
 
-```
-task(
-  subagent_type="oracle",
-  load_skills=[],
-  prompt="""
-  Validate these vertical slices for a coding workflow:
-  
-  [slice list from design]
-  
-  Check:
-  1. Is each slice truly end-to-end? (Not "all backend, then all UI")
-  2. Does each slice leave the system working?
-  3. Are checkpoints actually verifiable?
-  4. Are there hidden dependencies between slices?
-  5. Does each slice have clear dependencies and parallelization info?
-  
-  If invalid, reject and explain why.
-  If valid, approve and note any concerns.
-  """,
-  run_in_background=false
-)
-```
+### Before you build: validate the slices
 
-### Parallel Execution
+After proposing slices (before implementation), spawn a subagent to validate them. Give it the slice list from design and ask: is each slice truly end-to-end (not "all backend, then all UI")? Does each leave the system working? Are the checkpoints actually verifiable? Are there hidden dependencies between slices, and which slices can run in parallel? Reject with reasons if invalid; approve and note concerns if valid. You need its verdict before you build — wait for it.
 
-When slices are parallelizable, spawn multiple implementer subagents:
+### In parallel: implement independent slices
 
-```
-task(
-  category="quick",
-  load_skills=["jnk-implement"],
-  prompt="""
-  Implement slice 3: User profile endpoint
-  
-  Files: src/api/users.ts, src/ui/Profile.tsx
-  Checkpoint: Profile displays user data
-  
-  Follow red-green-refactor. Write tests first.
-  """,
-  run_in_background=true
-)
+When slices have no hidden dependencies, spawn one subagent per slice, each given its own slice's files, its checkpoint, and the red-green-refactor instruction (write the test first, watch it fail, then fix). Only parallelize slices that genuinely don't touch the same code, and never let two writers work the same tree at once — isolate them, or run one at a time. Triage what comes back.
 
-task(
-  category="quick",
-  load_skills=["jnk-implement"],
-  prompt="""
-  Implement slice 4: Settings page
-  
-  Files: src/api/settings.ts, src/ui/Settings.tsx
-  Checkpoint: Settings save and display
-  
-  Follow red-green-refactor. Write tests first.
-  """,
-  run_in_background=true
-)
-```
+### On reviewed slices: review the diff
 
-### Implementation Reviewer
+For slices the route marked for review (step 4), spawn a subagent to read the slice's diff as a hostile reviewer, briefed by `references/reviewer-brief.md`. Ask it to follow that brief: real defects listed specifically, or a plain "it's clean" with reasons when it is. Triage — fix the real ones, squawk or reject the strawmen.
 
-After each slice, spawn a reviewer:
-
-```
-task(
-  subagent_type="oracle",
-  load_skills=[],
-  prompt="""
-  Review this diff for a coding workflow:
-  
-  [diff from slice implementation]
-  
-  Check:
-  1. Did the implementer follow the plan?
-  2. Did it skip any gates?
-  3. Did it refactor when it shouldn't have?
-  4. Did it write tests first (red-green-refactor)?
-  5. Does it follow AGENTS.md principles?
-  
-  If issues found, list them specifically.
-  If clean, say so and explain why.
-  """,
-  run_in_background=false
-)
-```
+Every subagent's outcome is surfaced at the gate and in the final ledger (the Output section): which ran, what it found, how you resolved it — so a skipped subagent is visible, never silent.
 
 ## Anti-Rationalization Table
 

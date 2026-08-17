@@ -30,97 +30,25 @@ One shot is for changes you understand at a glance: a bug with a clear cause, a 
 
 6. **Report and hand off.** Report: what changed, the verification result, any **uncertain choices** (the decisions you're least confident about, and why), squawks. A durable fact learned (env schema, integration shape, convention) is written to `docs/external/` — create the dirs if missing; it is free context for the next one-shot. Do not commit — propose /skill:jnk-commit and let the user run it. No notebook entry: the report is the record.
 
-## Subagent Architecture
+## Subagents
 
-Oneshot uses subagents for quality without ceremony. No user gates — validation happens automatically.
+Oneshot uses subagents for quality without ceremony — no user gates; validation and review happen automatically. Say what you want done in plain language — *spawn a subagent to validate X, to review Y, to implement Z* — and let your harness's subagent mechanism pick the concrete form. Don't hard-code agent types or tool syntax; the harness decides.
 
-### Slice Validator
+Scale the ceremony to the change. A one-line fix may warrant no subagent at all. Multi-slice, parallelizable, or riskier work warrants the three uses below.
 
-After proposing slices (before implementation), spawn a validator:
+### Before you build: validate the slices
 
-```
-task(
-  subagent_type="oracle",
-  load_skills=[],
-  prompt="""
-  Validate these vertical slices for a coding workflow:
-  
-  [slice list from your plan]
-  
-  Check:
-  1. Is each slice truly end-to-end? (Not "all backend, then all UI")
-  2. Does each slice leave the system working?
-  3. Are checkpoints actually verifiable?
-  4. Are there hidden dependencies between slices?
-  5. Does each slice have clear dependencies and parallelization info?
-  
-  If invalid, reject and explain why.
-  If valid, approve and note any concerns.
-  """,
-  run_in_background=false
-)
-```
+After proposing slices, spawn a subagent to validate them before you write anything. Give it the slice list and ask: is each slice truly end-to-end (not "all backend, then all UI")? Does each leave the system working? Are the checkpoints actually verifiable? Are there hidden dependencies between slices, and which slices can run in parallel? Reject with reasons if invalid; approve and note concerns if valid. You need its verdict before you build — wait for it.
 
-### Parallel Execution
+### In parallel: implement independent slices
 
-When slices are parallelizable, spawn multiple implementer subagents:
+When slices have no hidden dependencies, spawn one subagent per slice, each given its own slice's files, its checkpoint, and the red-green-refactor instruction (write the test first, watch it fail, then fix). Only parallelize slices that genuinely don't touch the same code, and never let two writers work the same tree at once — isolate them, or run one at a time. Triage what comes back before you merge or continue.
 
-```
-task(
-  category="quick",
-  load_skills=["jnk-oneshot"],
-  prompt="""
-  Implement slice 3: User profile endpoint
-  
-  Files: src/api/users.ts, src/ui/Profile.tsx
-  Checkpoint: Profile displays user data
-  
-  Follow red-green-refactor. Write tests first.
-  """,
-  run_in_background=true
-)
+### After each slice: review the diff
 
-task(
-  category="quick",
-  load_skills=["jnk-oneshot"],
-  prompt="""
-  Implement slice 4: Settings page
-  
-  Files: src/api/settings.ts, src/ui/Settings.tsx
-  Checkpoint: Settings save and display
-  
-  Follow red-green-refactor. Write tests first.
-  """,
-  run_in_background=true
-)
-```
+After each slice, spawn a subagent to read the slice's diff as a hostile reviewer: did it follow the plan, skip any verification, refactor when it shouldn't have, write tests first, and stay true to the project's principles? Ask for real defects listed specifically, and a plain "it's clean" with reasons when it is. Triage — fix the real ones, squawk or reject the strawmen.
 
-### Implementation Reviewer
-
-After each slice, spawn a reviewer:
-
-```
-task(
-  subagent_type="oracle",
-  load_skills=[],
-  prompt="""
-  Review this diff for a coding workflow:
-  
-  [diff from slice implementation]
-  
-  Check:
-  1. Did the implementer follow the plan?
-  2. Did it skip any verification?
-  3. Did it refactor when it shouldn't have?
-  4. Did it write tests first (red-green-refactor)?
-  5. Does it follow AGENTS.md principles?
-  
-  If issues found, list them specifically.
-  If clean, say so and explain why.
-  """,
-  run_in_background=false
-)
-```
+Every subagent's outcome goes in the report (step 6): which ran, what it found, how you resolved it — so a skipped subagent is visible, never silent.
 
 ## Do not
 

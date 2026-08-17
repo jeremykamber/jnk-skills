@@ -26,39 +26,18 @@ Verify the whole change with evidence, and say plainly what remains unverified. 
 
 6. **Reconcile the IOUs.** Which unknowns from /skill:jnk-explore got answered? Update `understanding.md` as you go — retire the answered ones so pickup reads truth, not archaeology. Remaining ones become squawks or next steps.
 
-7. **AGENTS.md enforcement.** Before final verification, spawn an enforcer subagent to check the diff against AGENTS.md principles:
+7. **AGENTS.md enforcement.** Before final verification, spawn a subagent to audit the diff against AGENTS.md principles. Give it the full diff and the principles below, and ask it to report, per violation, which principle, the specific code, why it's a violation, and the minimal fix — or to say plainly that the code follows the principles and why. Describe the job in plain language (*spawn a subagent to check this diff against AGENTS.md*) and let your harness's subagent mechanism pick the concrete form — don't hard-code an agent type or tool syntax. Its findings, and the fact that it ran, go into the report at step 8 — a skipped enforcer shows up there as a blank, not a silent drop. For a very small change you may waive it with a stated reason; you may not skip it silently.
 
-   ```
-   task(
-     subagent_type="oracle",
-     load_skills=[],
-     prompt="""
-     Check this diff against AGENTS.md principles:
-     
-     [full diff of all changes]
-     
-     Principles to check:
-     1. Optimize for the next engineer - Is this obvious to readers?
-     2. Understand before changing - Was the codebase studied first?
-     3. Localize complexity - Is complexity hidden behind clear boundaries?
-     4. Minimize cognitive load - Are there unnecessary concepts, coupling, indirection?
-     5. Every abstraction earns its cost - Is the abstraction justified?
-     6. Prefer removing to adding - Did we delete more than we added?
-     7. Document intent - Do comments explain why, not how?
-     8. Leave the design simpler - Is the next change easier now?
-     9. Smallest coherent change - Is this the minimum viable change?
-     
-     For each violation found:
-     - State the principle violated
-     - Show the specific code
-     - Explain why it's a violation
-     - Suggest the minimal fix
-     
-     If no violations, say so and explain why the code follows principles.
-     """,
-     run_in_background=false
-   )
-   ```
+   The principles to check:
+   1. Optimize for the next engineer — is this obvious to readers?
+   2. Understand before changing — was the codebase studied first?
+   3. Localize complexity — is complexity hidden behind clear boundaries?
+   4. Minimize cognitive load — are there unnecessary concepts, coupling, indirection?
+   5. Every abstraction earns its cost — is the abstraction justified?
+   6. Prefer removing to adding — did we delete more than we added?
+   7. Document intent — do comments explain why, not how?
+   8. Leave the design simpler — is the next change easier now?
+   9. Smallest coherent change — is this the minimum viable change?
 
 8. **Gate.** Present the report. Ask the user: "What would you want to see to trust this that we didn't show?" — their missing check is often the real one. Then the user decides: fix, ship, or refactor. Do not declare done without their sign-off.
 
@@ -67,6 +46,7 @@ Verify the whole change with evidence, and say plainly what remains unverified. 
 ## Persistence Gate
 
 Before proceeding to the next beat, confirm:
+
 - [ ] Squawks are in `.ai/contexts/<slug>/squawks.md`
 - [ ] IOUs are in `.ai/contexts/<slug>/understanding.md`
 - [ ] Verification report is saved (if needed)
