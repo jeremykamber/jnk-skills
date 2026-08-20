@@ -12,7 +12,7 @@ an impression with no line number is not a finding.
 Which skills were invoked, in what order (stats.json → skillInvocations)?
 
 - `jnk-pickup` skipped when starting fresh: fine.
-- `jnk-design` skipped: acceptable, but then a decision record and thread name must
+- `jnk-2-design` skipped: acceptable, but then a decision record and thread name must
   exist somewhere — design step 1 backfills them (verify that, don't assume).
 - `jnk-commit` skipped: the loop's memory is missing unless `notes.md` exists.
 - `jnk-oneshot` invoked: a legitimate compression of the arc, not skipped beats — but verify it stayed small and escalated when the change grew.
@@ -43,9 +43,9 @@ Every beat and every slice ends with a clearance question, and the agent waits.
 
 The notebook is the loop's memory; resume reads it. Check *writes*, not mentions:
 
-- `understanding.md` (after jnk-1 — when the model earns keeping), `docs/adr/` (after jnk-3), `docs/designs/` (after jnk-4), `plans/` (when
-  the plan earns keeping), `verification/results.md` (when something remains
-  unverified or squawked), `notes.md` (after jnk-7), `handoff.md` (after jnk-handoff — a mid-beat split).
+- `understanding.md` (after jnk-1-explore — when the model earns keeping), `docs/adr/` (after jnk-2-design), `docs/designs/` (after jnk-2-design), `plans/` / `route.md` (when
+  the route earns keeping), `verification/results.md` (when something remains
+  unverified or squawked), `notes.md` (after jnk-commit), `handoff.md` (after jnk-handoff — a mid-beat split).
 - stats.json → artifacts + artifactWrites: a toolCall named `write` whose path
   contains `.ai/contexts`, `docs/adr`, `docs/designs`, or `docs/external` is a write; any other
   mention is not.

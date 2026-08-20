@@ -1,6 +1,6 @@
 ---
-name: jnk-explore
-description: Build a shared mental model and explore candidate directions before deciding. User-invoked only via /skill:jnk-explore. Combines codebase understanding with divergent thinking, logging IOUs immediately.
+name: jnk-1-explore
+description: Build a shared mental model and explore candidate directions before deciding. User-invoked only via /skill:jnk-1-explore. Combines codebase understanding with divergent thinking, logging IOUs immediately.
 disable-model-invocation: true
 ---
 
@@ -40,7 +40,7 @@ Build the smallest sufficient understanding needed to make a confident change (a
 
 11. **First principles.** For each direction: what is the system for? What is the smallest thing that could possibly work?
 
-12. **No commitment.** Present the directions and the sharpest open questions. Do not argue for one. End by asking: "Ready to decide, or keep thinking? — and which direction do you find yourself defending?" The user's lean is evidence, not a verdict — and not the choice: /skill:jnk-design re-presents the directions and asks for the decision itself.
+12. **No commitment.** Present the directions and the sharpest open questions. Do not argue for one. End by asking: "Ready to decide, or keep thinking? — and which direction do you find yourself defending?" The user's lean is evidence, not a verdict — and not the choice: /skill:jnk-2-design re-presents the directions and asks for the decision itself.
 
 ## Persistence Gate
 
@@ -55,7 +55,7 @@ Summary / Current behavior / Components / Ownership / Patterns / Assumptions / I
 
 ## Handoff
 
-If the model holds and directions are explored, recommend /skill:jnk-design. Do not start it: the next beat begins when the user invokes it. When the model earned a file, confirm `understanding.md` exists on disk before presenting this handoff — check, don't assume; when it didn't, the conversation holds the model and the next beat starts from it.
+If the model holds and directions are explored, recommend /skill:jnk-2-design. Do not start it: the next beat begins when the user invokes it. When the model earned a file, confirm `understanding.md` exists on disk before presenting this handoff — check, don't assume; when it didn't, the conversation holds the model and the next beat starts from it.
 
 ## Do not
 
@@ -66,6 +66,6 @@ If the model holds and directions are explored, recommend /skill:jnk-design. Do 
 - Suggest fixes or refactors during understanding.
 - Write a model file for ceremony — write `understanding.md` when it earns keeping; carry the thread with /skill:jnk-handoff when the session splits.
 - Produce plans, designs, or solutions — those are the next beats' work.
-- Commit to a direction — judgment belongs to /skill:jnk-design.
+- Commit to a direction — judgment belongs to /skill:jnk-2-design.
 - Converge early — keep divergent thinking open.
 - Let "we've always done it this way" stand unchallenged.

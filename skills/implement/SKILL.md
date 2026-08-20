@@ -1,6 +1,6 @@
 ---
-name: jnk-implement
-description: "Implement the route one vertical slice at a time, staying conversational. User-invoked only via /skill:jnk-implement. Red-green-refactor inside each slice, a gate before each next slice, the uncertain choices named, and the slice ledger stays visible and is written back to the route file. Subagent validation ensures slices are truly vertical. Parallel execution with dependency graph maximizes throughput."
+name: jnk-3-implement
+description: "Implement the route one vertical slice at a time, staying conversational. User-invoked only via /skill:jnk-3-implement. Red-green-refactor inside each slice, a gate before each next slice, the uncertain choices named, and the slice ledger stays visible and is written back to the route file. Subagent validation ensures slices are truly vertical. Parallel execution with dependency graph maximizes throughput."
 disable-model-invocation: true
 ---
 
@@ -111,7 +111,7 @@ The user adds or reprioritizes work during implementation — the route changed.
 ## Rules
 
 - **No mid-implementation refactors.** Do not refactor or fix unrelated code during implementation. If you find something that needs fixing, log a squawk — `[squawk] severity | location | what | why deferred` — and move on. If it blocks the slice, stop and ask.
-- **The route is a guide, not a contract.** If reality contradicts it — a test reveals a wrong assumption — stop, tell the user, and adjust the slice, return to /skill:jnk-design, or — when the contradiction is an unresolved decision — invoke /skill:jnk-grill. Never improvise around a broken assumption silently.
+- **The route is a guide, not a contract.** If reality contradicts it — a test reveals a wrong assumption — stop, tell the user, and adjust the slice, return to /skill:jnk-2-design, or — when the contradiction is an unresolved decision — invoke /skill:jnk-grill. Never improvise around a broken assumption silently.
 - Touch only the files the slice needs. Follow existing conventions. No speculative improvements.
 - **Write for the next engineer.** Intent over cleverness; comments say why, not how. The simplest code is code that no longer exists — prefer removing to adding.
 
@@ -121,7 +121,7 @@ Per-slice reports (plain-language what changed, checkpoint result, squawks, the 
 
 ## Handoff
 
-When the last slice lands, commit the work: run /skill:jnk-commit on the branch to write the implementation as good, small, one-line story-telling commits (one coherent chapter per commit, `type(scope): summary`, in the order the work happened). Don't sprinkle commits as you go — all history is written here, once, when the last slice lands. Then recommend /skill:jnk-verify, which verifies and commits any fixes it produces. Do not run the full verification sweep here: per-slice checkpoints only. The next beat begins when the user invokes it.
+When the last slice lands, commit the work: run /skill:jnk-commit on the branch to write the implementation as good, small, one-line story-telling commits (one coherent chapter per commit, `type(scope): summary`, in the order the work happened). Don't sprinkle commits as you go — all history is written here, once, when the last slice lands. Then recommend /skill:jnk-4-verify, which verifies and commits any fixes it produces. Do not run the full verification sweep here: per-slice checkpoints only. The next beat begins when the user invokes it.
 
 ## Do not
 

@@ -29,10 +29,10 @@ Skills register as `/skill:jnk-*` (and `/skill:teach`).
 ## The beats
 
 - `pickup` — resume work from the notebook
-- `explore` — walk the code, think first, explore candidate directions
-- `design` — choose direction with lenses, shape and route
-- `implement` — checkpoints; each slice taught in layers, subagent validation
-- `verify` / `debug` / `eval` — prove and review, AGENTS.md enforcement
+- `1-explore` — walk the code, think first, explore candidate directions
+- `2-design` — choose direction with lenses, shape and route
+- `3-implement` — checkpoints; each slice taught in layers, subagent validation
+- `4-verify` / `debug` / `eval` — prove and review, AGENTS.md enforcement
 - `commit` — write the history
 
 See `usage.md` for the full modes and day-to-day mechanics.
@@ -47,10 +47,10 @@ See `usage.md` for the full modes and day-to-day mechanics.
 
 ## The workflow
 
-1. **Explore** (`/skill:jnk-explore`): Build shared mental model, think first, explore candidate directions
-2. **Design** (`/skill:jnk-design`): Choose direction with lenses, write ADR, shape (ASCII, contracts, failure paths), route (vertical slices with dependencies)
-3. **Implement** (`/skill:jnk-implement`): Follow route, red-green-refactor, subagent validation, parallel execution
-4. **Verify** (`/skill:jnk-verify`): Run verification, AGENTS.md enforcement, reconcile IOUs
+1. **Explore** (`/skill:jnk-1-explore`): Build shared mental model, think first, explore candidate directions
+2. **Design** (`/skill:jnk-2-design`): Choose direction with lenses, write ADR, shape (ASCII, contracts, failure paths), route (vertical slices with dependencies)
+3. **Implement** (`/skill:jnk-3-implement`): Follow route, red-green-refactor, subagent validation, parallel execution
+4. **Verify** (`/skill:jnk-4-verify`): Run verification, AGENTS.md enforcement, reconcile IOUs
 5. **Commit** (`/skill:jnk-commit`): Write the history
 
 ## Philosophy

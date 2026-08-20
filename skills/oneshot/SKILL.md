@@ -14,7 +14,7 @@ Make a small, well-understood change end to end in one shot: just enough underst
 
 ## When to escalate
 
-One shot is for changes you understand at a glance: a bug with a clear cause, a small bulk fix, a rename, a config tweak. If a quick read reveals design choices, uncertain behavior, or a real unknown — the change outgrew the one shot. Stop, say why, and recommend the full workflow, starting at /skill:jnk-explore. Do not start it; the user decides. The same applies mid-flight: if a slice reveals design choices, uncertain behavior, or a real unknown, stop — that is the escalate signal, not a reason to push on. Escalating is the quality guarantee: the one shot never does shallow work on a big change.
+One shot is for changes you understand at a glance: a bug with a clear cause, a small bulk fix, a rename, a config tweak. If a quick read reveals design choices, uncertain behavior, or a real unknown — the change outgrew the one shot. Stop, say why, and recommend the full workflow, starting at /skill:jnk-1-explore. Do not start it; the user decides. The same applies mid-flight: if a slice reveals design choices, uncertain behavior, or a real unknown, stop — that is the escalate signal, not a reason to push on. Escalating is the quality guarantee: the one shot never does shallow work on a big change.
 
 ## Steps
 

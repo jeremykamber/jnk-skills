@@ -38,7 +38,7 @@ Rule of thumb: start with one-shot. If it tells you the change outgrew it (it "e
 >
 > Agent: creates `.worktrees/<slug>` + branch, installs deps, runs a baseline, then asks: "Ready for the first beat?"
 >
-> You: `/skill:jnk-explore` — and off you go.
+> You: `/skill:jnk-1-explore` — and off you go.
 
 **Continuing work — just pickup, it reads the notebook:**
 
@@ -51,7 +51,7 @@ Rule of thumb: start with one-shot. If it tells you the change outgrew it (it "e
 
 Type the skill, then say what you want in plain language.
 
-> You: `/skill:jnk-explore`
+> You: `/skill:jnk-1-explore`
 > Strategy personas come back with empty values/fears/interests. Fields exist, but [].
 >
 > Agent: restates the request, thinks first (no tool calls), proposes a reading list, then: "Sound good — or would you steer the list differently? I won't read anything until you confirm."
@@ -70,7 +70,7 @@ One more thing the agent will name at decision time: a **thread name** (e.g. `pe
 
 ## Reading what the agent wrote — the layered walkthrough
 
-The implement checkpoint (`/skill:jnk-implement`) teaches each slice in layers — where it sits, how data flows through it, the critical decisions (and the agent's least-confident choices), and what's mundane plumbing you can safely skip. Depth scales with the slice's risk: mechanical slices get the two-line version; risky ones get the full teach plus the adversarial reviewer's findings.
+The implement checkpoint (`/skill:jnk-3-implement`) teaches each slice in layers — where it sits, how data flows through it, the critical decisions (and the agent's least-confident choices), and what's mundane plumbing you can safely skip. Depth scales with the slice's risk: mechanical slices get the two-line version; risky ones get the full teach plus the adversarial reviewer's findings.
 
 Use the loop — the agent is your tutor, not your authority:
 
@@ -99,14 +99,14 @@ One principle governs what gets written: **don't serialize the conversation beca
 
 | Artifact | Written by | Lives in | Committed? |
 | --- | --- | --- | --- |
-| Understanding (model, IOUs) | jnk-explore | `.ai/contexts/<feature>/understanding.md` | no — session state, converges; written when it earns keeping |
+| Understanding (model, IOUs) | jnk-1-explore | `.ai/contexts/<feature>/understanding.md` | no — session state, converges; written when it earns keeping |
 | Live thread checkpoint | jnk-handoff | `.ai/contexts/<feature>/handoff.md` | no — transient, overwritten |
-| Decision record | jnk-design | `docs/adr/<thread>.md` | yes |
-| Program design (mockup, contracts, call stack, test shapes) | jnk-design | `docs/designs/<feature>/` | yes |
-| Route / slice ledger | jnk-design → jnk-implement | `.ai/contexts/<feature>/route.md` | no — living document |
-| Spikes, throwaway prototypes | jnk-design | `.ai/contexts/<feature>/designs/` | no — throwaway |
-| Squawks | jnk-implement / jnk-verify | `.ai/contexts/<feature>/squawks.md` | no — session state |
-| Verification results | jnk-verify | `.ai/contexts/<feature>/verification/` | when needed |
+| Decision record | jnk-2-design | `docs/adr/<thread>.md` | yes |
+| Program design (mockup, contracts, call stack, test shapes) | jnk-2-design | `docs/designs/<feature>/` | yes |
+| Route / slice ledger | jnk-2-design → jnk-3-implement | `.ai/contexts/<feature>/route.md` | no — living document |
+| Spikes, throwaway prototypes | jnk-2-design | `.ai/contexts/<feature>/designs/` | no — throwaway |
+| Squawks | jnk-3-implement / jnk-4-verify | `.ai/contexts/<feature>/squawks.md` | no — session state |
+| Verification results | jnk-4-verify | `.ai/contexts/<feature>/verification/` | when needed |
 | System facts (env, integrations) | jnk-oneshot | `docs/external/` | yes |
 
 The one-line rule: **if a future session or future feature needs it, it's committed in `docs/`; if only this feature's continuation needs it, it's in the notebook; if the live conversation must survive, it's a handoff.**
@@ -140,21 +140,21 @@ Attention degrades as the context fills, no matter how big the window is. **Keep
 **Example — the ideal split, before implementation:**
 
 > (Session 1 — alignment)
-> You: `/skill:jnk-design`
+> You: `/skill:jnk-2-design`
 > Agent: decides with lenses, writes ADR, shapes it (ASCII + contracts + failure paths), then proposes the route: slices with checkpoints... "Approve the shape, then the route and the order?"
 > You: `yep!`
 > You: "Context is at ~60% — wrap up."
-> Agent: saves `route.md` (the living route), then: "Route approved and saved. The next beat is implement — start it with /skill:jnk-implement in a fresh session."
+> Agent: saves `route.md` (the living route), then: "Route approved and saved. The next beat is implement — start it with /skill:jnk-3-implement in a fresh session."
 >
 > (Session 2 — implementation)
-> You: `/skill:jnk-implement`
+> You: `/skill:jnk-3-implement`
 > Read the route in `.ai/contexts/persona-pipeline/route.md` and fly it.
 > Agent: announces slice 1 from the ledger, implements, checkpoints, writes the ledger back to the file, gates. Repeat.
 
 **Example — mid-alignment:**
 
 > You: "We're at ~60% and I'm still mid-explore. Finish the beat."
-> Agent: writes `understanding.md` (model + open IOUs), then: "The next beat is design — start it with /skill:jnk-design when you're ready."
+> Agent: writes `understanding.md` (model + open IOUs), then: "The next beat is design — start it with /skill:jnk-2-design when you're ready."
 > (New session)
 > You: `/skill:jnk-pickup`
 > Agent: "Resuming: model agreed, IOU-2 still open, next beat is design."
@@ -168,8 +168,8 @@ Attention degrades as the context fills, no matter how big the window is. **Keep
 
 - **The agent did the next beat's work** (planned during explore, implemented during design): that's beat bleeding — it should *recommend* the next beat, never start it. Say so.
 - **The agent wants a refactor**: it must ask first — `/skill:jnk-refactor`, with value and risk stated. "Not today" is a complete answer; it logs a squawk and moves on.
-- **The one-shot escalated**: it stopped because the change is bigger than one shot. Fine — that's the guard working. Invoke `/skill:jnk-explore` and do it properly.
-- **You don't like the direction**: gates work both ways. Answer with what you actually want — "stop", "rethink", "let's brainstorm instead" (`/skill:jnk-explore`).
+- **The one-shot escalated**: it stopped because the change is bigger than one shot. Fine — that's the guard working. Invoke `/skill:jnk-1-explore` and do it properly.
+- **You don't like the direction**: gates work both ways. Answer with what you actually want — "stop", "rethink", "let's brainstorm instead" (`/skill:jnk-1-explore`).
 - **The agent decided something that should be your call**: that's a silent decision — it should have fired /skill:jnk-grill; run it now and walk it back. The workflow makes you the pilot; the grill is the instrument that puts you back in the seat.
 
 ## Nice to know

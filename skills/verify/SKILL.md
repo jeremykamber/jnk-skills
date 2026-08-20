@@ -1,6 +1,6 @@
 ---
-name: jnk-verify
-description: "Verify a completed change with evidence, honestly. User-invoked only via /skill:jnk-verify. Runs the narrowest verification that gives confidence, checks the measured-by metric when one exists, logs squawks, reconciles the IOU ledger, and enforces AGENTS.md principles via subagent."
+name: jnk-4-verify
+description: "Verify a completed change with evidence, honestly. User-invoked only via /skill:jnk-4-verify. Runs the narrowest verification that gives confidence, checks the measured-by metric when one exists, logs squawks, reconciles the IOU ledger, and enforces AGENTS.md principles via subagent."
 disable-model-invocation: true
 ---
 
@@ -24,7 +24,7 @@ Verify the whole change with evidence, and say plainly what remains unverified. 
 
 5. **The squawk sheet.** Anything noticed but not fixed — duplication, debt, skipped tests — becomes a squawk: `[squawk] severity | location | what | why deferred`. Load `references/squawk-sheet.md` for the taxonomy. Squawks are logged and offered, never silently fixed during verification.
 
-6. **Reconcile the IOUs.** Which unknowns from /skill:jnk-explore got answered? Update `understanding.md` as you go — retire the answered ones so pickup reads truth, not archaeology. Remaining ones become squawks or next steps.
+6. **Reconcile the IOUs.** Which unknowns from /skill:jnk-1-explore got answered? Update `understanding.md` as you go — retire the answered ones so pickup reads truth, not archaeology. Remaining ones become squawks or next steps.
 
 7. **AGENTS.md enforcement.** Before final verification, spawn a subagent to audit the diff against AGENTS.md principles. Give it the full diff and the principles below, and ask it to report, per violation, which principle, the specific code, why it's a violation, and the minimal fix — or to say plainly that the code follows the principles and why. Describe the job in plain language (*spawn a subagent to check this diff against AGENTS.md*) and let your harness's subagent mechanism pick the concrete form — don't hard-code an agent type or tool syntax. Its findings, and the fact that it ran, go into the report at step 8 — a skipped enforcer shows up there as a blank, not a silent drop. For a very small change you may waive it with a stated reason; you may not skip it silently.
 

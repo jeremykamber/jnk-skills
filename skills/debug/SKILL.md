@@ -34,11 +34,11 @@ Debugging is the dirtiest phase — logs, traces, failed hypotheses. Keep the co
 
 ## Escalate
 
-If at any point the root cause implies a large-scale or wide-blast-radius fix — new architecture, a broad refactor, several subsystems — stop after naming the cause and recommend /skill:jnk-explore. Never half-fix a big bug. The user decides.
+If at any point the root cause implies a large-scale or wide-blast-radius fix — new architecture, a broad refactor, several subsystems — stop after naming the cause and recommend /skill:jnk-1-explore. Never half-fix a big bug. The user decides.
 
 ## Handoff
 
-If it landed, nothing to hand off — the fix is verified; propose /skill:jnk-commit for the history. If it escalated, the next beat is /skill:jnk-explore (user-invoked). Do not start it.
+If it landed, nothing to hand off — the fix is verified; propose /skill:jnk-commit for the history. If it escalated, the next beat is /skill:jnk-1-explore (user-invoked). Do not start it.
 
 ## Do not
 

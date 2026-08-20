@@ -8,6 +8,6 @@ Private notes for the human. The agent never sees this file.
 
 **Why:** hypotheses are cheap, evidence is not. Reproduce before diagnosing — a bug you can't reproduce is a bug you can't diagnose.
 
-**Fits:** a legitimate mode, not skipped beats; ejects to jnk-explore when the fix is large-scale.
+**Fits:** a legitimate mode, not skipped beats; ejects to jnk-1-explore when the fix is large-scale.
 
 **Refs:** Agans (the 9 rules), Zeller (delta debugging).

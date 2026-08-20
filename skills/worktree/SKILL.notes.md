@@ -8,4 +8,4 @@ Private notes for the human. The agent never sees this file.
 
 **Why:** one worktree per session: concurrent agents never collide, main never moves.
 
-**Fits:** precedes jnk-pickup or jnk-explore; the notebook rule decides what travels.
+**Fits:** precedes jnk-pickup or jnk-1-explore; the notebook rule decides what travels.

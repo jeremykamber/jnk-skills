@@ -1,4 +1,4 @@
-# jnk-design — notes
+# jnk-2-design — notes
 
 Private notes for the human. The agent never sees this file.
 
@@ -8,6 +8,6 @@ Private notes for the human. The agent never sees this file.
 
 **Why:** program design before the agent cooks. Contracts, call stacks, test shapes, and mockups decided in a context-light session, where a change costs a redraw, not code.
 
-**Fits:** consumes explore's record; produces docs/designs/ (the design record) and plans/ (the route) for jnk-implement. Squawk: plan was merged into design because splitting them was ceremony — revisit if design grows fat again.
+**Fits:** consumes jnk-1-explore's record; produces docs/designs/ (the design record) and plans/ (the route) for jnk-3-implement. Squawk: plan was merged into design because splitting them was ceremony — revisit if design grows fat again.
 
 **Refs:** Cockburn (walking skeleton), Hunt & Thomas (tracer bullets), Ousterhout (deep modules), Horthy (program design), Mulroy (plans end with the tests and the call stack).

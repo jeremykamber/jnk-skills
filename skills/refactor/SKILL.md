@@ -34,7 +34,7 @@ The refactor, or the decision to defer (logged as a squawk) / Post-refactor veri
 
 ## Handoff
 
-After a refactor, recommend /skill:jnk-verify (unchanged tests prove behavior held) or back to /skill:jnk-commit. Do not start them: the next beat begins when the user invokes it.
+After a refactor, recommend /skill:jnk-4-verify (unchanged tests prove behavior held) or back to /skill:jnk-commit. Do not start them: the next beat begins when the user invokes it.
 
 ## Do not
 

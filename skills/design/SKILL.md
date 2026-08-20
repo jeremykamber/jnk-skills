@@ -1,6 +1,6 @@
 ---
-name: jnk-design
-description: "Choose a direction and design the shape and route of a change before building it. User-invoked only via /skill:jnk-design. Decides with lenses, writes ADR, then shapes — ASCII, HTML mockups (user-facing), contracts, call stack, test shapes, failure paths — then the route: vertical slices, each with its own checkpoint and review intensity. Zero production code."
+name: jnk-2-design
+description: "Choose a direction and design the shape and route of a change before building it. User-invoked only via /skill:jnk-2-design. Decides with lenses, writes ADR, then shapes — ASCII, HTML mockups (user-facing), contracts, call stack, test shapes, failure paths — then the route: vertical slices, each with its own checkpoint and review intensity. Zero production code."
 disable-model-invocation: true
 ---
 
@@ -31,7 +31,7 @@ Apply these to every option; name the lens you are using:
 
 3. **Debate with the lenses.** Challenge your own and the user's assumptions. Seek the strongest reasoning, not agreement. Where lenses point in different directions, say so.
 
-4. **Make the call — the user's, not yours.** Present every option with the trade-offs the lenses surfaced, then stop. Ask: "Which option would you defend, and what's your strongest reason?" — and wait for the answer before stating any recommendation. A lean from an earlier beat (explore's "which direction do you find yourself defending?") is evidence, not a decision: present the list and ask again. Only after the user answers do you recommend: name your pick, your strongest reason, and where you differ from theirs. The user owns the decision. If a meaningful option cannot be chosen because an underlying decision remains unresolved, that is a decision tree worth walking — invoke /skill:jnk-grill rather than guessing. If important uncertainty remains, return to /skill:jnk-explore.
+4. **Make the call — the user's, not yours.** Present every option with the trade-offs the lenses surfaced, then stop. Ask: "Which option would you defend, and what's your strongest reason?" — and wait for the answer before stating any recommendation. A lean from an earlier beat (explore's "which direction do you find yourself defending?") is evidence, not a decision: present the list and ask again. Only after the user answers do you recommend: name your pick, your strongest reason, and where you differ from theirs. The user owns the decision. If a meaningful option cannot be chosen because an underlying decision remains unresolved, that is a decision tree worth walking — invoke /skill:jnk-grill rather than guessing. If important uncertainty remains, return to /skill:jnk-1-explore.
 
 5. **Write the decision record.** Load `references/decision-record.md`: chosen approach, reason, runner-up, failure mode to watch, measured-by, verification strategy. Where: `docs/adr/<thread-name>.md` — one file per decision, committed with the code. Create the dir when missing: every project, even a small one, gets an ADR home — decisions are project truth, not session state, and the model finds them at a stable path in every feature. About ten lines. **Write it now**, not at debrief.
 
@@ -112,7 +112,7 @@ Product line (who / problem / pitch) / Goal / Success criteria / Measured by (wh
 
 ## Handoff
 
-If the shape and the route hold, recommend /skill:jnk-implement. Do not start it: the route is flown when the user invokes it.
+If the shape and the route hold, recommend /skill:jnk-3-implement. Do not start it: the route is flown when the user invokes it.
 
 ## Do not
 

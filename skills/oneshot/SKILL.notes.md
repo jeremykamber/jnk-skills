@@ -8,4 +8,4 @@ Private notes for the human. The agent never sees this file.
 
 **Why:** ceremony is a tax on small work; quality is not. A one-shot must be right, not just green. It still builds in vertical slices with per-slice checkpoints — the doctrine, minus the user gates.
 
-**Fits:** the compressed arc — slices and checkpoints, no user gates, no notebook; the report is the record. Escalates into jnk-explore when the change outgrows it.
+**Fits:** the compressed arc — slices and checkpoints, no user gates, no notebook; the report is the record. Escalates into jnk-1-explore when the change outgrows it.
