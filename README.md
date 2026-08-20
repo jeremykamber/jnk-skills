@@ -14,10 +14,14 @@ with the pi coding agent.
 
 ## Install
 
-Symlink or copy `skills/` into your agent's skill directory:
+Symlink each skill flat into your agent's skill directory:
 
 ```bash
-ln -s "$PWD/skills" ~/.agents/skills/jnk
+for skill in "$PWD"/skills/*/; do
+  name="$(basename "$skill")"
+  ln -sfn "$skill" ~/.agents/skills/"$name"
+  [ -d ~/.pi/agent/skills ] && ln -sfn "$skill" ~/.pi/agent/skills/"$name"
+done
 ```
 
 Skills register as `/skill:jnk-*` (and `/skill:teach`).
