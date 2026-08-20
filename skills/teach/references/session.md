@@ -96,17 +96,19 @@ schema; fade guidance as the schema develops (see [evidence.md](evidence.md)).
 ## Spacing schedule (the memory curriculum)
 
 A lesson is not finished when explained. Review intervals are computed by the scheduler
-script — they are **adaptive hypotheses, not fixed prescriptions**:
+script — they are **adaptive hypotheses, not fixed prescriptions**. **Dates are optional:**
+`reviewedOn` (schedule) and `today` (due) default to the current day (UTC, via `Date.now()`),
+and the resolved date is echoed back in the output — so you never supply a date:
 
 ```bash
 # from the skill directory (~/.pi/agent/skills/teach/)
 echo '{"rating":"good","cuesNeeded":false,"transferDemonstrated":false,
-       "importance":"medium","difficulty":"medium","reviewedOn":"2026-06-01",
+       "importance":"medium","difficulty":"medium",
        "card":{"repetitions":2,"ease":2.5,"interval":6}}' \
   | node scripts/scheduler.js schedule
 ```
 
-→ `{"effectiveRating":"good","card":{"repetitions":3,"ease":2.5,"interval":15,"lastReview":"2026-06-01","nextReview":"2026-06-16"},"note":"good → 15 days, next 2026-06-16"}`
+→ `{"effectiveRating":"good","reviewedOn":"2026-06-01","card":{"repetitions":3,"ease":2.5,"interval":15,"lastReview":"2026-06-01","nextReview":"2026-06-16"},"note":"good → 15 days, reviewed 2026-06-01, next 2026-06-16"}`
 
 Interface:
 
@@ -117,20 +119,23 @@ Interface:
   rescues a failure).
 - `importance` / `difficulty`: scale intervals — high importance → longer; hard material →
   shorter.
+- `reviewedOn` (optional, schedule): defaults to today (UTC). Echoed back as `reviewedOn`.
 - `card`: current scheduling state (`repetitions`, `ease`, `interval`, `lastReview`); omit
   for a brand-new concept.
-- Write the returned `card` back into the topic file (`lastReview` = the review's date).
+- Write the returned `card` back into the topic file.
 
-At a review session, find what's due:
+At a review session, find what's due (no date needed here either — `today` defaults to the
+current day):
 
 ```bash
-echo '{"today":"2026-06-10","cards":[
+echo '{"cards":[
   {"name":"derivative","nextReview":"2026-06-08"},
   {"name":"bayes","nextReview":"2026-06-15"}]}' \
   | node scripts/scheduler.js due
 ```
 
-→ `{"due":["derivative"],"notDue":["bayes"]}` — a card with no `nextReview` counts as due.
+→ `{"today":"2026-06-10","due":["derivative"],"notDue":["bayes"]}` — a card with no
+`nextReview` counts as due.
 
 If the scheduler can't run, fall back to adaptive judgment: first review tomorrow, second
 ~1 week out, then multiply by ease of recall — shorten after weak or cued retrievals, lengthen

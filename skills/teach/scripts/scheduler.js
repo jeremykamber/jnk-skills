@@ -22,6 +22,10 @@
  *   node scripts/scheduler.js schedule [input.json]   # JSON via stdin or file
  *   node scripts/scheduler.js due [cards.json]        # list cards due on/before today
  *   node scripts/scheduler.js test                    # self-check assertions
+ *
+ * Dates are optional: `reviewedOn` (schedule) and `today` (due) default to the
+ * current day (UTC, via Date.now()) — you never need to supply a date. The
+ * resolved date is echoed back in the output (`reviewedOn` / `today`).
  */
 
 const fs = require("fs");
@@ -127,6 +131,7 @@ function schedule(input) {
 
   return {
     effectiveRating: eff,
+    reviewedOn,
     card: {
       repetitions: newReps,
       ease: Math.round(newEase * 100) / 100,
@@ -134,7 +139,7 @@ function schedule(input) {
       lastReview: reviewedOn,
       nextReview,
     },
-    note: `${eff} → ${newInterval} day${newInterval === 1 ? "" : "s"}, next ${nextReview}`,
+    note: `${eff} → ${newInterval} day${newInterval === 1 ? "" : "s"}, reviewed ${reviewedOn}, next ${nextReview}`,
   };
 }
 
@@ -144,14 +149,15 @@ function schedule(input) {
  * A card without a nextReview (never scheduled) counts as due.
  */
 function due(input) {
-  const today = parseIso(input.today || todayIso());
+  const todayIsoStr = input.today || todayIso();
+  const today = parseIso(todayIsoStr);
   const due = [];
   const notDue = [];
   for (const c of input.cards || []) {
     const isDue = !c.nextReview || parseIso(c.nextReview) <= today;
     (isDue ? due : notDue).push(c.name);
   }
-  return { due, notDue };
+  return { today: todayIsoStr, due, notDue };
 }
 
 // --- CLI ---
@@ -229,7 +235,7 @@ function runTests() {
       { name: "c" },
     ],
   });
-  assert.deepStrictEqual(res, { due: ["a", "c"], notDue: ["b"] });
+  assert.deepStrictEqual(res, { today: "2026-06-10", due: ["a", "c"], notDue: ["b"] });
 
   console.log("all tests passed");
 }
