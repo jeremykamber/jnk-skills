@@ -1,61 +1,186 @@
 ---
 name: jnk-oneshot
-description: Make a small, well-understood change end to end in one pass — no beat ceremony, no user gates. User-invoked only via /skill:jnk-oneshot. Checks what the repo already knows, cuts its own worktree feature branch when the change warrants it, builds in vertical slices with a checkpoint after each (no user gate between them), uses subagents for slice validation, parallel execution with dependency graph, and implementation review, self-reviews the diff, verifies with evidence, writes durable facts to docs/external/, commits the work via /skill:jnk-commit, reports — and escalates to the full workflow if the change outgrows one shot.
+description: Make a small, well-understood change end to end in one pass. Break work into thin vertical slices, use subagents to implement or review slices when they materially help, verify every slice, self-review the final diff, record durable facts, and commit the result.
 disable-model-invocation: true
 ---
 
 # One Shot
 
-> One pass, then done. Small fix, full quality.
+Make a small, well-understood change completely and correctly in one pass.
 
-## Purpose
+This is for work whose behavior and implementation are sufficiently clear that you can execute without a design/discovery phase or user gates. Keep the process lightweight, but do not trade away engineering quality.
 
-Make a small, well-understood change end to end in one shot: just enough understanding, the smallest change, honest verification, one report. No gates, no slices, no notebook — the report is the record; history is written once, at the end, via /skill:jnk-commit. This is the default for the 80% of work that is small and clear; the full beats are for when it isn't.
+## Escalate when the work is no longer well understood
 
-## When to escalate
+Stop and recommend `/skill:jnk-1-explore` if you encounter:
 
-One shot is for changes you understand at a glance: a bug with a clear cause, a small bulk fix, a rename, a config tweak. If a quick read reveals design choices, uncertain behavior, or a real unknown — the change outgrew the one shot. Stop, say why, and recommend the full workflow, starting at /skill:jnk-1-explore. Do not start it; the user decides. The same applies mid-flight: if a slice reveals design choices, uncertain behavior, or a real unknown, stop — that is the escalate signal, not a reason to push on. Escalating is the quality guarantee: the one shot never does shallow work on a big change.
+- a significant design decision that the repository does not already answer;
+- genuinely ambiguous or unknown behavior;
+- architectural changes or broad refactoring;
+- requirements that conflict or need product decisions;
+- a slice whose implementation depends on assumptions you cannot confidently validate.
 
-## Steps
+Do not push through uncertainty just because the change started as a one-shot. Escalation is preferable to guessing.
 
-1. **One line.** Restate what changes and what must not change. If the request is ambiguous, ask once — the single human step. After the answer, go.
+## Procedure - follow step by step
 
-2. **The minimum read.** First, check what the repo already knows: a `.ai/contexts/` notebook entry, a `docs/adr/` decision, a `docs/designs/` blueprint, or a `docs/external/` fact that this change touches — read the relevant entry before the code; the repo may already know what you're about to re-derive. Then read the file to change, its tests, one caller or sibling. State the model in three lines: current behavior, the fix, the risk. A real unknown here is the escalate signal.
+### 1. Understand the change
 
-3. **Own your branch; then the smallest change, in vertical slices.** When the change is big enough to want isolation — multi-file, cross-layer, or several slices — or when the user uses the `worktree` keyword after the skill invocation, cut your own feature branch first, in a fresh worktree, and build there (follow the /skill:jnk-worktree pattern: `git worktree add .worktrees/<slug> -b <slug>`, after confirming `.worktrees/` is gitignored; verify the baseline tests pass before you start). A change you can make in one file in one step may skip the branch. When the change spans layers (backend → frontend → persistence), build it the same way the beats do — the thinnest end-to-end slice first, then thicken — minus the user gates: each slice is a thin end-to-end story that leaves the system working. Per slice, where a test can fail for the right reason, write it first and watch it fail, then fix. Touch only what the slice needs. Write for the next engineer: intent over cleverness, comments say why. Anything noticed-but-not-fixed is a squawk — log it, never silently fix, never silently forgive.
+Restate, briefly:
 
-4. **Checkpoint after every slice; gate only at the end.** Run the slice's narrowest check that gives confidence (the touched tests, typecheck), plus anything it could have broken — then the next slice, with no user gate. On a failure, compare against pristine (stash → run → pop) before blaming anything. Name the ledger out loud as you go — done / next — so nothing is lost. If a slice reveals design choices, uncertain behavior, or a real unknown, that is the escalate signal, not a reason to push on.
+- what will change;
+- what must remain unchanged;
+- the main risk.
 
-5. **The skeptic's pass.** Re-read your diff as a hostile reviewer before reporting: plausible-but-wrong logic, silent fallbacks, tests that pass for the wrong reason, over-engineering, hidden behavior changes. Fix the real ones — a one-shot must be right, not just green. Squawk the rest.
+Read the minimum useful context before editing:
 
-6. **Report.** Report: what changed, the verification result, any **uncertain choices** (the decisions you're least confident about, and why), squawks, and — if you used subagents — which ones ran and what each found and how you resolved it. A skipped subagent shows up here as a blank, not a silent drop. A durable fact learned (env schema, integration shape, convention) is written to `docs/external/` — create the dirs if missing; it is free context for the next one-shot. No notebook entry: the report is the record.
+- relevant `.ai/contexts/` entries, ADRs, designs, or `docs/external/` facts;
+- the code being changed;
+- its tests;
+- one relevant caller, consumer, or sibling implementation.
 
-7. **Commit the history.** Run /skill:jnk-commit on the branch — it turns the session's work into good, small, one-line conventional commits that tell the story (one coherent chapter per commit, `type(scope): summary`), in the order the work happened. Don't squash the whole change into one giant commit, and don't sprinkle commits as you go — all history is written once, here, at the end.
+Do not re-derive repository knowledge that already exists.
 
-## Subagents
+If this read exposes a meaningful unknown, escalate.
 
-Oneshot uses subagents for quality without ceremony — no user gates; validation and review happen automatically. Say what you want done in plain language — *spawn a subagent to validate X, to review Y, to implement Z* — and let your harness's subagent mechanism pick the concrete form. Don't hard-code agent types or tool syntax; the harness decides.
+### 2. Decide the implementation shape
 
-Scale the ceremony to the change. A one-line fix may warrant no subagent at all. Multi-slice, parallelizable, or riskier work warrants the three uses below.
+Determine whether the change is:
 
-### Before you build: validate the slices
+- **single-step:** small enough to implement directly; or
+- **multi-slice:** large enough to benefit from several independently verifiable vertical slices.
 
-After proposing slices, spawn a subagent to validate them before you write anything. Give it the slice list and ask: is each slice truly end-to-end (not "all backend, then all UI")? Does each leave the system working? Are the checkpoints actually verifiable? Are there hidden dependencies between slices, and which slices can run in parallel? Reject with reasons if invalid; approve and note concerns if valid. You need its verdict before you build — wait for it.
+For multi-slice work, define the thinnest useful end-to-end slices. Each slice should:
 
-### In parallel: implement independent slices
+- represent a coherent piece of user/system behavior;
+- touch only the layers it actually needs;
+- leave the repository in a working state;
+- have a concrete verification step.
 
-When slices have no hidden dependencies, spawn one subagent per slice, each given its own slice's files, its checkpoint, and the red-green-refactor instruction (write the test first, watch it fail, then fix). Only parallelize slices that genuinely don't touch the same code, and never let two writers work the same tree at once — isolate them, or run one at a time. Triage what comes back before you merge or continue.
+Prefer vertical slices over layer-by-layer implementation.
 
-### After each slice: review the diff
+Build a simple dependency order. Only parallelize genuinely independent slices.
 
-After each slice, spawn a subagent to read the slice's diff as a hostile reviewer: did it follow the plan, skip any verification, refactor when it shouldn't have, write tests first, and stay true to the project's principles? Ask for real defects listed specifically, and a plain "it's clean" with reasons when it is. Triage — fix the real ones, squawk or reject the strawmen.
+### 3. Choose where subagents help
 
-Every subagent's outcome goes in the report (step 6): which ran, what it found, how you resolved it — so a skipped subagent is visible, never silent.
+Use subagents when they materially improve throughput or correctness, especially for:
 
-## Do not
+- a substantial slice that can be implemented independently;
+- parallelizable slices with clean ownership boundaries;
+- unfamiliar or risky code that benefits from an independent implementation/review;
+- focused testing, verification, or hostile review.
 
-- Use this on fuzzy, architectural, or multi-unknown work — escalate instead.
-- Run the ceremony (gates, slices, decision records, notebook) — that is what one shot is for skipping.
-- Skip verification, or claim green without the narrowest run.
-- Commit as you go — all history is written once, at the end, via /skill:jnk-commit.
-- Leave a durable fact in the chat — it belongs in `docs/external/`.
+Do not spawn subagents for tiny changes merely to follow ceremony.
+
+When delegating implementation, give the subagent:
+
+- the slice and its intended behavior;
+- relevant files/code areas;
+- constraints and existing conventions;
+- the expected verification;
+- permission to make the implementation, not merely review it.
+
+Each implementation subagent must work in isolation from other writers. Never have two agents concurrently modify the same working tree.
+
+Get that isolation from worktrees, not from hope: `/skill:jnk-worktree`, or by hand — `git worktree add .worktrees/<slug> -b <slug>`, after confirming `.worktrees/` is gitignored and the baseline tests pass. The same applies when you are the only writer: if the change is multi-file or spans layers, cut a feature branch rather than working on the default one. A single-file one-step change can skip it.
+
+When subagent work returns, inspect it yourself before accepting it. A subagent is an implementation aid, not an authority.
+
+### 4. Implement slice by slice
+
+For each slice:
+
+1. Understand the existing behavior and the smallest change required.
+2. Add or update the most useful test when practical. For behavioral changes, prefer seeing the new test fail before making it pass.
+3. Implement the smallest correct solution.
+4. Run the gates — `gates types lint unit` for the cheap subset mid-slice, `gates --changed` before you finish.
+5. Run additional checks for behavior that could have been affected.
+6. Review the resulting diff before moving on.
+
+Use normal engineering judgment rather than blindly following a ceremony. A trivial change does not need elaborate test choreography; a risky behavioral change does.
+
+Keep each slice focused. Avoid opportunistic refactors.
+
+If you notice unrelated cleanup, record it as a **squawk** rather than silently expanding scope.
+
+### 5. Verify continuously
+
+After every meaningful slice, establish evidence that it works — and make it evidence a command produced, not a judgment you reached. `gates` is that command: it runs the project's stack, stops at the first failure, and prints the failing output, which is the instruction. Run the cheap subset (`gates types lint unit`) between slices when the full sweep would be slow.
+
+`gates --changed` is usually the right final sweep for a one-shot: every gate runs, each scoped to what you touched where the gate supports it — including the mutation gate, which is far too slow to run whole for a small change. Reach for plain `gates` when the change is broad or touches something shared: a schema, a shared type, a config another module reads.
+
+When something fails, determine whether it is:
+
+- caused by the current change;
+- a pre-existing failure;
+- an environment/setup issue;
+- a gate that is genuinely miscalibrated — which is the user's call, not yours to edit away.
+
+Before you blame your own change, compare against pristine: stash the work, run the check, restore. A failure that was already there is not yours to fix inside a one-shot — record it as a squawk and carry on.
+
+Name the ledger out loud as you go — done, next — so nothing is lost between slices.
+
+Do not claim success without evidence, and do not report a gate as passing that you did not run.
+
+### 6. Review independently
+
+Before finishing, review the complete diff as a hostile maintainer.
+
+Look specifically for:
+
+- incorrect or inverted logic;
+- missing edge cases;
+- tests that pass without exercising the intended behavior;
+- accidental API or behavior changes;
+- silent fallbacks;
+- unnecessary complexity;
+- duplicated logic;
+- poor error handling;
+- concurrency/state issues;
+- security or data-integrity problems where relevant;
+- changes outside the intended scope.
+
+Fix genuine defects.
+
+If the change is substantial or risky, use a subagent for an independent final review. Give it the actual diff and ask for concrete defects, not generic feedback. Resolve real findings; record legitimate but out-of-scope findings as squawks.
+
+Review against `AGENTS.md` too — read the file and check the change against the principles it actually states. Do not work from a remembered list. This step once ran against a copied set of nine principles while the file had moved on to six different ones, and nothing could see the drift, because nothing was checking. Hand a reviewer the file itself, never a restatement of it.
+
+### 7. Record durable knowledge
+
+If the work reveals a reusable repository fact — for example an integration contract, environment convention, schema detail, or non-obvious behavior — record it in `docs/external/`.
+
+Do not create documentation merely to satisfy the skill. Only record knowledge that will save future work.
+
+### 8. Commit
+
+Run `/skill:jnk-commit` once the implementation is complete.
+
+Do not commit incrementally during the one-shot. Let the commit skill determine the appropriate commit structure and messages.
+
+## Working principles
+
+- **Correctness over speed.**
+- **Smallest correct change over cleverness.**
+- **Vertical slices over layer-by-layer construction.**
+- **Evidence over confidence** — and a gate that exits non-zero is evidence; a judgment that it looks right is not.
+- **Subagents where they help, not for ceremony.**
+- **Independent review for risky work.**
+- **No silent scope creep.**
+- **Escalate uncertainty instead of guessing.**
+- **Leave the repository working after every slice.**
+- **The final diff should be understandable to the next engineer.**
+
+## Report
+
+Finish with a concise report containing:
+
+- what changed;
+- how it was verified;
+- what the gates flagged — a CRAP hotspot, a coverage gap, a mutation survivor, an arch violation — and what you did with each: fixed, squawked, or judged acceptable. Then say plainly what the gates cleared. That is what having them is for: they tell the reader where not to spend attention;
+- any uncertain decisions and why they were made;
+- squawks / intentionally deferred issues;
+- subagents used, what they implemented or reviewed, and how their findings were handled;
+- durable facts written to `docs/external/`, if any.
+
+If no subagent was warranted, say so briefly rather than inventing ceremony.
