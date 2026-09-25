@@ -1,6 +1,6 @@
 ---
 name: jnk-4-verify
-description: "Verify a completed change with evidence, honestly. User-invoked only via /skill:jnk-4-verify. Runs the narrowest verification that gives confidence, checks the measured-by metric when one exists, logs squawks, reconciles the IOU ledger, and enforces AGENTS.md principles via subagent."
+description: "Verify a completed change with evidence, honestly. User-invoked only via /skill:jnk-4-verify. Runs the project's gate stack, checks the measured-by metric when one exists, logs squawks, reconciles the IOU ledger, and audits the diff against AGENTS.md itself via subagent."
 disable-model-invocation: true
 ---
 
@@ -14,7 +14,9 @@ Verify the whole change with evidence, and say plainly what remains unverified. 
 
 ## Steps
 
-1. **Run the narrowest verification that gives confidence:** the slice checkpoints plus the whole path — tests, typecheck, build, the LLM-as-judge passes the route called for (same rubric, report the scores), and the manual path you can actually run. Show each command and its result. When the decision record names a `Measured by` — latency, cost per call, quality score, conversion — check it if you can; if you can't (no prod access, needs traffic, needs time), say so plainly in the unverified list. Tests verify the code; the metric verifies the change.
+1. **Run the gate stack: `gates`.** The project's `gates.json` *is* the definition of "verified" — one command, exit 0 or not, and the failing gate's output is the finding. Show the run and its result. Then the parts no gate can hold: the LLM-as-judge passes the route called for (same rubric, report the scores), and the manual path you can actually run. When the decision record names a `Measured by` — latency, cost per call, quality score, conversion — check it if you can; if you can't (no prod access, needs traffic, needs time), say so plainly in the unverified list. Gates verify the code; the metric verifies the change.
+
+   The loop is: run, read the failure, fix the cause, run again. Do not report a gate as passing that you did not run. Do not edit `gates.json` to clear a finding — raising a threshold is not fixing a defect. If a gate is genuinely miscalibrated, that is the user's decision, with the reason stated out loud.
 
 2. **State what was NOT verified, and why.** Skipped checks, environments you cannot reach, behavior you cannot see. Name them.
 
@@ -26,18 +28,9 @@ Verify the whole change with evidence, and say plainly what remains unverified. 
 
 6. **Reconcile the IOUs.** Which unknowns from /skill:jnk-1-explore got answered? Update `understanding.md` as you go — retire the answered ones so pickup reads truth, not archaeology. Remaining ones become squawks or next steps.
 
-7. **AGENTS.md enforcement.** Before final verification, spawn a subagent to audit the diff against AGENTS.md principles. Give it the full diff and the principles below, and ask it to report, per violation, which principle, the specific code, why it's a violation, and the minimal fix — or to say plainly that the code follows the principles and why. Describe the job in plain language (*spawn a subagent to check this diff against AGENTS.md*) and let your harness's subagent mechanism pick the concrete form — don't hard-code an agent type or tool syntax. Its findings, and the fact that it ran, go into the report at step 8 — a skipped enforcer shows up there as a blank, not a silent drop. For a very small change you may waive it with a stated reason; you may not skip it silently.
+7. **AGENTS.md enforcement.** Before final verification, spawn a subagent to audit the diff against the project's `AGENTS.md`. Read `AGENTS.md` and hand the subagent **the file itself** — never a restatement of it. A copied principle list drifts silently: this step once carried a hard-coded nine principles from an earlier `AGENTS.md` while the file had moved on to six different ones, so the step enforced principles that no longer existed and missed every principle that did. Nothing could detect it, because nothing was checking. The file is the single source; quote from it.
 
-   The principles to check:
-   1. Optimize for the next engineer — is this obvious to readers?
-   2. Understand before changing — was the codebase studied first?
-   3. Localize complexity — is complexity hidden behind clear boundaries?
-   4. Minimize cognitive load — are there unnecessary concepts, coupling, indirection?
-   5. Every abstraction earns its cost — is the abstraction justified?
-   6. Prefer removing to adding — did we delete more than we added?
-   7. Document intent — do comments explain why, not how?
-   8. Leave the design simpler — is the next change easier now?
-   9. Smallest coherent change — is this the minimum viable change?
+   Ask the subagent to report, per violation, which principle, the specific code, why it's a violation, and the minimal fix — or to say plainly that the code follows the principles and why. Describe the job in plain language (*spawn a subagent to check this diff against AGENTS.md*) and let your harness's subagent mechanism pick the concrete form — don't hard-code an agent type or tool syntax. Its findings, and the fact that it ran, go into the report at step 8 — a skipped enforcer shows up there as a blank, not a silent drop. For a very small change you may waive it with a stated reason; you may not skip it silently.
 
 8. **Gate.** Present the report. Ask the user: "What would you want to see to trust this that we didn't show?" — their missing check is often the real one. Then the user decides: fix, ship, or refactor. Do not declare done without their sign-off.
 
@@ -62,10 +55,14 @@ Models will attempt these rationalizations. Intercept them:
 | "lsp_diagnostics is clean" | Types don't catch logic bugs | Test the feature |
 | "I tested it manually" | Describe what you observed | Show evidence |
 | "It should work" | No evidence = not verified | Run it |
-| "The diff looks good" | Review against principles | Spawn enforcer |
-| "This is a minor change, no need to verify" | All changes need verification | Run verification |
+| "The diff looks good" | Review against the principles in AGENTS.md | Spawn the audit |
+| "This is a minor change, no need to verify" | All changes need verification | Run the gates |
 | "The user said it's fine" | User sign-off is required | Get explicit approval |
 | "I'll just fix this small thing" | No silent fixes during verification | Log squawk, move on |
+| "I ran the gates before my last edit" | The last edit is the one that matters | Re-run them |
+| "The gate is too strict, I'll raise the threshold" | A threshold is not a defect | Fix the cause, or ask the user |
+| "The gate failed but the tool must be broken" | Sometimes true — Stryker's vitest runner reports false survivors | Prove the tool on a fixture first, then decide |
+| "It's only advisory, so it doesn't count" | Advisory means report-only, not ignore | Read it and say what it found |
 
 ## Output
 
@@ -81,3 +78,5 @@ If the user is satisfied, close the loop: run /skill:jnk-commit to write any fix
 - Claim proof, hide skipped checks, or pad with checks that add no confidence.
 - Declare done without the user's sign-off.
 - Skip the AGENTS.md enforcement step.
+- Edit `gates.json` to clear a finding, or report a gate as passing that you did not run.
+- Restate the principles instead of handing the subagent `AGENTS.md` itself.

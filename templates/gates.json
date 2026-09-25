@@ -1,0 +1,103 @@
+{
+  // The recommended stack for a project using this workflow: the kit's
+  // TypeScript adapter plus the four gates this workflow leans on —
+  // acceptance (the Gherkin feature file), coverage, build, and e2e.
+  //
+  // Set a project up:
+  //
+  //   gates --init                            # writes the config files declared below
+  //   cp <workflow>/templates/gates.json .    # then drop in this fuller stack
+  //
+  // The `arch` and `mutation` gates read `.dependency-cruiser.cjs` and
+  // `stryker.conf.cjs`. Those live in the uncle-bob-workflow kit and are not
+  // copied into this repo: two copies of a gate config drift the same way a
+  // copied principle list does, silently, and nothing catches it.
+  //
+  // `gates --list` shows the stack and warns about any config it cannot find.
+  "files": [
+    { "from": "dependency-cruiser.cjs", "to": ".dependency-cruiser.cjs" },
+    { "from": "stryker.conf.cjs", "to": "stryker.conf.cjs" }
+  ],
+  //
+  // Order is cheapest-first, so a failure costs the least time. Two ordering
+  // constraints are load-bearing: `unit` emits the coverage file `crap` reads,
+  // and `coverage` re-emits it for the CRAP check on the full suite. The `e2e`
+  // gate builds and serves the real artifact, so it goes last.
+  //
+  // Two gates carry output assertions. Both are there because the tool
+  // otherwise exits 0 having done nothing, and a green gate that checked
+  // nothing is worse than no gate. Read their `why` before editing them.
+  "note": "The recommended stack. Delete what you do not have.",
+  "gates": [
+    {
+      "name": "types",
+      "run": "npx tsc -b",
+      "why": "the code type-checks under strict mode",
+      "timeout": 300
+    },
+    {
+      "name": "lint",
+      "run": "npx oxlint src tests",
+      "why": "the project's lint rules hold",
+      "timeout": 300
+    },
+    {
+      "name": "unit",
+      "run": "npx vitest run tests/unit",
+      "why": "every named behavior of the core holds",
+      "timeout": 600
+    },
+    {
+      "name": "acceptance",
+      "run": "npx vitest run tests/acceptance",
+      "why": "the scenarios in features/*.feature hold. The feature file is parsed and executed, not transcribed — a scenario that cannot run is a scenario that is not a spec.",
+      "timeout": 600
+    },
+    {
+      "name": "coverage",
+      "run": "npx vitest run --coverage --coverage.thresholds.lines=80 --coverage.thresholds.statements=80 --coverage.thresholds.functions=80 --coverage.thresholds.branches=70",
+      "why": "the core is exercised, and this emits the coverage file the crap gate reads. Must run before crap. Coverage is the weakest gate in this stack — it counts the lines that ran, not the ones that were checked, and a suite can reach 100% line coverage with a mutation score under 20%. Worth having as a floor, not worth trusting as a verdict; mutation outranks it. Lower the thresholds for a young project, and raise them as the suite grows.",
+      "timeout": 900
+    },
+    {
+      "name": "crap",
+      "run": "crap src/core --coverage coverage/coverage-final.json --threshold 10",
+      "changed_run": "crap src/core --changed --coverage coverage/coverage-final.json --threshold 10",
+      "why": "no function is both complex and under-tested. CRAP is complexity squared times the cube of the uncovered fraction, so it separates a complex function that is tested from one that is not — which a maintainability index cannot, because MI mostly measures size.",
+      "timeout": 300
+    },
+    {
+      "name": "arch",
+      "run": "npx depcruise -c .dependency-cruiser.cjs src",
+      "expect": "[1-9][0-9]* modules",
+      "why": "the layers only point inward. The `expect` is load-bearing: dependency-cruiser cannot load TypeScript 7, so it cruises zero modules, prints 'no dependency violations found' and exits 0. Without the assertion that silent pass is a green gate that checked nothing.",
+      "timeout": 300
+    },
+    {
+      "name": "dry",
+      "run": "npx jscpd --min-lines 8 --min-tokens 60 --format typescript --ignore '**/*.test.ts' src",
+      "why": "no duplicated block above the threshold",
+      "timeout": 300
+    },
+    {
+      "name": "build",
+      "run": "npx vite build",
+      "why": "the artifact actually builds",
+      "timeout": 600
+    },
+    {
+      "name": "e2e",
+      "run": "npx playwright test",
+      "why": "the shipped artifact does the job in a real browser",
+      "timeout": 900
+    },
+    {
+      "name": "mutation",
+      "run": "npx stryker run stryker.conf.cjs",
+      "changed_run": "npx stryker run stryker.conf.cjs --incremental",
+      "reject": "Ran 0\\.00 tests per mutant",
+      "why": "the assertions detect changed behavior. Slow — run it deliberately. The `reject` names Stryker's broken vitest integration, which reports every mutant as survived; without it that failure reads as a bad test suite and sends you off writing assertions that already exist. See uncle-bob-workflow/templates/stryker.conf.cjs.",
+      "timeout": 3600
+    }
+  ]
+}

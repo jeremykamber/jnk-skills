@@ -40,7 +40,7 @@ Build the smallest sufficient understanding needed to make a confident change (a
 
 11. **First principles.** For each direction: what is the system for? What is the smallest thing that could possibly work?
 
-12. **No commitment.** Present the directions and the sharpest open questions. Do not argue for one. End by asking: "Ready to decide, or keep thinking? — and which direction do you find yourself defending?" The user's lean is evidence, not a verdict — and not the choice: /skill:jnk-2-design re-presents the directions and asks for the decision itself.
+12. **No commitment.** Present the directions and the sharpest open questions. Do not argue for one. End by asking: "Ready to decide, or keep thinking? — and which direction do you find yourself defending?" The user's lean is evidence, not a verdict — and not the choice: /skill:jnk-2-design picks these directions up and asks for the decision itself. It does not re-present them — **these directions are the option list**, and putting them up twice is the same conversation twice. Divergence is this beat's job; the decision is the next one's.
 
 ## Persistence Gate
 

@@ -36,7 +36,7 @@ For each slice:
    - Make it pass with the smallest change.
    - Refactor — work, right, fast, in that order.
 
-3. **Checkpoint.** Run the slice's verification, plus anything it could have broken. Report in plain language: files touched, behavior changed, the result, any squawks.
+3. **Checkpoint.** Run the slice's gates — the cheap ones at minimum (`gates types lint unit`), the whole stack when the slice touched something shared. Report in plain language: files touched, behavior changed, the gate result, any squawks. A checkpoint that cannot fail is not a checkpoint: if you ran nothing that could have said no, say that plainly instead of implying otherwise.
 
 4. **Adversarial review (when the route calls for it).** If the route marked this slice for review, spawn a skeptical senior-developer subagent over the slice's diff, briefed by `references/reviewer-brief.md`. Triage its findings: fix the real ones, squawk or reject the strawmen — the review either finds real defects or says plainly there are none, and says why. Its findings feed the walkthrough.
 
@@ -46,6 +46,7 @@ For each slice:
    - **Critical bits** — the two or three decisions that matter: why each abstraction exists, what it assumes, and where your confidence is thinnest. This is the uncertain-choices list — where the user's review attention goes.
    - **The plumbing** — say plainly what is mundane, so the user knows what to skip.
    - **Failure modes** — name the ways this slice could be wrong (the ones you'd actually worry about), then invite the user's probes.
+   - **Lead with what the gates flagged.** The gates are a reading list, not a substitute for reading — they say which two or three places in this slice are actually risky. Open with the CRAP hotspots, the coverage gaps, the mutation survivors, the arch violations, and teach *those*. Then say plainly which parts the gates cleared, so the user knows where not to spend attention. "The gates cleared the rest" is a claim they can check with one command; "trust me" is not. This is the whole point of having gates: they buy back the attention that would otherwise be spread evenly over code that is fine.
    - **Depth scales with the slice.** Mechanical slices get the two-line version — the seam, the one decision, "the rest is plumbing." Slices the route marked for review get the full teach, and surface the review's headline findings and how each resolved (fixed / squawked / strawman) — one line each — so the user sees what the skeptic found, not just the triage. Waving the teach ("skip it, I trust this one") is a valid answer, same as waving gates.
    - **Tutor, not authority.** When the user asks you to back a claim ("show me exactly where that guarantee comes from"), point at the specific lines. If you can't, that's a finding — say so, don't shrug. The user verifies your claims against the code.
    - When the teach surfaces a genuinely unresolved decision (the route rests on a question nobody settled), invoke /skill:jnk-grill — don't let it ride.
@@ -126,6 +127,7 @@ When the last slice lands, commit the work: run /skill:jnk-commit on the branch 
 ## Do not
 
 - Implement more than one slice without a gate.
+- Call a slice done on a checkpoint you never ran, or imply a gate passed that you did not run.
 - Touch files outside the slice, or fix squawks mid-flight without asking.
 - Reorder the plan silently — new slices re-order the ledger out loud, or not at all.
 - Commit as you go — all history is written once, via /skill:jnk-commit, when the last slice lands.

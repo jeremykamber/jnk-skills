@@ -12,26 +12,37 @@ disable-model-invocation: true
 
 Choose a direction deliberately (decide's work), then shape the change and route it (design's work) — still zero production code. Decide = what and why. Design = how it feels, how it hangs together, and in what order it gets built. This is the cheapest place to change everything: a diagram and a route cost nothing to redraw; code costs. When the shape is already obvious, start at Phase 2 — the route still earns its gate.
 
+## How far to plan
+
+**Plan to the first gate.** Design as far as the next thing that can prove you wrong — no further. That used to mean "everything", because only a human could falsify a plan, so the plan had to be right before anyone built. Gates move that point: the first slice's checkpoint is now the first real falsification, and it is one command away.
+
+So the default is: settle the decision, design the shape of **slice 1** and the seams it exposes, sketch the rest, then build slice 1. The code and the gates tell you whether the rest of the plan was right, and you re-design holding real information instead of a guess. A route that is right for slice 1 and wrong for slice 4 has done its job — you found out at slice 1, for the price of one slice.
+
+This is AGENTS.md principle 5 applied to the plan itself: a thin vertical slice through the full stack answers real questions faster than a detailed spec. It is why this beat is short on ceremony and long on the first slice, and why "we designed the whole thing up front" is a cost to justify, not a virtue to claim.
+
+Go further up front only when falsifying is expensive: a migration you cannot roll back, an interface someone else is already coding against, a boundary you cannot move afterwards. Then design it fully — and say which of those it is, out loud.
+
 ## Lenses
 
-Apply these to every option; name the lens you are using:
+Apply these to every option; name the lens you are using. **Every lens must speak to every option** — no silent carry. If a lens finds an option unremarkable, say so in one line; silence reads as agreement.
 
 - **Simple vs easy** (Hickey). Simple means unbraided — one notion. Easy means familiar. Call it out when "simpler" actually means "more familiar."
 - **Wrong abstraction** (Metz). Duplication is far cheaper than the wrong abstraction. Abstract at the third occurrence (Rule of Three), not the first.
 - **Smallest coherent change.** The least complex option that fully solves the problem. Start simple and let complexity be earned.
 - **The next engineer.** Which option will the next person to touch this find obvious? Write for readers, not authors.
-- **Inversion.** Ask: what would make this choice fail? Which failure mode can we survive? Pick the option whose failure you can foresee — and write down the failure mode you'd actually fear, not a token one.
+- **Inversion** (fear the failure). For every option, write the concrete failure you'd actually lose sleep over — not a token risk but the scenario that would make you revert at 2am. Which option fails in a way you can survive, and which fails in a way you can't? Strong preference for the option whose failure mode is boring. A failure you can reason about is cheaper than a failure you can't predict.
+- **Deep module** (Ousterhout). Which option offers the richest behavior behind the simplest interface? Flag options that push complexity into callers or leak implementation details across seams. A deep module hides complexity; a shallow one distributes it.
 - **No futures yet.** Do not optimize for requirements that have not arrived.
 
 ## Phase 0 — The decision
 
 1. **The product line.** Who is this for? What user problem does it solve? How would we pitch it to a user in one sentence? (The blog-post test: if we can't say why it matters to someone, the change isn't ready to decide on.) Then **define success together:** What behavior changes? What must not change? What does "done" mean? How will we verify? (Tests represent intent — not "the code runs".) When a measurable outcome exists — latency, cost per call, quality score, conversion — name it: `Measured by: <metric + target>`. Tests verify the code; the metric verifies the change. No metric? Say "no measurable outcome yet" and move on — don't invent one.
 
-2. **Generate options.** Meaningful alternatives only — the ones worth debating, and each one you could genuinely see implementing. For each: approach, pros, cons, cost. No filler options, no strawmen — if an option can't win on its merits, it isn't an option. If explore already surfaced directions, carry them forward and sharpen them into options — but re-present the full list here regardless. The option list is design's centerpiece; the user sees it in front of them before any judgment.
+2. **Generate options.** Meaningful alternatives only — the ones worth debating, and each one you could genuinely see implementing. For each: approach, pros, cons, cost. No filler options, no strawmen — if an option can't win on its merits, it isn't an option. **If explore already surfaced directions, those are the option list** — carry them forward and sharpen them into approach/pros/cons/cost. Do not re-present what explore already put in front of the user: that is the same conversation twice, and it is the ceremony this beat exists to avoid. Generate options here only when explore did not.
 
-3. **Debate with the lenses.** Challenge your own and the user's assumptions. Seek the strongest reasoning, not agreement. Where lenses point in different directions, say so.
+3. **Debate with the lenses.** Challenge your own and the user's assumptions. Seek the strongest reasoning, not agreement. Where lenses point in different directions, say so. **Do not let every lens converge on one option** — if they do, you are probably pattern-matching instead of reasoning. Each lens should find something real to say about each option; when a lens has nothing to say, that is a sign the lens is being lazy, not that the option is perfect. The value of the debate is the friction, not the consensus.
 
-4. **Make the call — the user's, not yours.** Present every option with the trade-offs the lenses surfaced, then stop. Ask: "Which option would you defend, and what's your strongest reason?" — and wait for the answer before stating any recommendation. A lean from an earlier beat (explore's "which direction do you find yourself defending?") is evidence, not a decision: present the list and ask again. Only after the user answers do you recommend: name your pick, your strongest reason, and where you differ from theirs. The user owns the decision. If a meaningful option cannot be chosen because an underlying decision remains unresolved, that is a decision tree worth walking — invoke /skill:jnk-grill rather than guessing. If important uncertainty remains, return to /skill:jnk-1-explore.
+4. **Make the call — the user's, not yours.** Present every option with the trade-offs the lenses surfaced, then stop. Ask: "Which option would you defend, and what's your strongest reason?" — and wait for the answer before stating any recommendation. A lean from an earlier beat (explore's "which direction do you find yourself defending?") is evidence, not a decision — but if the user already made the call there, confirm it in one line and move on rather than asking again. Re-asking a question they have answered is the ceremony this beat is trying to avoid. Only after the user answers do you recommend: name your pick, your strongest reason, and where you differ from theirs. The user owns the decision. If a meaningful option cannot be chosen because an underlying decision remains unresolved, that is a decision tree worth walking — invoke /skill:jnk-grill rather than guessing. If important uncertainty remains, return …
 
 5. **Write the decision record.** Load `references/decision-record.md`: chosen approach, reason, runner-up, failure mode to watch, measured-by, verification strategy. Where: `docs/adr/<thread-name>.md` — one file per decision, committed with the code. Create the dir when missing: every project, even a small one, gets an ADR home — decisions are project truth, not session state, and the model finds them at a stable path in every feature. About ten lines. **Write it now**, not at debrief.
 
@@ -84,7 +95,7 @@ The shape is agreed; now the build order. Slice the work by what the user can se
 
 2. **List the slices.** Each slice names:
    - What changes (files and areas)
-   - Its checkpoint — the narrowest verification that gives confidence: a test, a typecheck, an LLM-as-judge pass (rubric-scored quality, cost, or speed on generated output), or a manual path
+   - Its checkpoint — the gate that will prove it: a named gate from `gates.json`, plus anything a gate cannot hold (an LLM-as-judge pass, rubric-scored, or a manual path). A checkpoint that cannot fail is not a checkpoint.
    - What it leaves working
    - Whether it earns an **adversarial review** before its gate, and why. Slices with subtle logic, state, concurrency, LLM-dependent output, parsing, or integration seams get one; mechanical slices don't. Spend the review budget where the risk is.
    - **Dependencies** — which slices must complete before this one can start

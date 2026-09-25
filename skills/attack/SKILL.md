@@ -28,7 +28,11 @@ Write tests whose job is to break the feature, not bless it. The stance is the w
 
 4. **Run — fix what breaks.** The attack suite will find real bugs; that is the point. For each failure, the smallest fix that makes the failing test pass, verified by that test. If a bug implies a large-scale or wide-blast-radius fix, stop and recommend /skill:jnk-debug or /skill:jnk-1-explore instead — the user decides.
 
-5. **Prove the survivors have teeth.** A green suite with tests that can't fail is worse than none — it manufactures confidence. For each passing test, run the mutation probe: flip a comparison, delete a null-check, remove an error branch, off-by-one — does the test catch it? Use the project's mutation tool if one exists (Stryker, PIT, mutmut, cargo-mutants, go-mutesting); otherwise spot-check by hand. And red-team the tests themselves: real assertion, right oracle, no swallowed exception, no vacuous setup. A test that cannot fail for the right reason is a false green.
+5. **Prove the survivors have teeth — `gates mutation`.** A green suite with tests that can't fail is worse than none: it manufactures confidence. This step is a command now, not a hand-probe. `gates mutation` flips operators across the source, runs the suite against each flip, and fails below the score floor. Every survivor is either a real assertion gap — repaired in the test, never by editing the operator back — or an equivalent mutant you verify by hand and record as such.
+
+   **Check the tool before you trust the score.** A mutation tool can lie, and the lie reads as "your tests are terrible": Stryker's vitest runner reports every mutant as SURVIVED under vitest 5 — including mutants whose killing assertion is right there in the test file — printing `Ran 0.00 tests per mutant` and a 0.00% score. The gate's `reject` assertion names that signature, so if you see it, the tool is broken, not your suite. `uncle-bob-workflow/checks/test_mutation.sh` proves a mutation setup in both directions against a fixture with one mutant that must be killed and one that must survive.
+
+   And red-team the tests themselves: real assertion, right oracle, no swallowed exception, no vacuous setup. A test that cannot fail for the right reason is a false green.
 
 6. **Report and hand off.** What was attacked, what broke and what you fixed, the green verdict, and the honest calibration per The honest limit: green means ironclad against the attacks — name what tests cannot cover (real concurrency under load, external systems, scale, human misuse). Squawks. A durable fact learned — undocumented behavior, a boundary the system actually has — belongs in `docs/external/`; create the dirs if missing. Do not commit — propose /skill:jnk-commit.
 
@@ -43,6 +47,7 @@ Nothing to hand off — the suite is written and green, or the escalation was na
 ## Do not
 
 - Write friendly tests — the stance is adversarial; a test that can't fail is not a test.
+- Blame your suite for a mutation score before checking the tool — a run that kills nothing is usually the tool, and the gate's `reject` says so.
 - Dump the catalog — rank attacks for this feature, write the ones that can break it.
 - Leave a false green: no assertion, swallowed exception, wrong oracle, setup that can't fail.
 - Claim "bug-free" — the verdict is calibrated: ironclad against the attacks, residual risk named.

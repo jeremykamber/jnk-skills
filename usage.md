@@ -13,6 +13,45 @@ You are the pilot; the agent is the copilot. You decide when each step starts, y
 - **Unresolved decision → the agent fires /skill:jnk-grill.** One question at a time, it proposes an answer and researches facts; you decide.
 - **Own the understanding → /skill:jnk-interrogate.** The agent interrogates you on a repo or feature until your understanding is real — brutal Socratic chains, a teaching ladder where you gap, and a "two areas left" signal so it never runs forever.
 - **Context at ~60% → finish the step and split, or /skill:jnk-handoff mid-beat; fresh session, pickup.**
+- **A beat proves it worked by running `gates`.** Verification is a command, not a judgment — see the next section.
+
+## The gates — how a beat proves it worked
+
+Every beat that claims something works now proves it with a command. `gates` is that command: it runs the project's stack in order, stops at the first failure, and prints the failing output — and that output is the instruction. Exit 0 means green; exit 1 means a gate failed; exit 2 means the config is broken.
+
+It comes from the `uncle-bob-workflow` kit (`uncle-bob-workflow/install.sh` puts `gates` and `crap` on your PATH). One runner, two workflows — the tools are not duplicated here, because two copies of a gate drift and nothing catches it.
+
+**Set a project up once:**
+
+```sh
+./setup.sh --project <dir>  # gates --init, then the jnk-skills stack
+# or, by hand:
+gates --init               # writes gates.json + the configs the stack declares
+cp templates/gates.json .  # optional: the fuller stack, with acceptance + e2e
+gates --list               # the stack, and any config it cannot find
+gates                      # run it
+```
+
+`--init` writes every config file the adapter declares it needs. Do not copy those by hand: one is a dotfile, and the wrong name makes the arch gate cruise nothing at all.
+
+Bring gates back one at a time as you install their tooling. The template ships a TypeScript stack — types, lint, unit, acceptance, coverage, crap, arch, dry, build, e2e, mutation — and the `why` on each one says what it proves.
+
+**Where the beats use it:**
+
+| Beat | What it runs |
+| --- | --- |
+| `/skill:jnk-3-implement` | `gates types lint unit` at each slice checkpoint — the cheap subset |
+| `/skill:jnk-4-verify` | the whole stack, once, at the end |
+| `/skill:jnk-oneshot` | the cheap subset between slices, the whole stack before it reports |
+| `/skill:jnk-attack` | `gates mutation` to prove the attack suite's assertions have teeth |
+
+**The rule that matters: a gate that cannot fail is worse than no gate.** A green light you cannot turn red manufactures confidence, and you will make decisions on it. Two of the gates carry output assertions for exactly this reason — `expect` proves the tool actually did the work, `reject` names a signature that means the run itself is invalid. `arch` has an `expect` because dependency-cruiser silently cruises zero modules on TypeScript 7 and exits 0; `mutation` has a `reject` because Stryker's vitest runner reports every mutant as survived and prints `Ran 0.00 tests per mutant`. Neither failure looks like a failure until you have seen it once.
+
+**When a gate fails, the failure is the finding.** Fix the cause. Do not edit `gates.json` to clear it — raising a threshold is not fixing a defect, and the agent is told not to. If a threshold is genuinely wrong for the project, that is your call, made out loud with the reason.
+
+**When the gate itself is wrong,** that is different, and worth checking before you rewrite tests: `uncle-bob-workflow/checks/test_mutation.sh` proves a mutation setup in both directions on a fixture with one mutant that must be killed and one that must survive. The same instinct applies to any tool — before you believe a score, make sure the tool can produce a score you would not believe.
+
+**What the gates give you.** They are a reading list, not a substitute for reading. The CRAP hotspots, the coverage gaps, the survivors, the arch violations — those are the two or three places in a change where the risk actually is, and the implement checkpoint teaches those first, then says plainly what the gates cleared. That is how you stay close to the code without reading all of it: the gates tell you where to look, and the layered teach walks you through it.
 
 ## The modes
 
@@ -28,6 +67,8 @@ You are the pilot; the agent is the copilot. You decide when each step starts, y
 | `/skill:jnk-handoff` | The live thread must cross a session boundary | Writes a compact thread checkpoint; pickup reads it next session. Split anywhere, not just at beat ends. |
 
 Rule of thumb: start with one-shot. If it tells you the change outgrew it (it "escalates"), switch to the beats.
+
+**How far to plan: to the first gate.** Design as far as the next thing that can prove you wrong — no further — then build slice 1 and let the code and the gates tell you whether the rest of the plan was right. That is AGENTS.md principle 5 applied to the plan itself, and it is why design now asks for the shape of slice 1 and the seams it exposes rather than a validated route for the whole feature. Design the whole thing up front only when falsifying is expensive: a migration you cannot roll back, an interface someone else is already coding against, a boundary you cannot move afterwards. A route that is right for slice 1 and wrong for slice 4 has done its job.
 
 ## Starting a session
 
@@ -178,7 +219,7 @@ Attention degrades as the context fills, no matter how big the window is. **Keep
 - **Where a paused implementation stands?** Read the route file (`.ai/contexts/<feature>/route.md`) — it's a living document the agent updates at every gate — or run `/skill:jnk-pickup`, which reads it for you.
 - **The notebook's durability?** `notes.md` is committed with the code (gitignore exception — see the notebook section above) so the session history survives machines and worktree cleanup; the rest of the notebook is local. Decisions, designs, and system facts live in `docs/adr/`, `docs/designs/`, and `docs/external/` — in the codebase by definition.
 - **Where the philosophy lives:** each skill's `SKILL.notes.md` — what it does, when to use it, why it exists, how it fits the other skills, and its sources. Private: the agent never sees them; read them when you want the why. This guide is the day-to-day.
-- **Code complexity analysis:** Use `/tools/complexity-analyzer` to measure cyclomatic complexity, maintainability index, and get letter grades. Run it at verification to enforce AGENTS.md principles mechanically.
+- **Code complexity:** the `crap` gate (`crap src --coverage coverage/coverage-final.json --threshold 10`) scores every function on complexity *and* coverage together — $CRAP = CCN^2 \times (1 - coverage)^3 + CCN$. It separates a complex function that is tested from one that is not, which a maintainability index cannot, because MI is driven mostly by size. Run it in the gate stack, after the gate that emits the coverage file.
 
 ## The next frontier
 

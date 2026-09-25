@@ -1,6 +1,6 @@
 ---
 name: jnk-pickup
-description: Pick up where a previous session left off. User-invoked only via /skill:jnk-pickup. Finds the work in the engineering notebook (.ai/contexts/), reads what was learned and what's unfinished — including the live handoff — and presents the state before any beat starts.
+description: Pick up where a previous session left off. User-invoked only via /skill:jnk-pickup. Finds the work in the engineering notebook (.ai/contexts/), reads what was learned and what's unfinished — including the live handoff — reports the gate stack, and presents the state before any beat starts.
 disable-model-invocation: true
 ---
 
@@ -23,9 +23,12 @@ Pick up where a previous session left off. Find the work in the engineering note
    - What landed and what's airborne
    - The route file's ledger (when one exists) — done / in flight / owed / deferred
    - Squawks and IOUs still open
+   - The gate stack — run `gates --list` when `gates.json` exists, and say which gates work and which cannot run. Name any config file it reports missing. If there is no `gates.json`, say that too: a project with no gates is a project where "verified" will mean whatever the agent decided to run.
    - The next step — the handoff's named next action when one exists, else the previous session's named next step
 
 4. **Gate.** Ask: "Is this the right place to pick up?" Offer to re-derive where things actually stand by running the open slices' checkpoints — the file is state, the tests are truth. Then propose the next beat — usually /skill:jnk-1-explore or /skill:jnk-2-design. Do not start it until the user confirms.
+
+   If the project has no `gates.json`, name it and offer `gates --init`. Do not run it unasked: which gates a project holds, and at what thresholds, is the user's decision. Scaffolding a stack silently is the same move as editing a threshold to clear a finding.
 
 ## Do not
 
@@ -33,3 +36,4 @@ Pick up where a previous session left off. Find the work in the engineering note
 - Re-read git history or the whole codebase — the notebook is the source of truth for state.
 - Create a new context dir for existing work — reuse the one that exists.
 - Pretend a memory exists when nothing matches — say so.
+- Scaffold a gate stack unasked — name what is missing and let the user decide.
