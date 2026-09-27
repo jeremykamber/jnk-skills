@@ -107,7 +107,7 @@ If you notice unrelated cleanup, record it as a **squawk** rather than silently 
 
 After every meaningful slice, establish evidence that it works — and make it evidence a command produced, not a judgment you reached. `gates` is that command: it runs the project's stack, stops at the first failure, and prints the failing output, which is the instruction. Run the cheap subset (`gates types lint unit`) between slices when the full sweep would be slow.
 
-`gates --changed` is usually the right final sweep for a one-shot: every gate runs, each scoped to what you touched where the gate supports it — including the mutation gate, which is far too slow to run whole for a small change. Reach for plain `gates` when the change is broad or touches something shared: a schema, a shared type, a config another module reads.
+`gates --changed` is usually the right final sweep for a one-shot: every gate runs, each scoped to what you touched where the gate supports it — including the mutation gate, which is far too slow to run whole for a small change. The acceptance gate has no scoped form — a spec either holds or it does not — so that sweep runs every scenario in `features/*.feature`. A scenario going red there is a broken spec, not a flaky test. Reach for plain `gates` when the change is broad or touches something shared: a schema, a shared type, a config another module reads.
 
 When something fails, determine whether it is:
 

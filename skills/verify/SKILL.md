@@ -14,7 +14,7 @@ Verify the whole change with evidence, and say plainly what remains unverified. 
 
 ## Steps
 
-1. **Run the gate stack: `gates`.** The project's `gates.json` *is* the definition of "verified" — one command, exit 0 or not, and the failing gate's output is the finding. Show the run and its result. Then the parts no gate can hold: the LLM-as-judge passes the route called for (same rubric, report the scores), and the manual path you can actually run. When the decision record names a `Measured by` — latency, cost per call, quality score, conversion — check it if you can; if you can't (no prod access, needs traffic, needs time), say so plainly in the unverified list. Gates verify the code; the metric verifies the change.
+1. **Run the gate stack: `gates`.** The project's `gates.json` *is* the definition of "verified" — one command, exit 0 or not, and the failing gate's output is the finding. Show the run and its result. The acceptance gate is the one that says the spec holds — which scenarios in `features/<feature>.feature` pass, and which do not. A scenario still red is an unlanded slice, and it is reported as one rather than as a pass with a caveat. Then the parts no gate can hold: the LLM-as-judge passes the route called for (same rubric, report the scores), and the manual path you can actually run. When the decision record names a `Measured by` — latency, cost per call, quality score, conversion — check it if you can; if you can't (no prod access, needs traffic, needs time), say so plainly in the unverified list. Gates verify the code; the metric verifies the change.
 
    The loop is: run, read the failure, fix the cause, run again. Do not report a gate as passing that you did not run. Do not edit `gates.json` to clear a finding — raising a threshold is not fixing a defect. If a gate is genuinely miscalibrated, that is the user's decision, with the reason stated out loud.
 
@@ -63,6 +63,7 @@ Models will attempt these rationalizations. Intercept them:
 | "The gate is too strict, I'll raise the threshold" | A threshold is not a defect | Fix the cause, or ask the user |
 | "The gate failed but the tool must be broken" | Sometimes true — Stryker's vitest runner reports false survivors | Prove the tool on a fixture first, then decide |
 | "It's only advisory, so it doesn't count" | Advisory means report-only, not ignore | Read it and say what it found |
+| "The acceptance scenario is red but the unit tests pass" | The spec defines done; green units do not make a scenario pass | Report the red scenario as an unlanded slice |
 
 ## Output
 

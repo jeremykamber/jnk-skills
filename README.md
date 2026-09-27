@@ -63,6 +63,7 @@ See `usage.md` for the full modes and day-to-day mechanics.
 ## Key features
 
 - **Deterministic gates**: the beats verify by running a command, not by reaching a judgment. `gates` runs the project's stack, stops at the first failure, and prints the failing output — the output *is* the instruction. A gate that cannot fail is treated as worse than no gate.
+- **The acceptance spec is executable**: design writes `features/<feature>.feature` in the language of the problem, implementation makes it run and turns the scenarios green. The `acceptance` gate parses the file rather than trusting a transcription of it, so the spec and the tests cannot drift apart.
 - **Write-in-the-moment persistence**: IOUs and squawks written to disk at every gate, not at debrief
 - **Subagent architecture**: Slice validator, parallel execution with dependency graph, implementation reviewer (used in both implement and oneshot)
 - **AGENTS.md enforcement**: a subagent audits the diff against the project's `AGENTS.md` itself — never a restatement of it, because a copied principle list drifts silently
@@ -72,8 +73,8 @@ See `usage.md` for the full modes and day-to-day mechanics.
 ## The workflow
 
 1. **Explore** (`/skill:jnk-1-explore`): Build shared mental model, think first, explore candidate directions
-2. **Design** (`/skill:jnk-2-design`): Choose direction with lenses, write ADR, shape (ASCII, contracts, failure paths), route (vertical slices with dependencies) — as far as the first gate
-3. **Implement** (`/skill:jnk-3-implement`): Follow route, red-green-refactor, gates at each checkpoint, subagent validation, parallel execution
+2. **Design** (`/skill:jnk-2-design`): Choose direction with lenses, write ADR, shape (ASCII, contracts, failure paths, the acceptance spec), route (vertical slices with dependencies) — as far as the first gate
+3. **Implement** (`/skill:jnk-3-implement`): Follow route, red-green-refactor, gates at each checkpoint, subagent validation, parallel execution. Slice one wires the acceptance spec so it runs; every later slice turns more of it green
 4. **Verify** (`/skill:jnk-4-verify`): Run the gate stack, AGENTS.md enforcement, reconcile IOUs
 5. **Commit** (`/skill:jnk-commit`): Write the history
 

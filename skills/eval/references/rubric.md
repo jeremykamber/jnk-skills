@@ -43,11 +43,11 @@ Every beat and every slice ends with a clearance question, and the agent waits.
 
 The notebook is the loop's memory; resume reads it. Check *writes*, not mentions:
 
-- `understanding.md` (after jnk-1-explore — when the model earns keeping), `docs/adr/` (after jnk-2-design), `docs/designs/` (after jnk-2-design), `plans/` / `route.md` (when
+- `understanding.md` (after jnk-1-explore — when the model earns keeping), `docs/adr/` (after jnk-2-design), `docs/designs/` (after jnk-2-design), `features/` (after jnk-2-design — the acceptance spec), `plans/` / `route.md` (when
   the route earns keeping), `verification/results.md` (when something remains
   unverified or squawked), `notes.md` (after jnk-commit), `handoff.md` (after jnk-handoff — a mid-beat split).
 - stats.json → artifacts + artifactWrites: a toolCall named `write` whose path
-  contains `.ai/contexts`, `docs/adr`, `docs/designs`, or `docs/external` is a write; any other
+  contains `.ai/contexts`, `docs/adr`, `docs/designs`, `features`, or `docs/external` is a write; any other
   mention is not.
 - Durability: are `docs/adr/` and `notes.md` committed (or otherwise backed
   up)? Zero durability = the loop has no backup.

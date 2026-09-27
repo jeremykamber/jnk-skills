@@ -25,6 +25,14 @@ At every gate, state the plan's current shape as a simple list, grouped by state
 
 When nothing changed since the last gate, a one-line summary suffices — `Ledger: 1 done, 2 in flight, 3 owed, 4 deferred` — but every slice stays named in every form. The full list returns whenever something changes, and always in the final report.
 
+## The acceptance spec (the outer loop)
+
+`features/<feature>.feature` is the spec design wrote — the scenarios that define done, in the language of the problem. Your first slice makes it **run**: the runner and the step definitions are implementation's work, and the walking skeleton turns the first scenario green. Every later slice turns more of it green.
+
+Run it with `gates acceptance`. Red is the correct starting state — a spec that is green before you build tested nothing. A scenario still failing at the end is an unlanded slice, not a rounding error.
+
+When a scenario genuinely must change, that is a design change: say so out loud and get the user's call. Editing the spec to match the code is how a spec stops being one.
+
 ## Steps
 
 For each slice:
@@ -36,7 +44,7 @@ For each slice:
    - Make it pass with the smallest change.
    - Refactor — work, right, fast, in that order.
 
-3. **Checkpoint.** Run the slice's gates — the cheap ones at minimum (`gates types lint unit`), the whole stack when the slice touched something shared. Report in plain language: files touched, behavior changed, the gate result, any squawks. A checkpoint that cannot fail is not a checkpoint: if you ran nothing that could have said no, say that plainly instead of implying otherwise.
+3. **Checkpoint.** Run the slice's gates — the cheap ones at minimum (`gates types lint unit`), the whole stack when the slice touched something shared. A slice that turns an acceptance scenario green runs `gates acceptance` at its checkpoint and names which scenarios moved. Report in plain language: files touched, behavior changed, the gate result, any squawks. A checkpoint that cannot fail is not a checkpoint: if you ran nothing that could have said no, say that plainly instead of implying otherwise.
 
 4. **Adversarial review (when the route calls for it).** If the route marked this slice for review, spawn a skeptical senior-developer subagent over the slice's diff, briefed by `references/reviewer-brief.md`. Triage its findings: fix the real ones, squawk or reject the strawmen — the review either finds real defects or says plainly there are none, and says why. Its findings feed the walkthrough.
 
@@ -100,6 +108,8 @@ Models will attempt these rationalizations. Intercept them:
 | "I'll fix this bug while I'm in the area" | Fix minimally, don't refactor | Log squawk, move on |
 | "I can do both slices at once" | One slice at a time unless parallelized | Follow the route |
 | "This slice is too simple for tests" | All checkpoints must be verified | Write the test |
+| "The acceptance scenario is awkward to wire, I'll write a unit test instead" | The spec is the definition of done; a green unit test does not make a scenario pass | Wire the step, or raise the difficulty with the user |
+| "The scenario fails, so I'll adjust the expectation" | The spec is the finding, not the obstacle | Fix the code, or take the change to the user as a design change |
 
 ## Scope changes during implementation
 
@@ -118,7 +128,7 @@ The user adds or reprioritizes work during implementation — the route changed.
 
 ## Output
 
-Per-slice reports (plain-language what changed, checkpoint result, squawks, the layered teach) / The final ledger — every slice listed as landed (with its what-changed), owed, or deferred / "Implementation complete — ready to verify" when the last slice lands.
+Per-slice reports (plain-language what changed, checkpoint result, squawks, the layered teach) / Acceptance status — which scenarios in `features/<feature>.feature` now pass / The final ledger — every slice listed as landed (with its what-changed), owed, or deferred / "Implementation complete — ready to verify" when the last slice lands.
 
 ## Handoff
 

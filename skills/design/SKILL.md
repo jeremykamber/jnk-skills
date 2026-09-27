@@ -1,6 +1,6 @@
 ---
 name: jnk-2-design
-description: "Choose a direction and design the shape and route of a change before building it. User-invoked only via /skill:jnk-2-design. Decides with lenses, writes ADR, then shapes — ASCII, HTML mockups (user-facing), contracts, call stack, test shapes, failure paths — then the route: vertical slices, each with its own checkpoint and review intensity. Zero production code."
+description: "Choose a direction and design the shape and route of a change before building it. User-invoked only via /skill:jnk-2-design. Decides with lenses, writes ADR, then shapes — ASCII, HTML mockups (user-facing), contracts, call stack, test shapes, the acceptance spec, failure paths — then the route: vertical slices, each with its own checkpoint and review intensity. Zero production code."
 disable-model-invocation: true
 ---
 
@@ -77,7 +77,7 @@ Apply these to every option; name the lens you are using. **Every lens must spea
    Then the shape of the build, in the same compact style — iterate on it directly with the user; the interface shape is the deliverable, not a byproduct, and the route is built from it:
    - **File placement** — where each piece lives, and why there. "Why did you put that over there?" is a design question; answer it before anyone builds.
    - **The call stack** — who calls whom, in what order, top to bottom.
-   - **Test shapes** — what the tests will assert, named by scenario (not written yet — just the list of assertions).
+   - **Test shapes** — what the tests will assert, named by scenario. Write the ones a user could state as Gherkin into `features/<feature>.feature`: the behavior and its outcome in domain language, never the steps the implementation takes. That file is the acceptance spec — the `acceptance` gate parses and executes it, so a scenario that cannot run is a scenario that is not a spec. Load `references/acceptance-spec.md`. Assertions no gate can reach — an LLM-as-judge pass, a rubric score — stay named here in prose.
 
    "Drop `count`, derive it from the prompt" is a normal edit here, same as the ASCII. A contract is the small interface of a deep module: the complexity hides behind it. If a contract can't be stated simply, the module boundary is wrong — redraw it. Where a contract, a failure path, or a placement hides an unresolved decision — who owns retry, what happens on partial failure, where the boundary lives — invoke /skill:jnk-grill; never silently choose on the user's behalf.
 
@@ -109,17 +109,20 @@ The shape is agreed; now the build order. Slice the work by what the user can se
 
 6. **Save.** The mockup and the shape (contracts, call stack, test shapes, failure paths) → `docs/designs/<feature>/` when they earn keeping — substantial, likely amended, or may outlive this sitting — committed: they are the design record, the deterministic context for the implementation sessions and for any future feature touching the area. A design doc is project truth, not session state. Spikes stay throwaway in the notebook's `designs/`. The route → `.ai/contexts/<feature>/route.md` when it earns keeping — substantial, likely amended, or may outlive this sitting. **Single file**, not numbered (01-initial, 02-etc.). The route file is a **living document**: implement writes the ledger back into it at every gate, so the file is the durable state of the work and the conversation is the transaction log. A future session reads the file to know exactly where things stand.
 
+   The acceptance spec is not session state and does not live in the notebook: `features/<feature>.feature` sits with the code and is committed with it, because implementation and the `acceptance` gate both read it from there.
+
 ## Persistence Gate
 
 Before proceeding to the next beat, confirm:
 - [ ] ADR is in `docs/adr/<thread-name>.md`
+- [ ] Acceptance spec is in `features/<feature>.feature` (when the change has behavior a user could state)
 - [ ] Route is in `.ai/contexts/<feature>/route.md`
 - [ ] IOUs are in `.ai/contexts/<slug>/understanding.md`
 - [ ] If any are missing, write them first
 
 ## Output
 
-Product line (who / problem / pitch) / Goal / Success criteria / Measured by (when one exists) / Options considered / Decision / Tradeoffs / Failure mode to watch / Thread name / Open questions / Agreed shape (diagram, HTML mockup when user-facing, contracts, call stack, test shapes, or spike) / Design-level decisions / Contracts per component / Failure paths designed / Numbered slices with checkpoints / Order and first slice / Blast radius / Verification strategy / The route file (when it earns keeping)
+Product line (who / problem / pitch) / Goal / Success criteria / Measured by (when one exists) / Options considered / Decision / Tradeoffs / Failure mode to watch / Thread name / Open questions / Agreed shape (diagram, HTML mockup when user-facing, contracts, call stack, test shapes, or spike) / Acceptance spec (`features/<feature>.feature`) / Design-level decisions / Contracts per component / Failure paths designed / Numbered slices with checkpoints / Order and first slice / Blast radius / Verification strategy / The route file (when it earns keeping)
 
 ## Handoff
 
@@ -128,6 +131,7 @@ If the shape and the route hold, recommend /skill:jnk-3-implement. Do not start 
 ## Do not
 
 - Write production code, or design the whole feature in detail (shape and failure paths only).
+- Write the acceptance spec as a transcript of the implementation — a scenario states behavior and its outcome, never the steps the code takes.
 - Skip failure paths, or skip the contracts — the seams are the design.
 - Skip the HTML mockup for user-facing changes — the experience is the spec.
 - Plan by layer, or plan slices that leave the system broken between steps.

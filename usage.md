@@ -41,9 +41,12 @@ Bring gates back one at a time as you install their tooling. The template ships 
 | Beat | What it runs |
 | --- | --- |
 | `/skill:jnk-3-implement` | `gates types lint unit` at each slice checkpoint — the cheap subset |
+| `/skill:jnk-3-implement` (spec) | `gates acceptance` whenever a slice lands an acceptance scenario |
 | `/skill:jnk-4-verify` | the whole stack, once, at the end |
 | `/skill:jnk-oneshot` | the cheap subset between slices, the whole stack before it reports |
 | `/skill:jnk-attack` | `gates mutation` to prove the attack suite's assertions have teeth |
+
+**The acceptance gate is the spec, and design writes it.** `features/<feature>.feature` holds the scenarios that define done, in the language of the problem. Design writes the file; implementation's first slice makes it *run* — the runner and the step definitions are implementation's work — and each later slice turns more scenarios green. The gate parses the file instead of trusting a transcription of it, so a scenario that cannot run is a scenario that is not a spec, and the spec cannot drift from the tests.
 
 **The rule that matters: a gate that cannot fail is worse than no gate.** A green light you cannot turn red manufactures confidence, and you will make decisions on it. Two of the gates carry output assertions for exactly this reason — `expect` proves the tool actually did the work, `reject` names a signature that means the run itself is invalid. `arch` has an `expect` because dependency-cruiser silently cruises zero modules on TypeScript 7 and exits 0; `mutation` has a `reject` because Stryker's vitest runner reports every mutant as survived and prints `Ran 0.00 tests per mutant`. Neither failure looks like a failure until you have seen it once.
 
@@ -132,7 +135,7 @@ No gates. If the request is ambiguous it asks once, then goes. If the change tur
 
 ## The notebook — the memory you never read
 
-The agent writes its understanding and session log to `.ai/contexts/<date>-<feature>/` (gitignored, local to the project). You don't need to look at it. It exists so a *future* session — or a crash, or a context split — can pick up the thread. `pickup` reads it; nothing is remembered unless it's written. **Decisions, designs, and system facts live in the codebase instead**: `docs/adr/` (written by design), `docs/designs/` (written by design — the mockups, contracts, call stacks, test shapes), and `docs/external/` (written by oneshot when they learn something durable) — committed, stable paths, free context for every future session.
+The agent writes its understanding and session log to `.ai/contexts/<date>-<feature>/` (gitignored, local to the project). You don't need to look at it. It exists so a *future* session — or a crash, or a context split — can pick up the thread. `pickup` reads it; nothing is remembered unless it's written. **Decisions, designs, specs, and system facts live in the codebase instead**: `docs/adr/` (written by design), `docs/designs/` (written by design — the mockups, contracts, call stacks, test shapes), `features/` (written by design — the acceptance spec the `acceptance` gate runs), and `docs/external/` (written by oneshot when they learn something durable) — committed, stable paths, free context for every future session.
 
 One principle governs what gets written: **don't serialize the conversation because you're afraid of losing it — serialize knowledge because the project actually needs it.** A beat artifact (`understanding.md`, the route file) is written when it earns keeping. When the *live thread* — the thinking, the rejected branches, the next move — must cross a session boundary, `/skill:jnk-handoff` carries it instead: a compact checkpoint, overwritten, gitignored, read by pickup, never a second source of truth.
 
@@ -144,13 +147,14 @@ One principle governs what gets written: **don't serialize the conversation beca
 | Live thread checkpoint | jnk-handoff | `.ai/contexts/<feature>/handoff.md` | no — transient, overwritten |
 | Decision record | jnk-2-design | `docs/adr/<thread>.md` | yes |
 | Program design (mockup, contracts, call stack, test shapes) | jnk-2-design | `docs/designs/<feature>/` | yes |
+| Acceptance spec (the scenarios the `acceptance` gate runs) | jnk-2-design | `features/<feature>.feature` | yes |
 | Route / slice ledger | jnk-2-design → jnk-3-implement | `.ai/contexts/<feature>/route.md` | no — living document |
 | Spikes, throwaway prototypes | jnk-2-design | `.ai/contexts/<feature>/designs/` | no — throwaway |
 | Squawks | jnk-3-implement / jnk-4-verify | `.ai/contexts/<feature>/squawks.md` | no — session state |
 | Verification results | jnk-4-verify | `.ai/contexts/<feature>/verification/` | when needed |
 | System facts (env, integrations) | jnk-oneshot | `docs/external/` | yes |
 
-The one-line rule: **if a future session or future feature needs it, it's committed in `docs/`; if only this feature's continuation needs it, it's in the notebook; if the live conversation must survive, it's a handoff.**
+The one-line rule: **if a future session or future feature needs it, it's committed in the codebase; if only this feature's continuation needs it, it's in the notebook; if the live conversation must survive, it's a handoff.**
 
 ## Squawks — debt, logged not hidden
 
@@ -217,7 +221,7 @@ Attention degrades as the context fills, no matter how big the window is. **Keep
 
 - **Want a report card on a session?** Save the session export (jsonl or html) and run `/skill:jnk-eval` with its path — it measures gate discipline, notebook writes, and leading-word adoption, and proposes fixes to the workflow itself.
 - **Where a paused implementation stands?** Read the route file (`.ai/contexts/<feature>/route.md`) — it's a living document the agent updates at every gate — or run `/skill:jnk-pickup`, which reads it for you.
-- **The notebook's durability?** `notes.md` is committed with the code (gitignore exception — see the notebook section above) so the session history survives machines and worktree cleanup; the rest of the notebook is local. Decisions, designs, and system facts live in `docs/adr/`, `docs/designs/`, and `docs/external/` — in the codebase by definition.
+- **The notebook's durability?** `notes.md` is committed with the code (gitignore exception — see the notebook section above) so the session history survives machines and worktree cleanup; the rest of the notebook is local. Decisions, designs, specs, and system facts live in `docs/adr/`, `docs/designs/`, `features/`, and `docs/external/` — in the codebase by definition.
 - **Where the philosophy lives:** each skill's `SKILL.notes.md` — what it does, when to use it, why it exists, how it fits the other skills, and its sources. Private: the agent never sees them; read them when you want the why. This guide is the day-to-day.
 - **Code complexity:** the `crap` gate (`crap src --coverage coverage/coverage-final.json --threshold 10`) scores every function on complexity *and* coverage together — $CRAP = CCN^2 \times (1 - coverage)^3 + CCN$. It separates a complex function that is tested from one that is not, which a maintainability index cannot, because MI is driven mostly by size. Run it in the gate stack, after the gate that emits the coverage file.
 
