@@ -1,4 +1,4 @@
-<!-- AGENTS.md version 0.3 -->
+<!-- AGENTS.md version 0.4 -->
 ## Mission
 
 **Reduce unnecessary complexity.** Make the system easier to understand, modify, and verify. Preserve correctness, security, reliability, compatibility, observability, and required guarantees. When principles conflict, preserve required behavior and guarantees first.
@@ -40,6 +40,18 @@ Architecture decisions made on paper are cheap to revise; architecture decisions
 Implementation-coupled tests are the most expensive kind: they break on correct refactoring and train you to stop refactoring. Tests should assert only on observable behavior at public boundaries, so implementations stay free to change. LLMs are particularly prone to over-mocking internals and asserting on call sequences — this creates tests that pass on the exact code the LLM wrote but break on any subsequent change, the worst kind of false confidence. The receiver owns assertions about incoming messages; trust collaborators. If a test breaks when you refactor correctly but behavior hasn't changed, it was testing the wrong thing.
 
 **Use when:** writing tests, and especially when a test mocks an internal collaborator, asserts on a call sequence, or breaks when you refactor correctly. Ask: is this test asserting on what happened, or on how it happened?
+
+### 7. Exercise the change end to end (the workflow's own rule)
+
+A test written after the code, by the context that wrote the code, encodes what the code does — including its bugs. It passes on the day it is written and proves only that the implementation matches itself. This is the most common way an agent-written change fools its author: the tests conform to the code instead of the requirement, and every later reader inherits them as evidence. So a change to behavior is not verified until it has been exercised the way it is used — the CLI run, the route called, the page opened, the migration applied — with the observed output shown rather than summarized. *Test the interface, not the implementation* governs the shape of a test; this principle governs what evidence is admissible. The spec comes first, and the mutation gate is the mechanical check on whether the tests could have failed at all: a test that survives a mutation of the code it covers was shaped to that code.
+
+**Use when:** finishing any change that alters behavior. Ask: what did I run that a user would recognize, and would it have failed if the behavior were wrong?
+
+### 8. Keep the design debt measured, not debated (Ousterhout, measured)
+
+"Deep modules", "no pass-throughs", "pull complexity down" are judgements, and a judgement made by the context that just wrote the code is advocacy, not evidence. The decidable part is measured instead: `depth` decides nine of the red flags from the source text — shallow methods, pass-throughs, leaked literals and shapes, co-change without a dependency, needless exports, forwarded parameters, the two comment defects — and ratchets them against a committed baseline, so the rule is "never worse than the baseline" rather than "clean". Read the readings before designing in an area, run the gate before committing, and read the paid/new ledger after a refactor. The number is not the goal — complexity is — but a design claim nobody can check is a claim that drifts.
+
+**Use when:** designing in an unfamiliar area, finishing a change, or refactoring. A finding is a question to answer — inline it, justify it, or fix it — never a threshold to raise.
 
 ## Behavioral rules
 
