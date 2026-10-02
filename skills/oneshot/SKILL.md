@@ -93,7 +93,7 @@ For each slice:
 1. Understand the existing behavior and the smallest change required.
 2. Add or update the most useful test when practical. For behavioral changes, prefer seeing the new test fail before making it pass.
 3. Implement the smallest correct solution.
-4. Run the gates — `gates types lint unit` for the cheap subset mid-slice, `gates --changed` before you finish.
+4. Run the gates — `gates types lint unit` for the cheap subset mid-slice, `gates --changed` before you finish. The design gate rides in that sweep, scoped to the files you touched, and it ratchets: a *new* finding is yours to answer, not something to push into the baseline.
 5. Run additional checks for behavior that could have been affected.
 6. Review the resulting diff before moving on.
 
@@ -107,7 +107,11 @@ If you notice unrelated cleanup, record it as a **squawk** rather than silently 
 
 After every meaningful slice, establish evidence that it works — and make it evidence a command produced, not a judgment you reached. `gates` is that command: it runs the project's stack, stops at the first failure, and prints the failing output, which is the instruction. Run the cheap subset (`gates types lint unit`) between slices when the full sweep would be slow.
 
-`gates --changed` is usually the right final sweep for a one-shot: every gate runs, each scoped to what you touched where the gate supports it — including the mutation gate, which is far too slow to run whole for a small change. The acceptance gate has no scoped form — a spec either holds or it does not — so that sweep runs every scenario in `features/*.feature`. A scenario going red there is a broken spec, not a flaky test. Reach for plain `gates` when the change is broad or touches something shared: a schema, a shared type, a config another module reads.
+`gates --changed` is usually the right final sweep for a one-shot: every gate runs, each scoped to what you touched where the gate supports it — including the mutation gate, which is differential now: `mutate-changed` mutates only what you changed and runs only the tests that import it, seconds where the whole-tree audit (`mutate-changed --full`) is minutes. The acceptance gate has no scoped form — a spec either holds or it does not — so that sweep runs every scenario in `features/*.feature`. A scenario going red there is a broken spec, not a flaky test. Reach for plain `gates` when the change is broad or touches something shared: a schema, a shared type, a config another module reads.
+
+The gate stack is evidence about the code; it is not evidence about the feature. For a behavior change, run the thing: the CLI with real arguments, the route with a real request, the page in a browser — and show what came back. This is the step the tests cannot replace, because a test written after the code, by the context that wrote the code, encodes the code, bugs included, and passes. If the tests came from that context, say so in the report and treat them as the weakest evidence in it. When the change is risky, have a fresh context write the failing case from the spec — the scenario and the public interface, never the diff — and watch it fail before it passes.
+
+Read the change's own design ledger before you finish. The design gate ratchets, so its claim is "no *new* finding", and the new list is what this change introduced: `depth --changed --base <ref> --baseline .depth-baseline.json --json`. Answer each new finding — inline it, or take one of its repair moves (`depth --explain <flag>`) — or say why the finding is wrong. A finding you neither fix nor answer is one you have decided to keep, and saying so out loud is the difference between a decision and an oversight.
 
 When something fails, determine whether it is:
 
@@ -131,6 +135,7 @@ Look specifically for:
 - incorrect or inverted logic;
 - missing edge cases;
 - tests that pass without exercising the intended behavior;
+- no evidence that the real path was exercised — a green suite written beside the code proves the implementation matches itself;
 - accidental API or behavior changes;
 - silent fallbacks;
 - unnecessary complexity;
@@ -164,6 +169,8 @@ Do not commit incrementally during the one-shot. Let the commit skill determine 
 - **Smallest correct change over cleverness.**
 - **Vertical slices over layer-by-layer construction.**
 - **Evidence over confidence** — and a gate that exits non-zero is evidence; a judgment that it looks right is not.
+- **Exercise the change end to end** — a unit test written beside the code is the weakest evidence there is, and the one most likely to be mistaken for proof.
+- **Read the design ledger** — a new finding is a question to answer, not a number to raise.
 - **Subagents where they help, not for ceremony.**
 - **Independent review for risky work.**
 - **No silent scope creep.**
@@ -176,8 +183,9 @@ Do not commit incrementally during the one-shot. Let the commit skill determine 
 Finish with a concise report containing:
 
 - what changed;
-- how it was verified;
-- what the gates flagged — a CRAP hotspot, a coverage gap, a mutation survivor, an arch violation — and what you did with each: fixed, squawked, or judged acceptable. Then say plainly what the gates cleared. That is what having them is for: they tell the reader where not to spend attention;
+- how it was verified, including what was actually run end to end and what came back;
+- the design ledger — what this change introduced and what it retired — and what you did with each new finding;
+- what the gates flagged — a CRAP hotspot, a coverage gap, a mutation survivor, an arch violation, a new design finding — and what you did with each: fixed, squawked, or judged acceptable. Then say plainly what the gates cleared. That is what having them is for: they tell the reader where not to spend attention;
 - any uncertain decisions and why they were made;
 - squawks / intentionally deferred issues;
 - subagents used, what they implemented or reviewed, and how their findings were handled;

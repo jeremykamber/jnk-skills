@@ -9,14 +9,18 @@
   //   cp <workflow>/templates/gates.json .    # then drop in this fuller stack
   //
   // The `arch` and `mutation` gates read `.dependency-cruiser.cjs` and
-  // `stryker.conf.cjs`. Those live in the uncle-bob-workflow kit and are not
-  // copied into this repo: two copies of a gate config drift the same way a
-  // copied principle list does, silently, and nothing catches it.
+  // `stryker.conf.cjs`; `stryker-vitest-runner.mjs` is the plugin that fixes
+  // Stryker's broken vitest runner and makes `coverageAnalysis: "perTest"` work
+  // (10x the wall clock on a real project, same verdicts). All three live in the
+  // workflow's `templates/`, vendored from the kit and tracked by
+  // `tools/vendored.sha256`, so `gates --init` can write them into a project with
+  // no other checkout on the machine.
   //
   // `gates --list` shows the stack and warns about any config it cannot find.
   "files": [
     { "from": "dependency-cruiser.cjs", "to": ".dependency-cruiser.cjs" },
-    { "from": "stryker.conf.cjs", "to": "stryker.conf.cjs" }
+    { "from": "stryker.conf.cjs", "to": "stryker.conf.cjs" },
+    { "from": "stryker-vitest-runner.mjs", "to": "stryker-vitest-runner.mjs" }
   ],
   //
   // Order is cheapest-first, so a failure costs the least time. Two ordering
@@ -40,6 +44,14 @@
       "run": "npx oxlint src tests",
       "why": "the project's lint rules hold",
       "timeout": 300
+    },
+    {
+      "name": "depth",
+      "run": "depth --baseline .depth-baseline.json",
+      "changed_run": "depth --changed --baseline .depth-baseline.json",
+      "timeout": 300,
+      "advisory": true,
+      "why": "no NEW shallow method, pass-through method, leaked literal or shape, co-change without a dependency, needless export, forwarded parameter, comment that repeats its line, or declaration comment narrating the implementation — the nine of Ousterhout's fourteen red flags that are decidable from the source text. Ratcheted against .depth-baseline.json, so the gate means 'never worse than the baseline'; create it once with `depth --update-baseline`. A missing baseline is an error, not a pass. For the design the flags cannot decide, `depth report` prints six readings — shallow modules, deletion candidates, single-implementation abstractions, pure blocks, drift, trend — and never fails a build. Advisory until you have read the baseline you accepted and triaged it once; a heuristic on prose earns the right to fail then, not before."
     },
     {
       "name": "unit",
@@ -93,10 +105,10 @@
     },
     {
       "name": "mutation",
-      "run": "npx stryker run stryker.conf.cjs",
-      "changed_run": "npx stryker run stryker.conf.cjs --incremental",
-      "reject": "Ran 0\\.00 tests per mutant",
-      "why": "the assertions detect changed behavior. Slow — run it deliberately. The `reject` names Stryker's broken vitest integration, which reports every mutant as survived; without it that failure reads as a bad test suite and sends you off writing assertions that already exist. See uncle-bob-workflow/templates/stryker.conf.cjs.",
+      "run": "mutate-changed --full",
+      "changed_run": "mutate-changed",
+      "reject": "Ran (0\\.00|NaN) tests per mutant",
+      "why": "the assertions detect changed behavior. `--full` is the deliberate audit — every mutant, the whole suite, no cache — so run it when you mean it. `gates --changed` scopes the run to what changed and to the tests that cover it, which is the difference between minutes and seconds: measured on a fixture with one unrelated 1.6s suite, 15.5s whole tree against 3.4s scoped, the same result either way. Two ways this gate lies, both with a signature the `reject` names. One: Stryker's vitest integration reports every mutant as survived — verified again on Stryker 10 with vitest 5, 12 of 12 survivors on a fixture whose killing assertions are in the test file. The runner selects the right test and sends the right request, then builds its name filter by joining the suite chain with a space, while vitest 5 matches the `>`-joined full name: nothing matches, zero tests execute, and a mutant nothing runs against cannot be killed. Reproduce it with `npx vitest run <file> -t \"a b\"` (skips) against `-t \"a > b\"` (runs); it is unfixed in the latest runner, and `stryker-vitest-runner.mjs` in this stack's files is the fix for it — `stryker.conf.cjs` as shipped already sets `plugins`, `testRunner: "vitest-fixed"` and `coverageAnalysis: "perTest"` for per-test filtering and 3m39s -> 22-40s on a real project, identical verdicts, so all a project needs is `npm i -D @stryker-mutator/vitest-runner`. Two: a command runner left at Stryker's default concurrency times every mutant out and prints a 100% score made of nothing. Read templates/stryker.conf.cjs before you trust a score of 100.",
       "timeout": 3600
     }
   ]

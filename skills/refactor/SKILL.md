@@ -28,6 +28,14 @@ Change structure without changing behavior. Refactoring is its own pass with its
 
 7. **Refactor incrementally.** One structural change at a time, tests green after each step. Then review: is it easier to understand? Did complexity actually decrease — and did you remove more than you added? The simplest code is code that no longer exists.
 
+## The refactor's own evidence
+
+A refactor has one measure: the design debt it retires. A green test suite proves you did not change behavior; it says nothing about whether you changed structure. A rename that moves a function and leaves the same complexity behind passes the same tests it passed before, and reports nothing.
+
+Read the change's own ledger: on the refactored tree, `depth --changed --base <ref> --baseline .depth-baseline.json --json` gives a `new` list and a `paid` list — what the refactor introduced and what it retired. The baseline is the one the project already commits; where there is none yet, take it on the base ref (`depth --update-baseline` there, not on your work), because a baseline taken after the refactor cannot tell you what the refactor did. Findings about relationships carry stable ids, so a pure refactor that moves code does not flip them. No ref to compare against? Compare `depth` counts before and after — coarser, same evidence.
+
+Report both lists. A refactor that leaves the finding count unchanged did not change structure, whatever else it did, and one that raises it needs its reason stated out loud: an extraction creates a new module with its own interface, which can legitimately add one finding.
+
 ## Output
 
 The refactor, or the decision to defer (logged as a squawk) / Post-refactor verification
