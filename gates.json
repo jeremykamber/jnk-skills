@@ -1,0 +1,35 @@
+{
+  "note": "This workflow's own gate stack. Run `gates` from this directory: it verifies the vendored tooling, not a project.",
+  "gates": [
+    {
+      "name": "vendored",
+      "run": "tools/sync-from-kit.sh",
+      "why": "the vendored tools are the version recorded in tools/vendored.sha256, and no older than the kit's \u2014 a copy that drifts silently is the failure the manifest exists to catch (tools/VENDORED.md)"
+    },
+    {
+      "name": "syntax",
+      "run": "python3 -m py_compile tools/crap tools/depth tools/gates tools/mutate-changed checks/test_crap.py checks/test_depth.py checks/test_gates.py checks/test_mutate_changed.py && bash -n install.sh && bash -n setup.sh && bash -n tools/sync-from-kit.sh",
+      "why": "the tools and the scripts parse"
+    },
+    {
+      "name": "crap",
+      "run": "python3 checks/test_crap.py",
+      "why": "the CRAP metric matches its hand-computed values"
+    },
+    {
+      "name": "gates",
+      "run": "python3 checks/test_gates.py",
+      "why": "the runner's loop contract holds"
+    },
+    {
+      "name": "mutate-changed",
+      "run": "python3 checks/test_mutate_changed.py",
+      "why": "the scoped mutation run decides what to mutate and which tests to run before Stryker starts, and each of those decisions is pinned to the failure it prevents: the config's own exclusions (a scoped run that ignores them reports survivors nobody can kill), a cache key per scope (a shared one reuses a scoped run's survivors as truth), and a tree left instrumented by an aborted run (the next run's dry run then fails, which reads as a broken suite)"
+    },
+    {
+      "name": "depth",
+      "run": "python3 checks/test_depth.py",
+      "why": "the nine decidable red flags match the book they came from: 12 findings on its flawed examples, 6 in Python, 0 on its corrected ones, plus the five cross-module flags and the six readings, each with its negative beside it"
+    }
+  ]
+}

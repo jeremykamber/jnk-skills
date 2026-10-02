@@ -1,0 +1,2418 @@
+#!/usr/bin/env python3
+"""depth — Ousterhout's red flags, mechanically.
+
+    Shallow Module · Information Leakage · Overexposure ·
+    Pass-Through Method · Pass-Through Variables ·
+    Comment Repeats Code · Implementation Documentation Contaminates Interface
+
+The book argues design by taste, and a taste is not a gate. But nine of its
+fourteen red flags are decidable from the source text, and those nine are the
+ones that recur most in machine-written code. Four are heuristics on prose:
+
+  shallow-method                  a one-statement method: the interface is not
+                                  simpler than the implementation (ch. 4.5)
+  pass-through                    the body forwards to a method of the same
+                                  name, adding nothing (ch. 7.1)
+  comment-repeats-code            the comment's words are the code's words, so
+                                  it can be written without reading anything
+                                  but the line below it (ch. 13.2)
+  implementation-narrative-comment  a declaration comment that narrates how
+                                  the code works instead of what it promises
+                                  (ch. 13.5)
+
+Five are facts about a pair of modules, read from the import graph and the git
+history rather than from a line:
+
+  leaked-literal                  the same string, regex or magic number written
+                                  in two modules (ch. 2.2, 5.3, 5.5)
+  leaked-shape                    the same field list declared in two modules
+                                  (ch. 2.2, 5.3, 5.5)
+  co-change-without-import        two files that keep changing together with no
+                                  dependency between them (ch. 5.2)
+  needless-export                 exported from a module that has importers,
+                                  named by none of them (ch. 4.6, 7.5)
+  forwarded-parameter             a parameter never read, only forwarded down a
+                                  chain of three or more (ch. 7.5)
+
+What this tool is not: a substitute for the flags that are judgements about
+meaning — temporal decomposition, conjoined methods, special/general mixture,
+repetition, vague names, nonobvious code. A metric that guesses at them
+produces findings nobody believes, and a gate nobody believes gets muted.
+Those belong to a reviewer that reads, and the two meet in the same findings
+format so one ledger can hold both (see jo-8).
+
+The prose flags are heuristics, so the gate is a *ratchet*: give it a
+baseline and it fails only on a finding that is not in the baseline. Day one on
+an existing tree is therefore free — accept today's debt with
+--update-baseline, and the gate's job becomes "never worse than yesterday".
+
+Every finding carries its repair menu (--explain <flag>), so the moves are the
+detector's data rather than a paragraph someone has to remember.
+
+Usage:
+    depth                       # report ./src (or .), exit 0
+    depth src lib               # specific paths
+    depth --baseline .depth-baseline.json   # ratchet: fail on a new finding
+    depth --update-baseline     # accept today's findings as the baseline
+    depth --changed             # only findings in files changed vs --base
+    depth --json                # machine-readable, with each finding's moves
+    depth --explain shallow-method          # the ways to fix it, and when
+    depth report                # the six readings, never fails a build
+    depth report --record       # append a dated snapshot, so a trend exists
+
+Exit status: 1 when a baseline was given and a finding is not in it; 2 on error
+(no baseline file, no source, lizard missing); 0 otherwise.
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import hashlib
+import json
+import os
+import posixpath
+import re
+import subprocess
+import sys
+import tempfile
+from collections import Counter
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Iterator, NoReturn
+
+SOURCE_EXT = {".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py"}
+DEFAULT_BASELINE = ".depth-baseline.json"
+BASE_CANDIDATES = ("origin/HEAD", "origin/main", "origin/master", "main", "master")
+
+SHALLOW_STATEMENTS = 1
+REPEAT_RATIO = 0.6
+REPEAT_MIN_WORDS = 2
+REPEAT_MIN_MATCHES = 2
+NARRATIVE_MIN_WORDS = 2
+CHURN_DAYS = 180
+
+# Same intent as tools/crap: test files and build output are not production
+# code, and scoring them buries the findings that matter under a page of noise.
+#
+# The list is long because the first version was short and a monorepo taught it
+# the rest: `.dart_tool` held a compiled Flutter bundle whose minified
+# `string`/`undefined`/`function` tokens arrived as three thousand
+# `leaked-literal` findings, and a SwiftPM `.build/checkouts` held a vendored
+# HTML documentation theme. Generated code has no design to review, so every
+# directory a toolchain writes into belongs here.
+BUILD_DIRS = re.compile(
+    r"(^|/)(node_modules|dist|build|\.next|\.svelte-kit|coverage|out|__pycache__|\.venv|venv"
+    r"|\.dart_tool|\.build|\.gradle|\.turbo|\.parcel-cache|\.cache|\.expo|\.angular|\.terraform"
+    r"|vendor|bower_components|site-packages|third_party|Pods|target)(/|$)"
+)
+# Minified and bundled output, wherever it sits: `public/js/jquery.min.js` is
+# not a module anybody designed.
+GENERATED = re.compile(r"\.min\.[cm]?js$|\.bundle\.[cm]?js$|\.chunk\.[cm]?js$")
+TEST_FILES = re.compile(
+    r"(^|/)(__tests__|__mocks__|test|tests|e2e|spec)(/|$)"
+    r"|(^|/)test_[^/]*\.py$|_test\.py$"
+    r"|\.(test|spec)\.[cm]?[jt]sx?$"
+    r"|\.d\.ts$"
+)
+
+# Words that carry no information on their own. Kept deliberately short: the
+# repeats rule works by overlap of *content* words, and a long stopword list
+# would empty the comment and make every comment look like a repeat.
+STOPWORDS = frozenset(
+    """a an and are as at be been but by can could do does for from had has have
+    here if in into is it its may might must no not of on or our out should so
+    some such than that the their them then there these they this those to up
+    us was we were what when where which while who why will with would you your
+    """.split()
+)
+
+# Implementation vocabulary. Not words that are wrong anywhere — words that are
+# wrong in a *declaration* comment, where they describe mechanism the caller
+# does not need. A fix for the flag is usually "move this sentence into the
+# body", which is why the fix menu says so.
+IMPL_WORDS = frozenset(
+    """algorithm cache cached complexity data structure evaluated hash hashing
+    implemented implementation internally iterator iterate iterates iteration
+    lock locked mutex loop loops recursion recursive structure structures
+    thereby walk walks""".split()
+)
+
+# Per red flag: the moves, when each applies, and when it does not. This is the
+# book's own repair set, enumerated — the delegation in jo-8 injects exactly
+# one row and asks a fresh subagent to choose, rather than to invent.
+REPAIRS: dict[str, list[dict[str, str]]] = {
+    "shallow-method": [
+        {
+            "move": "inline into the caller",
+            "apply_when": "the method has one caller, and the call site reads no worse than the body",
+            "not_when": "the name marks a domain concept others will search for, or the caller would then duplicate the sequence",
+        },
+        {
+            "move": "raise the interface",
+            "apply_when": "several callers perform the same sequence the method implements one step of",
+            "not_when": "the sequence differs at each call site; the shared piece is only the step",
+        },
+        {
+            "move": "merge into the module that owns the data it touches",
+            "apply_when": "the method is a thin accessor over another module's state",
+            "not_when": "the state it touches is this module's own",
+        },
+        {
+            "move": "keep it, and record why",
+            "apply_when": "it is a deliberate adapter or seam the design needs at that boundary",
+            "not_when": "the reason is 'a style guide said methods should be short'",
+        },
+    ],
+    "pass-through": [
+        {
+            "move": "expose the lower object and delete the method",
+            "apply_when": "callers can hold the lower object, and it does not leak knowledge the upper module owns",
+            "not_when": "the lower object's interface exposes a representation the upper module is hiding",
+        },
+        {
+            "move": "redistribute the functionality",
+            "apply_when": "the two classes each implement part of one job",
+            "not_when": "only one of them holds any state the job needs",
+        },
+        {
+            "move": "merge the two classes",
+            "apply_when": "the responsibilities cannot be told apart, and the pair shares the knowledge anyway",
+            "not_when": "the pair is large; merging gives one class two jobs rather than one job and a seam",
+        },
+    ],
+    "comment-repeats-code": [
+        {
+            "move": "delete the comment",
+            "apply_when": "the line already says it, and nothing about it is surprising",
+            "not_when": "the line is surprising and the comment is the only thing making it obvious",
+        },
+        {
+            "move": "raise the comment to intent",
+            "apply_when": "the line's purpose or its 'how we got here' is not obvious from the line",
+            "not_when": "the raised version would have to invent rationale that is not true",
+        },
+        {
+            "move": "add the precision the declaration lacks",
+            "apply_when": "the comment sits on a declaration: units, boundary inclusive-or-exclusive, null meaning, invariants, who frees it",
+            "not_when": "the value genuinely has no units or boundary",
+        },
+    ],
+    "implementation-narrative-comment": [
+        {
+            "move": "move the sentence into the body",
+            "apply_when": "it explains mechanism to the next person editing this method",
+            "not_when": "the mechanism is a precondition the caller must satisfy",
+        },
+        {
+            "move": "restate it as the promise",
+            "apply_when": "the comment describes what the method does to the caller's world",
+            "not_when": "there is no promise to state; the method is a private helper",
+        },
+        {
+            "move": "name the missing abstraction",
+            "apply_when": "an implementation sentence is needed because the interface is not a thing yet — the comment is the red flag that the module is shallow",
+            "not_when": "the interface is already a coherent concept and the sentence is just misplaced",
+        },
+    ],
+    "leaked-literal": [
+        {
+            "move": "give the value one owner and import it",
+            "apply_when": "it is a fact about the system rather than a local choice: a colour, a size, a limit, a wire name, a path",
+            "not_when": "the copies are coincidentally equal, and either is free to change without the other",
+        },
+        {
+            "move": "move it to the module both sides already depend on",
+            "apply_when": "a lower module exists that every module holding a copy already imports",
+            "not_when": "the only shared module is the leaf being refactored, so the owner would be an ancestor of its users",
+        },
+        {
+            "move": "promote it to a parameter of the interface",
+            "apply_when": "the value is policy a caller legitimately chooses, and the interface should say so",
+            "not_when": "the value is not a choice — the format is the format",
+        },
+    ],
+    "leaked-shape": [
+        {
+            "move": "one module declares the shape, the other imports it",
+            "apply_when": "one of the two is the natural owner of the format — the parser, the writer, the schema",
+            "not_when": "both are leaves that must not depend on each other; then the shape belongs below both",
+        },
+        {
+            "move": "extract the shape into the module that sits below both",
+            "apply_when": "the two are siblings at the same layer, and neither may import the other",
+            "not_when": "the shared fields are a third of each record and the rest genuinely differs; those are two shapes, not one",
+        },
+        {
+            "move": "merge the two modules",
+            "apply_when": "they know the same shape because they are the same job split in two",
+            "not_when": "the split is a real boundary — a reader and a writer, a client and a server",
+        },
+    ],
+    "co-change-without-import": [
+        {
+            "move": "make the dependency explicit",
+            "apply_when": "one file's change needs the other's: import it, or state the invariant in one place both can cite",
+            "not_when": "the only shared thing is a timestamp or a version bumped by release tooling",
+        },
+        {
+            "move": "extract the shared knowledge into a module both import",
+            "apply_when": "neither may import the other, and the coupling is a constant, a format or a rule they both encode",
+            "not_when": "the coupling is only that a change to one usually prompts a look at the other",
+        },
+        {
+            "move": "check the coupling is real before touching anything",
+            "apply_when": "the pair is young, or the repository is small — the book's own caution that this flag is noise early",
+            "not_when": "the pair has changed together across releases, which is not a coincidence",
+        },
+    ],
+    "needless-export": [
+        {
+            "move": "drop the export",
+            "apply_when": "nothing outside the module takes the name, and the module keeps using it itself",
+            "not_when": "it is the module's reason to exist, and the consumer is in another repository",
+        },
+        {
+            "move": "delete the declaration",
+            "apply_when": "nothing inside the module uses it either",
+            "not_when": "it is reachable only from tests, which is a decision to make deliberately rather than by deletion",
+        },
+        {
+            "move": "keep it and add the caller",
+            "apply_when": "the name is an interface the design has already decided on, and the caller is the next commit",
+            "not_when": "'we might need it' is the whole reason; that is the interface growing ahead of its use",
+        },
+    ],
+    "forwarded-parameter": [
+        {
+            "move": "remove the parameter and let each hop get what it needs",
+            "apply_when": "the parameter is available at the point of use, or the hop that needs it can look it up",
+            "not_when": "passing it is what keeps the hop from depending on the layer that knows it",
+        },
+        {
+            "move": "collapse the chain",
+            "apply_when": "the hops add nothing but the trip: expose the deep module and delete the middle methods",
+            "not_when": "each hop owns policy — a check, a default, a translation — that the parameter passes through",
+        },
+        {
+            "move": "keep the chain and record why it exists",
+            "apply_when": "the hops are a boundary the design must not cross, and the parameter is the toll",
+            "not_when": "the only answer to 'why does this hop exist' is 'it always has'",
+        },
+    ],
+}
+
+
+@dataclass
+class Finding:
+    flag: str
+    file: str
+    line: int
+    symbol: str
+    detail: str
+    measure: str
+    weight: int = 1
+    files: tuple[str, ...] = ()
+    key: str = ""
+
+    @property
+    def id(self) -> str:
+        """What the ratchet remembers.
+
+        Usually the flag, the file and the symbol. A finding about a
+        *relationship* sets `key` instead, because its file is whichever module
+        happens to sort first, and that moves whenever the code moves: on the
+        first real pull request this tool was run against, a pure refactor that
+        moved a duplicated string from one file into a new one flipped the
+        finding's identity and reported sixty-one findings as new. An id that a
+        refactor can change is an id that teaches the team to ignore the gate.
+        """
+        return self.key or f"{self.flag}:{self.file}:{self.symbol}"
+
+    @property
+    def location(self) -> str:
+        return f"{self.file}:{self.line}"
+
+
+@dataclass
+class Comment:
+    """One contiguous run of comment lines, and the code it attaches to."""
+
+    start: int
+    end: int
+    text: str
+    next_code_line: int
+    next_code_text: str
+    is_declaration: bool
+
+    @property
+    def anchor(self) -> str:
+        digest = hashlib.sha1(" ".join(self.text.split()).encode()).hexdigest()[:8]
+        return f"c{digest}"
+
+
+# --------------------------------------------------------------------------
+# words
+# --------------------------------------------------------------------------
+
+
+def split_words(value: str) -> list[str]:
+    """Lowercase words, split on case boundaries, underscores and punctuation.
+
+    getNormalizedResourceNames -> [get, normalized, resource, names]
+    TEXT_HORIZONTAL_PADDING    -> [text, horizontal, padding]
+    """
+    words: list[str] = []
+    for chunk in re.split(r"[^0-9A-Za-z]+", value):
+        if not chunk:
+            continue
+        words.extend(part.lower() for part in re.findall(r"[A-Z]+(?![a-z])|[A-Z][a-z0-9]*|[a-z0-9]+", chunk))
+    return words
+
+
+def content_words(text: str) -> list[str]:
+    return [word for word in split_words(text) if len(word) >= 2 and word not in STOPWORDS]
+
+
+def lied_in(word: str, vocabulary: set[str]) -> bool:
+    """Word membership with prefix agreement, so name/names and line/lines match."""
+    if word in vocabulary:
+        return True
+    if len(word) < 4:
+        return False
+    return any(len(v) >= 4 and (word.startswith(v) or v.startswith(word)) for v in vocabulary)
+
+
+# --------------------------------------------------------------------------
+# source scanning
+# --------------------------------------------------------------------------
+
+
+def language_of(path: Path) -> str:
+    return "py" if path.suffix == ".py" else "js"
+
+
+def scan_comments(text: str, language: str) -> tuple[list[Comment], dict[int, int]]:
+    """Contiguous comment runs, each with the code line it attaches to, plus the
+    nesting depth in front of every line.
+
+    A blank line detaches: editorial commentary above a fixture, or a licence
+    header above a class, is not a comment *about* the line below it. Strings
+    are tracked so that `//` inside a URL and `#` inside a docstring are not
+    mistaken for comments; Python docstrings are comments here, because in
+    Python they are where a module's interface is written.
+
+    `nest` is the brace depth for JS/TS and the indentation depth for Python. It
+    is what separates an interface — a module or a member — from an
+    implementation, and both the comment check and the function checks need it.
+    """
+    lines = text.splitlines()
+    blocks: list[Comment] = []
+    nest_by_line: dict[int, int] = {}
+    pending: list[str] = []
+    pending_start = 0
+    pending_docstring = False
+    block_end: str | None = None
+    quote: str | None = None
+    nest = 0
+    previous_text = ""
+    previous_line = 0
+    for index, raw in enumerate(lines, start=1):
+        # For Python the depth of a line is its own indentation; for JS/TS it is
+        # the brace depth in front of the line. `nest` tracks the running value
+        # either way, which is what the comment attachment needs.
+        nest_by_line[index] = (len(raw) - len(raw.lstrip())) // 4 if language == "py" else nest
+        code, comment, block_end, quote, entered, touched = _split_line(raw, language, block_end, quote)
+        if comment:
+            if not pending:
+                pending_start = index
+                pending_docstring = entered
+            pending.append(comment)
+        if code.strip():
+            if pending:
+                if language == "py" and pending_docstring:
+                    blocks.append(_make_block(pending, pending_start, previous_line, previous_text, nest, language))
+                else:
+                    blocks.append(_make_block(pending, pending_start, index, code.strip(), nest, language))
+                pending = []
+        elif not touched and pending and block_end is None:
+            blocks.append(_make_block(pending, pending_start, index, "", nest, language))
+            pending = []
+        if code.strip():
+            nest = _nest_after(nest, code, language, raw)
+            previous_text, previous_line = code.strip(), index
+    if pending:
+        blocks.append(_make_block(pending, pending_start, previous_line, previous_text, nest, language))
+    return blocks, nest_by_line
+
+
+def comment_stripped(lines: list[str], language: str) -> list[str]:
+    """The code half of every line, with comment text removed.
+
+    Literals and structure are read from this rather than the raw text, so a
+    literal quoted in a comment, or a brace in a commented-out block, is not a
+    finding. It reuses `_split_line`, because the scanner that knows a `//` in a
+    URL is not a comment is the only one that should decide what a comment is.
+    """
+    out: list[str] = []
+    block_end: str | None = None
+    quote: str | None = None
+    for line in lines:
+        code, _, block_end, quote, _, _ = _split_line(line, language, block_end, quote)
+        out.append(code)
+    return out
+
+
+def _nest_after(nest: int, code: str, language: str, raw: str) -> int:
+    if language == "py":
+        indent = len(raw) - len(raw.lstrip())
+        return indent // 4
+    return max(0, nest + code.count("{") - code.count("}"))
+
+
+def _split_line(
+    line: str, language: str, block_end: str | None, quote: str | None
+) -> tuple[str, str, str | None, str | None, bool, bool]:
+    """Return (code, comment, block_end, quote, entered, touched) for one line.
+
+    `entered` marks the line that opened a comment region; `touched` marks every
+    line that contained any part of one, including the line that closes a block
+    comment and carries no text of its own. Without `touched`, a closing `*/`
+    line looks like a blank line and detaches the block above it.
+    """
+    code: list[str] = []
+    comment: list[str] = []
+    entered = False
+    touched = block_end is not None
+    index = 0
+    limit = len(line)
+    while index < limit:
+        char = line[index]
+        pair = line[index : index + 2]
+        if block_end is not None:
+            if line.startswith(block_end, index):
+                index += len(block_end)
+                block_end = None
+                continue
+            comment.append(char)
+            index += 1
+            continue
+        if quote is not None:
+            code.append(char)
+            if char == "\\":
+                if index + 1 < limit:
+                    code.append(line[index + 1])
+                index += 2
+                continue
+            if char == quote:
+                quote = None
+            index += 1
+            continue
+        if language == "py" and line.startswith(('"""', "'''"), index) and "".join(code).strip() == "":
+            entered = touched = True
+            block_end = line[index : index + 3]
+            index += 3
+            continue
+        if char in "\"'`":
+            quote = char
+            code.append(char)
+            index += 1
+            continue
+        if pair == "/*":
+            entered = touched = True
+            block_end = "*/"
+            index += 2
+            continue
+        if pair == "//":
+            touched = True
+            comment.append(line[index + 2 :])
+            break
+        if language == "py" and char == "#":
+            touched = True
+            comment.append(line[index + 1 :])
+            break
+        code.append(char)
+        index += 1
+    joined = "".join(comment).strip()
+    return "".join(code), joined, block_end, quote, entered, touched
+
+
+DECLARATION = re.compile(
+    r"^\s*(?:(?:export|default|public|private|protected|static|readonly|abstract|async|declare|final)\s+)*"
+    r"(?:function|class|interface|type|enum|const|let|var|def|struct)\b"
+    r"|^\s*(?:(?:export|default|public|private|protected|static|readonly|abstract|async|get|set|override|final)\s+)*"
+    r"[A-Za-z_$][\w$]*\s*[(<][^;{}]*[{:]\s*$"
+)
+CONTROL = re.compile(r"^\s*(?:if|for|while|switch|else|catch|try|finally|do|elif|except|return|throw|await|yield)\b")
+MAX_INTERFACE_NEST = 1
+
+KEYWORD_DECL = re.compile(r"(?:\w+\s+)*?(?:function|def|class)\s+([A-Za-z_$][\w$]*)")
+BINDING_DECL = re.compile(r"(?:(?:export|default|declare)\s+)*(?:const|let|var)\s+([A-Za-z_$][\w$]*)")
+MEMBER_DECL = re.compile(
+    r"(?:(?:public|private|protected|static|readonly|async|get|set|override|final)\s+)*([A-Za-z_$][\w$]*)\s*[(<]"
+)
+ASSIGNMENT_DECL = re.compile(r"([A-Za-z_$][\w$]*)\s*=")
+
+
+def declares(line: str, name: str) -> bool:
+    """True when this line is where `name` is defined.
+
+    lizard reports an arrow handed to a call (`usePersonaStore((s) => s.batches)`)
+    and a JSX binding (`const content = (…)`) as functions, and it is not wrong
+    — they are functions. They are not *modules*, and the shallow-module flag is
+    about a module's interface. Checking the declaration is what tells the two
+    apart, since a name taken from a call site does not name what the line binds.
+    """
+    if not name or name == "(anonymous)":
+        return False
+    stripped = line.strip()
+    for pattern in (KEYWORD_DECL, BINDING_DECL, MEMBER_DECL, ASSIGNMENT_DECL):
+        match = pattern.match(stripped)
+        if match:
+            return match.group(1) == name
+    return False
+
+
+# `symbols_in` is the one place a lizard row becomes a method: it rejects the
+# anonymous lambdas and hook callbacks lizard reports, and rejects anything
+# nested deeper than a member, so every detector downstream can trust what it
+# gets.
+
+
+def _make_block(
+    pending: list[str],
+    start: int,
+    next_line: int,
+    next_text: str,
+    nest: int,
+    language: str,
+) -> Comment:
+    text = "\n".join(pending)
+    # Tag words repeat the parameter name by design: @param numThreads is not a
+    # comment that repeats the code, it is a documented argument.
+    text = re.sub(r"@(param|returns?|throws?|type|arg)\s+\S+", "", text)
+    text = re.sub(r":(param|returns?|type|raises)\s*(?:\w+\s*)?:", "", text)
+    text = re.sub(r"^\s*(Args|Arguments|Returns|Raises|Yields):\s*$", "", text, flags=re.MULTILINE)
+    is_declaration = (
+        bool(next_text)
+        and nest <= MAX_INTERFACE_NEST
+        and bool(DECLARATION.match(next_text))
+        and not CONTROL.match(next_text)
+    )
+    return Comment(start, start + len(pending) - 1, text, next_line, next_text, is_declaration)
+
+
+# --------------------------------------------------------------------------
+# lizard
+# --------------------------------------------------------------------------
+
+
+def run_lizard(paths: list[str]) -> list[dict]:
+    cmd = [sys.executable, "-m", "lizard", "--csv", *paths]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+    except FileNotFoundError:
+        die("lizard is not installed. Run: python3 -m pip install --user lizard")
+    if proc.returncode != 0 and not proc.stdout.strip():
+        die(f"lizard failed:\n{proc.stderr.strip()}")
+    rows = []
+    for row in csv.reader(proc.stdout.splitlines()):
+        if len(row) < 11:
+            continue
+        try:
+            rows.append({"nloc": int(row[0]), "ccn": int(row[1]), "params": int(row[3]), "file": row[6], "name": row[7], "start": int(row[9]), "end": int(row[10])})
+        except ValueError:
+            continue
+    return rows
+
+
+def extract_params(declaration: str, name: str) -> list[str]:
+    """Parameter names from a declaration, best effort.
+
+    lizard reports how many parameters a function has, not what they are called,
+    and the pass-through rule needs the names. A failure here degrades the rule
+    to name equality, which is the book's own example, so it is not fatal.
+    """
+    anchor = declaration.find(name) if name and name != "(anonymous)" else -1
+    start = declaration.find("(", anchor if anchor >= 0 else 0)
+    if start < 0:
+        return []
+    depth = 0
+    end = -1
+    for index in range(start, len(declaration)):
+        char = declaration[index]
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth == 0:
+                end = index
+                break
+    if end < 0:
+        return []
+    inner = declaration[start + 1 : end]
+    parts: list[str] = []
+    depth = 0
+    current = ""
+    for char in inner:
+        if char in "([{<":
+            depth += 1
+        elif char in ")]}>":
+            depth -= 1
+        if char == "," and depth == 0:
+            parts.append(current)
+            current = ""
+            continue
+        current += char
+    parts.append(current)
+    names: list[str] = []
+    for part in parts:
+        part = part.strip().lstrip("*&").strip()
+        if not part:
+            continue
+        match = re.match(r"(?:readonly|public|private|protected|static|final|self|cls[\s,]*)*\s*([A-Za-z_$][\w$]*)", part)
+        if match and match.group(1) not in {"self", "cls"}:
+            names.append(match.group(1))
+    return names
+
+
+def declaration_text(lines: list[str], start: int, name: str) -> str:
+    """The declaration, joined across the lines it spans, up to the body's brace."""
+    out: list[str] = []
+    for offset in range(0, 6):
+        index = start - 1 + offset
+        if index >= len(lines):
+            break
+        out.append(lines[index])
+        joined = " ".join(out)
+        if name in joined and ("{" in joined.split(name, 1)[-1] or ":" in joined.split(name, 1)[-1]):
+            break
+    return " ".join(out)
+
+
+def line_at(lines: list[str], number: int) -> str:
+    return lines[number - 1] if 1 <= number <= len(lines) else ""
+
+
+def body_statements(lines: list[str], start: int, end: int) -> tuple[int, list[str]]:
+    """Count statements in the body: non-blank lines that are not braces alone.
+
+    lizard's nloc counts the declaration line and the closing brace, so a
+    one-statement method reports 3. Counting statements is what the shallow
+    rule actually means.
+    """
+    body: list[str] = []
+    for index in range(start, min(end, len(lines))):
+        stripped = lines[index].strip()
+        if not stripped or stripped in {"{", "}", "};"}:
+            continue
+        body.append(stripped)
+    return len(body), body
+
+
+# --------------------------------------------------------------------------
+# index: literals, shapes, imports, symbols, call edges
+# --------------------------------------------------------------------------
+#
+# The four detectors above read one file at a time. This section exists so a
+# detector can ask a question *across* files, because the flags that matter most
+# are facts about a pair of modules rather than about a line. Information
+# leakage is the clearest case: the book's own example is a banner colour
+# written centrally and a darker emphasis shade written separately on a few
+# pages, so the finding only exists in the relationship between two files.
+#
+# Three substrates, all already in the project's toolchain: the text (literals
+# and record shapes), the import graph (which module knows about which), and git
+# (which files change together).
+
+LITERAL_MIN_INNER = 4
+SHAPE_MIN_FIELDS = 3
+SHAPE_OVERLAP = 0.7
+CO_CHANGE_MIN = 5
+CO_CHANGE_DAYS = 365
+CO_CHANGE_MAX_COMMIT_FILES = 30
+CHAIN_MIN_DEPTH = 3
+CHAIN_MAX_DEPTH = 8
+
+CALL_KEYWORDS = frozenset(
+    """if elif else for while switch case catch return throw await yield typeof
+    new in of do try finally function class def import require super print
+    println assert raise del lambda with as and or not""".split()
+)
+
+TS_IMPORT = re.compile(r"""import\s+(?:type\s+)?(.+?)\s+from\s+["']([^"']+)["']""")
+TS_SIDE_EFFECT_IMPORT = re.compile(r"""import\s+["']([^"']+)["']""")
+TS_REEXPORT = re.compile(r"""export\s+(?:\*(?:\s+as\s+\w+)?|\{[^}]*\})\s+from\s+["']([^"']+)["']""")
+TS_REQUIRE = re.compile(r"""require\(\s*["']([^"']+)["']\s*\)""")
+PY_FROM = re.compile(r"^\s*from\s+([.\w]+)\s+import\s+([^\n#]+)", re.MULTILINE)
+PY_IMPORT = re.compile(r"^\s*import\s+(\.?[\w.]+)", re.MULTILINE)
+TS_DECLARATION = re.compile(r"(?:export\s+)?(?:interface|type|class|enum)\s+([A-Za-z_$][\w$]*)")
+CLASS_DECLARATION = re.compile(r"^\s*(?:export\s+(?:default\s+)?)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)")
+PY_CLASS = re.compile(r"^(\s*)class\s+([A-Za-z_]\w*)", re.MULTILINE)
+STRING_LITERAL = re.compile(r'"(?:[^"\\\n]|\\.)*"|\'(?:[^\'\\\n]|\\.)*\'')
+TEMPLATE_LITERAL = re.compile(r"`(?:[^`\\]|\\.)*`", re.DOTALL)
+NUMBER_LITERAL = re.compile(r"(?<![\w#.])(?:\d{4,}|\d+\.\d{3,}|\d{3,}\.\d+)(?![\w.])")
+# A file directive is an instruction to the toolchain, not a fact about the
+# system: every client component in a Next.js tree says `"use client"`, and a
+# flag that reports all forty-nine of them is reporting the framework.
+DIRECTIVES = frozenset({"use client", "use server", "use strict", "use asm"})
+# A four-digit integer that is a calendar year is a citation, not a constant:
+# `Joshi et al. (2025)` sits in JSX text and in prose, where no mask can reach
+# it, and two files citing the same paper are not two files agreeing on a value.
+YEAR_RANGE = (1900, 2100)
+CALL_SITE = re.compile(r"([A-Za-z_$][\w$]*)\s*\(")
+# A line whose string is a module address rather than domain knowledge:
+# `import ... from "./x"`, `export ... from "./x"`, Python's `from pkg import a`,
+# and any line carrying a `require(...)`. Two modules importing the same file is
+# not two modules knowing the same fact, and reporting it would drown the flag
+# in every sibling module that shares a parent.
+MODULE_REFERENCE = re.compile(r"^\s*(?:import\b|from\b|export\b[^=]*\bfrom\b)")
+# A module specifier is not always on the line that starts the statement: a
+# multi-line `import type {\n  X,\n} from "@/y"` puts the path on a line that
+# begins with `}`, and an inline `import("@/y")` puts it mid-expression. What
+# identifies it is the token in front of the string, not the start of the line.
+SPECIFIER_BEFORE = re.compile(r"\b(?:from|import|require|mock)\(?\s*$")
+# Two or more lowercase, dash-separated words is a class list: Tailwind and its
+# relatives are written as strings, repeated on purpose, and a flag that reports
+# `flex min-w-0 flex-col` is reporting the styling idiom. One word is left
+# alone, because `x-forwarded-for` and `application/json` are one word too.
+CLASS_LIST = re.compile(r"^[a-z][a-z0-9:_/-]*(?:\s+[a-z][a-z0-9:_/-]*)+$")
+
+
+@dataclass
+class Symbol:
+    """A declared method, with what a cross-file check needs."""
+
+    name: str
+    file: str
+    line: int
+    exported: bool
+    public: bool
+    start: int
+    end: int
+    ccn: int
+    statements: int
+    params: list[str]
+    body: str
+
+
+@dataclass
+class Record:
+    """The field names of an interface, type, dataclass or class.
+
+    Two of these sharing most of their fields, in two different modules, is one
+    design decision written down twice — the book's file-format pair, where the
+    reader and the writer each know the layout.
+    """
+
+    name: str
+    file: str
+    line: int
+    fields: frozenset[str]
+
+
+@dataclass
+class Call:
+    callee: str
+    args: list[str]
+    spans: list[tuple[int, int]]
+
+
+@dataclass
+class Module:
+    path: Path
+    display: str
+    language: str
+    lines: list[str]
+    masked: list[str]
+    code: list[str]
+    nest: dict[int, int]
+    comments: list[Comment]
+    symbols: list[Symbol]
+    records: list[Record]
+    literals: dict[str, list[int]]
+    imports: dict[str, set[str]]
+
+
+@dataclass
+class Index:
+    modules: list[Module]
+    importers: dict[str, set[str]]
+    imported_names: dict[str, set[str]]
+    literals: dict[str, dict[str, list[int]]]
+    records: list[Record]
+    root: Path
+
+
+def interface_function_name(name: str) -> bool:
+    """A name that can be part of a module's interface.
+
+    A lambda is not a module, and neither is a constructor: the pass-through and
+    shallow-module flags are about names the rest of the system can call.
+    """
+    return name not in {"(anonymous)", "constructor", "__init__"}
+
+
+def is_module_export(line: str, language: str, nest: int) -> bool:
+    """Whether the name itself is importable from the module.
+
+    Only module-level declarations are: a method is reached through its class,
+    never by name, which is why `needless-export` must not be handed methods.
+    Python's convention is the underscore; `__all__` is not consulted, because
+    treating every public name as exported is the conservative direction for a
+    check that only fires when a module has consumers that ignore the name.
+    """
+    if nest > 0:
+        return False
+    stripped = line.strip()
+    if language == "py":
+        match = re.match(r"(?:async\s+)?(?:def|class)\s+([A-Za-z_]\w*)", stripped)
+        return bool(match) and not match.group(1).startswith("_")
+    return stripped.startswith("export ")
+
+
+def is_public_member(line: str, language: str, nest: int, enclosing: tuple[str, str] | None) -> bool:
+    """Whether a consumer can call this, counting the class it sits in.
+
+    `export class TextArea` puts every public method of that class on the
+    module's interface without any of those methods saying `export`, and a class
+    whose interface is its methods is exactly the shape the shallow-module
+    reading is about. `private`, `protected` and `#` say otherwise, and so does
+    Python's leading underscore — on the method, or on the class that owns it.
+    """
+    if nest == 0:
+        return is_module_export(line, language, nest)
+    stripped = line.strip()
+    if language == "py":
+        match = re.match(r"(?:async\s+)?def\s+([A-Za-z_]\w*)", stripped)
+        if not match or match.group(1).startswith("_"):
+            return False
+        return enclosing is not None and not enclosing[0].startswith("_")
+    if re.match(r"(?:private|protected)\b|#\w", stripped):
+        return False
+    return enclosing is not None and enclosing[1].strip().startswith("export ")
+
+
+def enclosing_class(code_lines: list[str], nest: dict[int, int], start: int) -> tuple[str, str] | None:
+    """The nearest class declaration enclosing this line, as (name, line).
+
+    The nearest line at a lower depth is the enclosing declaration: for a
+    method that is its class, and for a module-level function there is none.
+    """
+    depth = nest.get(start, 0)
+    for number in range(start - 1, 0, -1):
+        if nest.get(number, 0) < depth:
+            match = CLASS_DECLARATION.match(code_lines[number - 1])
+            return (match.group(1), code_lines[number - 1]) if match else None
+    return None
+
+
+def mask_strings(text: str) -> str:
+    """Blank the inside of every string literal, keeping every offset.
+
+    Brace matching, argument splitting and identifier scanning run over this
+    rather than the raw text, so a `}` inside a string cannot close a block and
+    a comma inside one cannot split an argument list. Lengths are preserved, and
+    so are the line breaks inside a multi-line template literal, because a mask
+    that moved a line would move every line number after it.
+    """
+
+    def blank(match: re.Match[str]) -> str:
+        whole = match.group(0)
+        inner = "".join("\n" if char == "\n" else " " for char in whole[1:-1])
+        return whole[0] + inner + whole[-1]
+
+    return TEMPLATE_LITERAL.sub(blank, STRING_LITERAL.sub(blank, text))
+
+
+def literals_in(code: list[str], masked: list[str]) -> dict[str, list[int]]:
+    """Literals keyed by their text, with the lines they occur on.
+
+    Strings are read from the code and numbers from the masked code, because a
+    number inside a string is text and not a constant: `(8000+ tokens)` in a
+    prompt and `duration-1000` in a Tailwind class name are prose, and counting
+    them invents a leak between a prompt and a toast timeout.
+
+    Keys carry a kind prefix so a number cannot collide with the string of the
+    same digits, and the quotes are stripped from string keys so `"a/b"` and
+    `'a/b'` count as one piece of knowledge.
+
+    Short literals are dropped: a two-character string is a delimiter, not a
+    decision. Numbers need four digits, or enough significant digits to be a
+    measurement rather than a layout fraction — `1.60934` and `100.5` are
+    values, `1.5` and `0.5` are the padding of every UI on earth. File
+    directives are dropped by value, because `"use client"` in forty-nine
+    modules is the framework, not a leak.
+
+    Import lines are skipped, because a module specifier is an address, not a
+    fact: two files that import the same module agree about where something
+    lives, not about how the system behaves. That exclusion is the rule's main
+    lie — a literal that is genuinely shared *and* happens to sit on a require
+    line is missed, and nothing else in the tool would notice it.
+    """
+    found: dict[str, list[int]] = {}
+    for number, line in enumerate(code, start=1):
+        if MODULE_REFERENCE.match(line) or "require(" in line:
+            continue
+        for pattern in (STRING_LITERAL, TEMPLATE_LITERAL):
+            for match in pattern.finditer(line):
+                inner = match.group(0)[1:-1]
+                if inner in DIRECTIVES:
+                    continue  # a file directive, not a value
+                if len(inner) < LITERAL_MIN_INNER or "${" in inner:
+                    continue
+                if match.start() > 0 and line[match.start() - 1] in "fF":
+                    continue  # an f-string interpolates code, so it is not a value
+                if SPECIFIER_BEFORE.search(line[: match.start()]):
+                    continue  # a module specifier, wherever the statement wraps
+                if CLASS_LIST.match(inner):
+                    continue  # a class list, not a value
+                found.setdefault("s:" + inner, []).append(number)
+        for match in NUMBER_LITERAL.finditer(masked[number - 1]):
+            if len(match.group(0)) == 4 and YEAR_RANGE[0] <= int(match.group(0)) <= YEAR_RANGE[1]:
+                continue  # a year, most likely a citation
+            found.setdefault("n:" + match.group(0), []).append(number)
+    return found
+
+
+def _block_end(text: str, start: int) -> int:
+    """Index just past the brace block opening at `start`, or -1."""
+    depth = 0
+    for index in range(start, len(text)):
+        char = text[index]
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return index + 1
+    return -1
+
+
+def _fields_at_class_level(block: str) -> frozenset[str]:
+    """Field names declared one brace level inside a block.
+
+    One level in is the body of the interface or class; deeper is a nested type
+    and belongs to a different declaration. Method signatures are excluded by
+    requiring a colon or an equals after the name.
+    """
+    fields: set[str] = set()
+    depth = 0
+    for line in block.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        depth += stripped.count("{") - stripped.count("}")
+        if depth != 1:
+            continue
+        match = re.match(
+            r"(?:(?:public|private|protected|readonly|static|final|declare)\s+)*([A-Za-z_$][\w$]*)\s*[?!]?\s*[:=]",
+            stripped,
+        )
+        if match:
+            fields.add(match.group(1).lstrip("_"))
+    return frozenset(fields)
+
+
+def _python_fields(lines: list[str], start: int) -> frozenset[str]:
+    """A Python class's state: attribute assignments and annotated fields."""
+    class_line = lines[start - 1]
+    class_indent = len(class_line) - len(class_line.lstrip())
+    fields: set[str] = set()
+    for line in lines[start:]:
+        if not line.strip():
+            continue
+        indent = len(line) - len(line.lstrip())
+        if indent <= class_indent:
+            break
+        for match in re.finditer(r"self\.([A-Za-z_]\w*)\s*[:=]", line):
+            fields.add(match.group(1).lstrip("_"))
+        annotated = re.match(r"\s*([A-Za-z_]\w*)\s*:\s*[^=]+$", line)
+        if annotated and indent - class_indent <= 4:
+            fields.add(annotated.group(1).lstrip("_"))
+    return frozenset(fields)
+
+
+def records_in(masked_lines: list[str], lines: list[str], language: str, display: str) -> list[Record]:
+    """Record-like declarations and their field names.
+
+    A class counts as well as an interface: the flag is about one shape known in
+    two places, and a class's fields are a shape like any other. Field names are
+    compared with a leading underscore stripped, because a Python record and a
+    TypeScript one describe the same wire format whether or not one of them
+    marks its fields private.
+    """
+    masked = "\n".join(masked_lines)
+    out: list[Record] = []
+    if language == "py":
+        for match in PY_CLASS.finditer(masked):
+            line = masked[: match.start()].count("\n") + 1
+            fields = _python_fields(lines, line)
+            if len(fields) >= SHAPE_MIN_FIELDS:
+                out.append(Record(name=match.group(2), file=display, line=line, fields=fields))
+        return out
+    for match in TS_DECLARATION.finditer(masked):
+        opening = masked.find("{", match.end() - 1)
+        if opening < 0:
+            continue
+        end = _block_end(masked, opening)
+        if end < 0:
+            continue
+        # A one-line declaration (`type X = { a: T; b: U }`) needs its semicolons
+        # to become line breaks before the depth walk can see two fields.
+        block = masked[opening:end].replace("{", "{\n", 1).replace("}", "\n}", 1).replace(";", ";\n")
+        fields = _fields_at_class_level(block)
+        if len(fields) >= SHAPE_MIN_FIELDS:
+            line = masked[: match.start()].count("\n") + 1
+            out.append(Record(name=match.group(1), file=display, line=line, fields=fields))
+    return out
+
+
+def imports_in(code_lines: list[str], language: str) -> dict[str, set[str]]:
+    """Imported module paths, and the names taken from each.
+
+    Read from the comment-stripped code, not the masked code: the module path is
+    inside a string literal, and masking is exactly what would blank it. Comments
+    are still removed, so a commented-out import is not an edge.
+
+    `import { A, B as C }` records A and B, the names the exporting module
+    knows; a default import records `default`; a namespace or wildcard import
+    records `*`, which the checks downstream read as "everything in that module
+    may be used" rather than as a list of names.
+    """
+    text = "\n".join(code_lines)
+    out: dict[str, set[str]] = {}
+    if language == "py":
+        for match in PY_FROM.finditer(text):
+            names = {part.strip().split(" as ")[0].strip() for part in match.group(2).split(",")}
+            out.setdefault(match.group(1), set()).update(name for name in names if name)
+        for match in PY_IMPORT.finditer(text):
+            out.setdefault(match.group(1), set()).add("*")
+        return out
+    for match in TS_IMPORT.finditer(text):
+        clause, target = match.group(1), match.group(2)
+        names: set[str] = set()
+        if "*" in clause:
+            names.add("*")
+        for group in re.findall(r"\{([^}]*)\}", clause):
+            for part in group.split(","):
+                name = part.strip().split(" as ")[0].strip()
+                if name:
+                    names.add(name)
+        remainder = re.sub(r"\{[^}]*\}", "", clause).replace("* as", "").strip().strip(",").strip()
+        if remainder and not remainder.startswith("*"):
+            names.add("default")
+        out.setdefault(target, set()).update(names or {"*"})
+    for pattern in (TS_REEXPORT, TS_REQUIRE, TS_SIDE_EFFECT_IMPORT):
+        for match in pattern.finditer(text):
+            out.setdefault(match.group(1), set()).add("*")
+    return out
+
+
+def resolve_import(from_display: str, target: str, language: str, known: set[str]) -> str | None:
+    """The scanned file an import refers to, or None when it is external.
+
+    Best effort, deliberately: a miss costs one cross-file finding, not a crash.
+    TypeScript's extensionless specifiers, `index` files, and Python packages
+    rooted at a `src` directory are handled; a build alias such as
+    `@/infrastructure` resolves only when it happens to spell a real path.
+    """
+    if language == "py":
+        if target.startswith("."):
+            dots = len(target) - len(target.lstrip("."))
+            rest = [part for part in target.lstrip(".").split(".") if part]
+            parts = posixpath.dirname(from_display).split("/")
+            base_parts = parts[: len(parts) - (dots - 1)] if dots > 1 else parts
+            base = "/".join(base_parts + rest)
+        else:
+            base = "/".join(target.split("."))
+        for candidate in (base + ".py", base + "/__init__.py"):
+            if candidate in known:
+                return candidate
+        for path in known:
+            if path.endswith("/" + base + ".py") or path.endswith("/" + base + "/__init__.py"):
+                return path
+        return None
+    if not target.startswith("."):
+        for path in known:
+            if path.endswith("/" + target.lstrip("./")):
+                return path
+        return None
+    cleaned = re.sub(r"\.(js|jsx|mjs|cjs|ts|tsx)$", "", target)
+    base = posixpath.normpath(posixpath.join(posixpath.dirname(from_display), cleaned))
+    for candidate in (
+        base,
+        base + ".ts",
+        base + ".tsx",
+        base + ".js",
+        base + ".jsx",
+        base + "/index.ts",
+        base + "/index.tsx",
+        base + "/index.js",
+    ):
+        if candidate in known:
+            return candidate
+    return None
+
+
+def calls_in(body: str) -> list[Call]:
+    """Calls in a body: callee name, top-level arguments, and their offsets."""
+    calls: list[Call] = []
+    for match in CALL_SITE.finditer(body):
+        callee = match.group(1)
+        if callee in CALL_KEYWORDS:
+            continue
+        opening = match.end() - 1
+        depth = 0
+        end = -1
+        for index in range(opening, len(body)):
+            char = body[index]
+            if char in "([{":
+                depth += 1
+            elif char in ")]}":
+                depth -= 1
+                if depth == 0:
+                    end = index
+                    break
+        if end < 0:
+            continue
+        args: list[str] = []
+        spans: list[tuple[int, int]] = []
+        depth = 0
+        part_start = opening + 1
+        for index in range(opening + 1, end):
+            char = body[index]
+            if char in "([{":
+                depth += 1
+            elif char in ")]}":
+                depth -= 1
+            elif char == "," and depth == 0:
+                args.append(body[part_start:index])
+                spans.append((part_start, index))
+                part_start = index + 1
+        args.append(body[part_start:end])
+        spans.append((part_start, end))
+        calls.append(Call(callee=callee, args=args, spans=spans))
+    return calls
+
+
+def forwarded_params(body: str, params: list[str]) -> list[str]:
+    """Parameters the body never reads, only forwards into calls.
+
+    A parameter is forwarded when every occurrence of it in the body sits inside
+    a call's argument list as that whole argument — `m3(cert)` — and nowhere
+    else: not compared, not indexed, not returned, not stored. A parameter that
+    appears in no call at all is unused rather than forwarded, which is a
+    different finding and is not reported here.
+
+    Occurrences are counted in the body *with its strings intact*, while the
+    calls and their argument spans are read from the masked copy. The two have
+    identical offsets, and the difference is the point: a parameter interpolated
+    into a log line — `` `started ${id.slice(0, 12)}` `` — has been read, and a
+    detector that masks the string first sees only the one call that forwards
+    it. That is how a chain of eight was reported in a file where every method
+    used its parameter in a log line.
+
+    The body excludes the declaration, or every parameter would be found in the
+    signature and nothing would ever look forwarded.
+    """
+    forward_spans: list[tuple[int, int]] = []
+    for call in calls_in(mask_strings(body)):
+        for argument, span in zip(call.args, call.spans):
+            if argument.strip().isidentifier():
+                forward_spans.append(span)
+    forwarded: list[str] = []
+    for param in params:
+        occurrences = [match.span() for match in re.finditer(rf"\b{re.escape(param)}\b", body)]
+        if not occurrences:
+            continue
+        if all(any(start <= begin and end >= finish for start, end in forward_spans) for begin, finish in occurrences):
+            forwarded.append(param)
+    return forwarded
+
+
+def symbols_in(
+    rows: list[dict],
+    lines: list[str],
+    code_lines: list[str],
+    language: str,
+    display: str,
+    nest: dict[int, int],
+) -> list[Symbol]:
+    """Declared methods as symbols, with export status and bodies.
+
+    The declaration test and the interface-level test live here rather than in
+    each detector, because they are what make a name a *method*: lizard reports
+    a lambda handed to a hook and a JSX binding as functions, and it attributes
+    them to names the line does not bind.
+
+    lizard's `start` is the declaration's line, so the body is
+    `code_lines[start:end]` — one-based start, zero-based slice — which excludes
+    the signature and therefore the parameters, so a forwarded parameter cannot
+    be "found" in its own declaration. The body keeps its string literals,
+    because a parameter interpolated into a log line has been read; the call
+    scan masks them when it needs to.
+    """
+    out: list[Symbol] = []
+    for row in rows:
+        line = line_at(lines, row["start"])
+        if not interface_function_name(row["name"]):
+            continue
+        if nest.get(row["start"], MAX_INTERFACE_NEST + 1) > MAX_INTERFACE_NEST:
+            continue
+        if not declares(line, row["name"]):
+            continue
+        statements, _ = body_statements(lines, row["start"], row["end"])
+        depth = nest.get(row["start"], 0)
+        enclosing = enclosing_class(code_lines, nest, row["start"])
+        out.append(
+            Symbol(
+                name=row["name"],
+                file=display,
+                line=row["start"],
+                exported=is_module_export(line, language, depth),
+                public=is_public_member(line, language, depth, enclosing),
+                start=row["start"],
+                end=row["end"],
+                ccn=row["ccn"],
+                statements=statements,
+                params=extract_params(declaration_text(lines, row["start"], row["name"]), row["name"]),
+                body="\n".join(code_lines[row["start"] : min(row["end"], len(code_lines))]),
+            )
+        )
+    return out
+
+
+def build_index(modules: list[Module], root: Path) -> Index:
+    """The cross-file facts: who imports whom, which names are taken, and every
+    literal with the modules it appears in."""
+    known = {module.display for module in modules}
+    importers: dict[str, set[str]] = {}
+    imported_names: dict[str, set[str]] = {}
+    literals: dict[str, dict[str, list[int]]] = {}
+    for module in modules:
+        for literal, lines in module.literals.items():
+            literals.setdefault(literal, {})[module.display] = lines
+        for target, names in module.imports.items():
+            resolved = resolve_import(module.display, target, module.language, known)
+            if resolved is None:
+                continue
+            importers.setdefault(resolved, set()).add(module.display)
+            bucket = imported_names.setdefault(resolved, set())
+            if "*" in names:
+                bucket.add("*")
+            else:
+                bucket.update(names)
+    records = [record for module in modules for record in module.records]
+    return Index(modules=modules, importers=importers, imported_names=imported_names, literals=literals, records=records, root=root)
+
+
+# --------------------------------------------------------------------------
+# detectors
+# --------------------------------------------------------------------------
+
+
+def detect_comment_repeats(comments: list[Comment], file: str) -> Iterator[Finding]:
+    for comment in comments:
+        if not comment.next_code_text:
+            continue
+        comment_words = content_words(comment.text)
+        if len(comment_words) < REPEAT_MIN_WORDS:
+            continue
+        vocabulary = set(split_words(comment.next_code_text))
+        matched = sum(1 for word in comment_words if lied_in(word, vocabulary))
+        if matched < REPEAT_MIN_MATCHES or matched / len(comment_words) < REPEAT_RATIO:
+            continue
+        yield Finding(
+            flag="comment-repeats-code",
+            file=file,
+            line=comment.start,
+            symbol=comment.anchor,
+            detail=f"{matched}/{len(comment_words)} content words already in the line below",
+            measure=f"{matched}/{len(comment_words)}",
+        )
+
+
+def detect_implementation_narrative(comments: list[Comment], file: str) -> Iterator[Finding]:
+    for comment in comments:
+        if not comment.is_declaration:
+            continue
+        hits = sorted({word for word in content_words(comment.text) if word in IMPL_WORDS})
+        if len(hits) < NARRATIVE_MIN_WORDS:
+            continue
+        yield Finding(
+            flag="implementation-narrative-comment",
+            file=file,
+            line=comment.start,
+            symbol=comment.anchor,
+            detail="declaration comment narrates the mechanism: " + ", ".join(hits),
+            measure=f"{len(hits)} impl words",
+        )
+
+
+def detect_shallow(symbols: list[Symbol], file: str) -> Iterator[Finding]:
+    for symbol in symbols:
+        if symbol.statements > SHALLOW_STATEMENTS or symbol.ccn > 1:
+            continue
+        yield Finding(
+            flag="shallow-method",
+            file=file,
+            line=symbol.start,
+            symbol=symbol.name,
+            detail=f"{symbol.name}: {symbol.statements} statement, cyclomatic 1",
+            measure=f"{symbol.statements} stmt",
+        )
+
+
+FORWARD = re.compile(r"^\s*(?:return\s+|await\s+|self\.|this\.)*?(?:(?:this|self)\.)?([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)\s*\((.*)\)\s*;?$", re.DOTALL)
+
+
+def detect_pass_through(symbols: list[Symbol], lines: list[str], file: str) -> Iterator[Finding]:
+    for symbol in symbols:
+        if symbol.statements != 1:
+            continue
+        _, body = body_statements(lines, symbol.start, symbol.end)
+        if not body:
+            continue
+        match = FORWARD.match(body[0])
+        if not match:
+            continue
+        receiver, callee, arguments = match.group(1), match.group(2), match.group(3)
+        raw_args = [part.strip() for part in arguments.split(",") if part.strip()]
+        same_name = callee == symbol.name
+        same_signature = bool(symbol.params) and sorted(raw_args) == sorted(symbol.params)
+        if not (same_name or same_signature):
+            continue
+        reason = "same name" if same_name else "identical signature"
+        yield Finding(
+            flag="pass-through",
+            file=file,
+            line=symbol.start,
+            symbol=symbol.name,
+            detail=f"{symbol.name} forwards to {receiver}.{callee} ({reason}), adding nothing",
+            measure=f"args={len(raw_args)}",
+        )
+
+
+# --------------------------------------------------------------------------
+# cross-file detectors
+# --------------------------------------------------------------------------
+#
+# These read the index. Each one reports a *fact about a relationship* — a value
+# known in two places, a shape declared twice, two files that move together, an
+# interface wider than its use, a parameter nobody reads. The fix for all five
+# is a design decision, so the finding carries the evidence and the repair menu
+# carries the decisions; neither tries to prescribe the edit.
+
+
+def detect_leaked_literal(index: Index) -> Iterator[Finding]:
+    """A value that has to change in more than one module.
+
+    The book's example: the banner background is one colour known in a central
+    place, and the darker emphasis shade is written separately on the few pages
+    that need it. Nothing in the code says the two must change together.
+    Strings and numbers are treated alike — the fix differs, the flag does not —
+    and the finding is filed once per value, not once per file, because the leak
+    is one fact about a pair of modules: it survives until the value has an
+    owner.
+    """
+    for literal, by_module in sorted(index.literals.items()):
+        files = sorted(by_module)
+        if len(files) < 2:
+            continue
+        kind, value = ("string", literal[2:]) if literal.startswith("s:") else ("number", literal[2:])
+        # A string in two modules is almost always one decision written twice; a
+        # number is often two decisions that happen to share the digits, so the
+        # number's wording names the doubt rather than asserting the union.
+        detail = (
+            f"{kind} {value!r} is written in {len(files)} modules ({', '.join(files)}); changing it means changing all of them"
+            if kind == "string"
+            else f"number {value} is written in {len(files)} modules ({', '.join(files)}); check they are one decision, not two that share the digits"
+        )
+        yield Finding(
+            flag="leaked-literal",
+            file=files[0],
+            line=by_module[files[0]][0],
+            symbol=f"{kind}:{value}",
+            detail=detail,
+            measure=f"{len(files)} modules",
+            files=tuple(files),
+            key=f"leaked-literal:{literal}",
+        )
+
+
+def detect_leaked_shape(index: Index) -> Iterator[Finding]:
+    """The same record — interface, type, class or dataclass — in more than one
+    module, reported once per shape rather than once per pair.
+
+    A reader and a writer each declaring the file layout is the book's example:
+    both know the format, so every new field is a change in two places, and the
+    pair has to be kept in step by hand. Four modules knowing it is one design
+    decision written down four times, not six pairs, so records are clustered by
+    shared fields and each cluster is reported once, listing the modules.
+
+    Overlap is Jaccard over field names, so a record that merely *contains*
+    another — `{a}` inside `{a, b, c}` — is not the same shape written twice,
+    while `{a, b, c}` and `{a, b, c, d}` is: they know the same fields, in the
+    same direction. Two modules related by an import are never merged, because a
+    module that imports another's record is *reusing* the shape, which is the
+    fix, not the leak.
+    """
+    records = index.records
+    parent = list(range(len(records)))
+
+    def find(node: int) -> int:
+        while parent[node] != node:
+            parent[node] = parent[parent[node]]
+            node = parent[node]
+        return node
+
+    def overlaps(first: Record, second: Record) -> bool:
+        if first.file == second.file:
+            return False
+        if first.file in index.importers.get(second.file, set()) or second.file in index.importers.get(first.file, set()):
+            return False
+        union = first.fields | second.fields
+        return bool(union) and len(first.fields & second.fields) / len(union) >= SHAPE_OVERLAP
+
+    for position, first in enumerate(records):
+        for offset, second in enumerate(records[position + 1 :], start=position + 1):
+            if overlaps(first, second) and find(position) != find(offset):
+                parent[find(offset)] = find(position)
+
+    clusters: dict[int, list[Record]] = {}
+    for position, record in enumerate(records):
+        clusters.setdefault(find(position), []).append(record)
+    for members in clusters.values():
+        files = sorted({record.file for record in members})
+        if len(members) < 2 or len(files) < 2:
+            continue
+        members.sort(key=lambda record: (record.file, record.line))
+        head = members[0]
+        fields = set.intersection(*(set(record.fields) for record in members)) or set(head.fields)
+        elsewhere = ", ".join(f"{record.file}:{record.line}" for record in members[1:])
+        yield Finding(
+            flag="leaked-shape",
+            file=head.file,
+            line=head.line,
+            symbol="shape:" + ",".join(sorted(fields)),
+            detail=f"{head.name} states a shape {len(files)} modules also state: {elsewhere}",
+            measure=f"{len(fields)} fields, {len(files)} modules",
+            files=tuple(files),
+            key="leaked-shape:" + ",".join(sorted(fields)),
+        )
+
+
+def co_change_pairs(root: Path, since_days: int) -> dict[tuple[str, str], int]:
+    """How many recent commits changed each pair of files together.
+
+    A commit touching more than CO_CHANGE_MAX_COMMIT_FILES files is a sweep — a
+    rename, a formatter, a licence header — and is dropped, or one afternoon of
+    housekeeping would couple every file in the tree to every other.
+    """
+    if not (root / ".git").exists():
+        return {}
+    proc = subprocess.run(
+        ["git", "log", f"--since={since_days}.days", "--name-only", "--pretty=format:%x00%H"],
+        capture_output=True,
+        text=True,
+        cwd=root,
+    )
+    if proc.returncode != 0:
+        return {}
+    pairs: dict[tuple[str, str], int] = {}
+    for chunk in proc.stdout.split("\x00")[1:]:
+        names = sorted({line.strip() for line in chunk.splitlines() if line.strip()})
+        if len(names) < 2 or len(names) > CO_CHANGE_MAX_COMMIT_FILES:
+            continue
+        for index, left in enumerate(names):
+            for right in names[index + 1 :]:
+                pairs[(left, right)] = pairs.get((left, right), 0) + 1
+    return pairs
+
+
+def detect_co_change(index: Index, root: Path) -> Iterator[Finding]:
+    """Two files that keep changing together without either importing the other.
+
+    That is a dependency the code does not declare: the reason they move
+    together lives in neither of them. It is the one flag here that can be
+    noise on a young repository — a feature written in one afternoon has every
+    file in it changed together — so the threshold is CO_CHANGE_MIN commits
+    inside a year, sweeps are dropped, and a pair that already imports across is
+    skipped, because a declared dependency is not a hidden one.
+    """
+    known = {module.display for module in index.modules}
+    for (left, right), count in sorted(co_change_pairs(root, CO_CHANGE_DAYS).items()):
+        if count < CO_CHANGE_MIN or left not in known or right not in known:
+            continue
+        if left in index.importers.get(right, set()) or right in index.importers.get(left, set()):
+            continue
+        yield Finding(
+            flag="co-change-without-import",
+            file=left,
+            line=1,
+            symbol=right,
+            detail=f"changed together in {count} of the last {CO_CHANGE_DAYS} days' commits, and neither imports the other",
+            measure=f"{count} commits",
+            files=(left, right),
+            key=f"co-change-without-import:{left}:{right}",
+        )
+
+
+def detect_needless_export(index: Index) -> Iterator[Finding]:
+    """An exported name that no importer ever takes.
+
+    The interface is wider than the use. Every reader of the module has to
+    consider the name, and every refactor has to keep it working, for callers
+    that do not exist. A module with no importers at all is *not* reported:
+    nothing has decided what its interface is yet, and a library's whole surface
+    is legitimately unused inside the tree it ships from. A wildcard import
+    silences the whole module, because `import *` takes everything.
+    """
+    for module in index.modules:
+        if not index.importers.get(module.display):
+            continue
+        taken = index.imported_names.get(module.display, set())
+        if "*" in taken:
+            continue
+        for symbol in module.symbols:
+            if not symbol.exported or symbol.name in taken:
+                continue
+            yield Finding(
+                flag="needless-export",
+                file=module.display,
+                line=symbol.line,
+                symbol=symbol.name,
+                detail=f"{symbol.name} is exported but no importer takes it; the module's interface is wider than its use",
+                measure="0 importers",
+            )
+
+
+def detect_forwarded_parameter(index: Index) -> Iterator[Finding]:
+    """A parameter that travels through a chain of methods that never read it.
+
+    One hop is a pass-through and is already flagged as one. A chain is worse:
+    each hop is an interface that would have to change if the parameter were
+    removed, and none of them is doing anything with it. The finding is the
+    chain, reported once at its head, with its length as the measure, because
+    the number of hops is the number of interfaces and the length of the
+    eventual fix.
+
+    A local parameter declared by another name — `scratch = 1; m2(scratch)` —
+    is deliberately not followed. The chain is built from the name travelling
+    unchanged through the calls, which is the flag the book describes; a renamed
+    hop is a different question and the tool would guess at it.
+    """
+    params_by_symbol: dict[tuple[str, int], list[str]] = {}
+    callees_by_hop: dict[tuple[str, int, str], set[str]] = {}
+    for module in index.modules:
+        for symbol in module.symbols:
+            forwarded = forwarded_params(symbol.body, symbol.params)
+            params_by_symbol[(symbol.file, symbol.line)] = forwarded
+            calls = calls_in(mask_strings(symbol.body))
+            for param in forwarded:
+                callees_by_hop[(symbol.file, symbol.line, param)] = {
+                    call.callee for call in calls if any(argument.strip() == param for argument in call.args)
+                }
+
+    symbols_by_name: dict[str, list[Symbol]] = {}
+    for module in index.modules:
+        for symbol in module.symbols:
+            symbols_by_name.setdefault(symbol.name, []).append(symbol)
+
+    def successor(symbol: Symbol, param: str) -> Symbol | None:
+        """The one method this parameter is forwarded to next, or None when the
+        next hop is ambiguous (two same-named methods) or absent."""
+        unique: dict[tuple[str, int], Symbol] = {}
+        for callee in callees_by_hop.get((symbol.file, symbol.line, param), set()):
+            for other in symbols_by_name.get(callee, []):
+                if param in params_by_symbol.get((other.file, other.line), []):
+                    unique[(other.file, other.line)] = other
+        if len(unique) != 1:
+            return None
+        return next(iter(unique.values()))
+
+    edges = [
+        (symbol, param, successor(symbol, param))
+        for module in index.modules
+        for symbol in module.symbols
+        for param in params_by_symbol.get((symbol.file, symbol.line), [])
+    ]
+    successors = {(symbol.file, symbol.line, param) for _, param, symbol in edges if symbol is not None}
+    for head, param, next_symbol in sorted(edges, key=lambda edge: (edge[0].file, edge[0].line, edge[1])):
+        if (head.file, head.line, param) in successors:
+            continue  # a hop in someone else's chain; the head reports the whole of it
+        chain = [head]
+        hop = next_symbol
+        while hop is not None and len(chain) < CHAIN_MAX_DEPTH:
+            chain.append(hop)
+            hop = successor(hop, param)
+        if len(chain) < CHAIN_MIN_DEPTH:
+            continue
+        path = " → ".join(f"{symbol.file}:{symbol.name}" for symbol in chain)
+        yield Finding(
+            flag="forwarded-parameter",
+            file=chain[0].file,
+            line=chain[0].line,
+            symbol=f"{chain[0].name}({param})",
+            detail=f"{param} travels {len(chain)} methods that never read it: {path}",
+            measure=f"{len(chain)} hops" + ("+" if len(chain) >= CHAIN_MAX_DEPTH else ""),
+            files=tuple(dict.fromkeys(symbol.file for symbol in chain)),
+        )
+
+
+# --------------------------------------------------------------------------
+# churn
+# --------------------------------------------------------------------------
+
+
+def churn_weights(root: Path) -> dict[str, int]:
+    """Commits per file over CHURN_DAYS. Leaves are weighted by the time spent
+    on them: complexity in a file nobody touches is complexity nobody pays for.
+
+    C = sum(c_p * t_p), the book's own formula, with t_p read off git history.
+    Not a gate input — a ranking, so the report's first line is the file the
+    team is actually changing.
+    """
+    if not (root / ".git").exists():
+        return {}
+    proc = subprocess.run(
+        ["git", "log", f"--since={CHURN_DAYS}.days", "--numstat", "--pretty=format:", "--", "."],
+        capture_output=True,
+        text=True,
+        cwd=root,
+    )
+    if proc.returncode != 0:
+        return {}
+    weights: dict[str, int] = {}
+    for line in proc.stdout.splitlines():
+        parts = line.split("\t")
+        if len(parts) != 3 or not parts[2]:
+            continue
+        path = parts[2].strip()
+        if path.endswith("=>"):  # rename line, ignore
+            continue
+        weights[path] = weights.get(path, 0) + 1
+    return weights
+
+
+# --------------------------------------------------------------------------
+# collection
+# --------------------------------------------------------------------------
+
+
+def iter_source_files(paths: list[str], include_tests: bool) -> Iterator[Path]:
+    for raw in paths:
+        path = Path(raw)
+        if path.is_file():
+            yield path
+            continue
+        for candidate in sorted(path.rglob("*")):
+            if not candidate.is_file() or candidate.suffix not in SOURCE_EXT:
+                continue
+            text = candidate.as_posix()
+            if BUILD_DIRS.search(text) or GENERATED.search(text):
+                continue
+            if not include_tests and TEST_FILES.search(text):
+                continue
+            yield candidate
+
+
+def git_changed(base: str | None, root: Path) -> set[str]:
+    ref = base
+    if not ref:
+        for candidate in BASE_CANDIDATES:
+            probe = subprocess.run(["git", "rev-parse", "--verify", "--quiet", candidate], capture_output=True, text=True, cwd=root)
+            if probe.returncode == 0:
+                ref = candidate
+                break
+    if not ref:
+        die("--changed was requested but no base ref could be resolved. Pass --base <ref>.")
+    changed: set[str] = set()
+    for cmd in (["git", "diff", "--name-only", "--diff-filter=ACMR", ref], ["git", "ls-files", "--others", "--exclude-standard"]):
+        proc = subprocess.run(cmd, capture_output=True, text=True, cwd=root)
+        if proc.returncode != 0:
+            die(f"{' '.join(cmd)} failed:\n{proc.stderr.strip()}")
+        for line in proc.stdout.splitlines():
+            if line.strip():
+                changed.add(os.path.realpath(root / line.strip()))
+    return changed
+
+
+def survey(args) -> Survey:
+    """Everything one run knows: the findings, the score, and the index the
+    readings are computed from. `collect` is the gate's view of it."""
+    root = Path.cwd()
+    paths = args.paths or (["src"] if Path("src").is_dir() else ["."])
+    files = [path for path in iter_source_files(paths, args.include_tests)]
+    changed = git_changed(args.base, root) if args.changed else None
+    weights = churn_weights(root)
+
+    scoped: list[tuple[Path, str]] = []
+    for path in files:
+        if changed is not None and os.path.realpath(path) not in changed:
+            continue
+        try:
+            scoped.append((path, path.read_text()))
+        except (UnicodeDecodeError, OSError):
+            continue
+
+    # One lizard process for the tree, not one per file. A gate that runs on
+    # every change cannot afford a subprocess per file, and lizard takes many
+    # paths in one call. Chunked because a large tree will otherwise exceed the
+    # command line limit, and a gate that dies on a big tree is a dead gate.
+    rows_by_file: dict[str, list[dict]] = {}
+    displays = [path.as_posix() for path, _ in scoped]
+    for start in range(0, len(displays), 200):
+        for row in run_lizard(displays[start : start + 200]):
+            rows_by_file.setdefault(row["file"].lstrip("./"), []).append(row)
+
+    findings: list[Finding] = []
+    modules: list[Module] = []
+    for path, text in scoped:
+        language = language_of(path)
+        display = path.as_posix()
+        lines = text.splitlines()
+        comments, nest_by_line = scan_comments(text, language)
+        code = comment_stripped(lines, language)
+        # Structure is read from the masked code: strings blanked so a brace or
+        # a comma inside one cannot move a block boundary, comments removed so a
+        # commented-out interface is not a declaration.
+        masked = mask_strings("\n".join(code)).split("\n")
+        symbols = symbols_in(rows_by_file.get(display.lstrip("./"), []), lines, code, language, display, nest_by_line)
+        modules.append(
+            Module(
+                path=path,
+                display=display,
+                language=language,
+                lines=lines,
+                masked=masked,
+                code=code,
+                nest=nest_by_line,
+                comments=comments,
+                symbols=symbols,
+                records=records_in(masked, lines, language, display),
+                literals=literals_in(code, masked),
+                imports=imports_in(code, language),
+            )
+        )
+        findings.extend(detect_comment_repeats(comments, display))
+        findings.extend(detect_implementation_narrative(comments, display))
+        shallow = list(detect_shallow(symbols, display))
+        through = list(detect_pass_through(symbols, lines, display))
+        shadowed = {(finding.symbol) for finding in through}
+        # A one-statement forwarder is one finding, not two: the pass-through is
+        # the more specific description of why it is shallow.
+        findings.extend(finding for finding in shallow if finding.symbol not in shadowed)
+        findings.extend(through)
+
+    index = build_index(modules, root)
+    findings.extend(detect_leaked_literal(index))
+    findings.extend(detect_leaked_shape(index))
+    findings.extend(detect_co_change(index, root))
+    findings.extend(detect_needless_export(index))
+    findings.extend(detect_forwarded_parameter(index))
+
+    weight = 0
+    for finding in findings:
+        # A finding about a pair of files is worth what the busier of the two is
+        # worth: the cost is paid wherever either end of the relationship is
+        # edited.
+        reach = max(weights.get(name, 1) for name in (finding.file, *finding.files))
+        finding.weight = min(50, reach)
+        weight += finding.weight
+    findings.sort(key=lambda f: (f.file, f.line, f.flag))
+    return Survey(findings=findings, score=weight, index=index, weights=weights)
+
+
+def collect(args) -> tuple[list[Finding], int]:
+    result = survey(args)
+    return result.findings, result.score
+
+
+def disambiguate(findings: list[Finding]) -> list[Finding]:
+    seen: dict[str, int] = {}
+    for finding in findings:
+        key = finding.id
+        seen[key] = seen.get(key, 0) + 1
+        if seen[key] > 1:
+            finding.symbol = f"{finding.symbol}:{finding.line}"
+    return findings
+
+
+# --------------------------------------------------------------------------
+# baseline
+# --------------------------------------------------------------------------
+
+
+def load_baseline(path: Path) -> dict:
+    if not path.is_file():
+        die(
+            f"no baseline at {path}\n"
+            "Create one to accept the findings that are already there:\n"
+            f"  depth --update-baseline --baseline {path}"
+        )
+    try:
+        return json.loads(path.read_text())
+    except json.JSONDecodeError as exc:
+        die(f"{path} is not valid JSON: {exc}")
+
+
+def write_baseline(path: Path, findings: list[Finding], score: int) -> None:
+    payload = {
+        "note": "Accepted depth findings. A finding not listed here fails the gate. Remove an entry when its fix lands; that is the trend.",
+        "score": score,
+        "findings": {finding.id: {"flag": finding.flag, "file": finding.file, "line": finding.line, "symbol": finding.symbol, "weight": finding.weight} for finding in findings},
+    }
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+
+
+# --------------------------------------------------------------------------
+# report
+# --------------------------------------------------------------------------
+
+
+# --------------------------------------------------------------------------
+# report: opportunities, ranked, never gated
+# --------------------------------------------------------------------------
+#
+# Tier C of DETECTORS.md. These are readings, not findings: none of them can
+# fail a build, because each one needs a person to decide whether it is an
+# opportunity or a deliberate design. They exist so that "is this getting deeper
+# over months" has an answer in numbers rather than in an impression, which is
+# the book's chapter 2.4 — complexity is incremental, invisible at one commit
+# and obvious across eight.
+
+DRIFT_REVISIONS = 8
+DRIFT_FILES = 5
+PURE_BLOCK_MIN_LINES = 3
+ABSTRACTION_IMPLEMENTATIONS = 1
+DEFAULT_TREND = ".depth-trend.jsonl"
+
+TS_ABSTRACTION = re.compile(r"(?:export\s+)?(?:abstract\s+class|interface)\s+([A-Za-z_$][\w$]*)")
+IMPLEMENTS = re.compile(r"\b(?:implements|extends)\s+([A-Za-z_$][\w$]*)")
+PY_ABSTRACTION = re.compile(r"^\s*class\s+([A-Za-z_]\w*)\s*\(([^)]*\bABC\b[^)]*)\)", re.MULTILINE)
+PY_BASES = re.compile(r"^\s*class\s+([A-Za-z_]\w*)\s*\(([^)]+)\)", re.MULTILINE)
+
+
+@dataclass
+class Opportunity:
+    """A reading: a module, a symbol or a file, and the numbers behind it."""
+
+    kind: str
+    location: str
+    subject: str
+    measure: str
+    note: str
+
+
+@dataclass
+class Survey:
+    """Everything one run knows: the findings, the score, the index the readings
+    are computed from, and the churn weights that rank both."""
+
+    findings: list[Finding]
+    score: int
+    index: Index
+    weights: dict[str, int]
+
+
+def record_snapshot(path: Path, score: int, counts: dict[str, int]) -> None:
+    """Append one dated line to the trend file.
+
+    Append-only, one JSON object per line: two runs can write it without
+    agreeing on anything but the format, and a corrupt line is skipped rather
+    than losing the history around it.
+    """
+    snapshot = {
+        "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "score": score,
+        "findings": sum(counts.values()),
+        "flags": dict(sorted(counts.items())),
+    }
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(snapshot) + "\n")
+
+
+def read_trend(path: Path) -> list[dict]:
+    if not path.is_file():
+        return []
+    rows: list[dict] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            rows.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return rows
+
+
+def git_revisions(root: Path, paths: list[str], count: int) -> list[str]:
+    """The last `count` commits that touched any of these paths, oldest first."""
+    proc = subprocess.run(
+        ["git", "log", f"-n{count}", "--format=%H", "--", *paths],
+        capture_output=True,
+        text=True,
+        cwd=root,
+    )
+    if proc.returncode != 0:
+        return []
+    return list(reversed([line.strip() for line in proc.stdout.splitlines() if line.strip()]))
+
+
+def git_show(root: Path, revision: str, path: str) -> str | None:
+    """A file's contents at a revision, or None when git does not have it."""
+    proc = subprocess.run(["git", "show", f"{revision}:{path}"], capture_output=True, text=True, cwd=root)
+    return proc.stdout if proc.returncode == 0 else None
+
+
+def shallow_modules(index: Index, weights: dict[str, int]) -> list[Opportunity]:
+    """Interface size against implementation size, per module.
+
+    Interface = the public methods plus their parameters: what a caller has to
+    hold in mind. Implementation = statements plus the branches over one, so a
+    straight line counts as one and a decision counts as two. The ratio is the
+    reading, and the book's own shape of a deep module is a small interface over
+    a large implementation.
+
+    Only the *public* half is measured, because the private half is not
+    interface at all — it is the part that can be rewritten without telling
+    anyone. A module with no public methods, or whose public methods have no
+    statements, has no ratio and is skipped rather than reported as zero.
+    """
+    ranked: list[tuple[float, str, int, int, int]] = []
+    for module in index.modules:
+        exported = [symbol for symbol in module.symbols if symbol.public]
+        interface = sum(1 + len(symbol.params) for symbol in exported)
+        implementation = sum(symbol.statements + max(0, symbol.ccn - 1) for symbol in exported)
+        if not exported or interface == 0 or implementation == 0:
+            continue
+        ranked.append((implementation / interface, module.display, interface, implementation, len(exported)))
+    ranked.sort(key=lambda row: (row[0], -weights.get(row[1], 1), row[1]))
+    return [
+        Opportunity(
+            kind="shallow-module",
+            location=display,
+            subject=f"{count} public",
+            measure=f"interface {interface}, impl {implementation}",
+            note=f"{ratio:.1f}x, churn {weights.get(display, 1)}",
+        )
+        for ratio, display, interface, implementation, count in ranked
+    ]
+
+
+def deletion_candidates(index: Index) -> list[Opportunity]:
+    """A declared method nothing in the tree calls and no module imports.
+
+    The strongest form of the book's "a name that has stopped carrying
+    anything": the method is not on any path through the system, so it is either
+    dead or it is an entry point. Entry points look exactly like this — a route
+    handler, a CLI command, a page's default export — which is why this is a
+    reading and not a finding. A default export is skipped outright, because the
+    framework calls it by convention and no name in the tree ever will.
+
+    A module that *is* imported is left to `needless-export`, which has the
+    importers in hand and can tell an unused name from an unreferenced module.
+    """
+    called: set[str] = set()
+    for module in index.modules:
+        for symbol in module.symbols:
+            for call in calls_in(mask_strings(symbol.body)):
+                called.add(call.callee)
+    rows: list[Opportunity] = []
+    for module in index.modules:
+        if index.importers.get(module.display):
+            continue
+        for symbol in module.symbols:
+            if symbol.name in called:
+                continue
+            if "export default" in line_at(module.lines, symbol.line):
+                continue
+            rows.append(
+                Opportunity(
+                    kind="deletion-candidate",
+                    location=f"{module.display}:{symbol.line}",
+                    subject=symbol.name,
+                    measure="0 callers, 0 importers",
+                    note="dead code, or an entry point: check which",
+                )
+            )
+    return rows
+
+
+def single_implementation_abstractions(index: Index) -> list[Opportunity]:
+    """An interface or abstract class with one implementation, or none.
+
+    One implementation is an indirection: the interface buys nothing that the
+    class itself would not, and chapter 4.6 calls the accumulation of such names
+    classitis. Two implementations make a seam, one is a guess.
+
+    Zero implementations is *not* reported. In TypeScript an interface used as a
+    type never says `implements`, so a count of zero cannot tell a dead name
+    from a structural one, and a table of every type alias in the tree is a
+    table nobody reads.
+    """
+    declared: dict[str, str] = {}
+    implemented: dict[str, set[tuple[str, int]]] = {}
+    for module in index.modules:
+        masked = "\n".join(module.masked)
+        for match in TS_ABSTRACTION.finditer(masked):
+            declared.setdefault(match.group(1), module.display)
+        for match in PY_ABSTRACTION.finditer(masked):
+            declared.setdefault(match.group(1), module.display)
+        for match in IMPLEMENTS.finditer(masked):
+            line = masked[: match.start()].count("\n") + 1
+            implemented.setdefault(match.group(1), set()).add((module.display, line))
+        for match in PY_BASES.finditer(masked):
+            line = masked[: match.start()].count("\n") + 1
+            for base in match.group(2).split(","):
+                name = base.strip().split(".")[-1].strip()
+                if name:
+                    implemented.setdefault(name, set()).add((module.display, line))
+    rows: list[Opportunity] = []
+    for name, display in sorted(declared.items()):
+        count = len(implemented.get(name, set()))
+        if count != ABSTRACTION_IMPLEMENTATIONS:
+            continue
+        rows.append(
+            Opportunity(
+                kind="single-implementation",
+                location=display,
+                subject=name,
+                measure=f"{count} implementation",
+                note="an indirection until a second one exists",
+            )
+        )
+    return rows
+
+
+def pure_block_candidates(index: Index) -> list[Opportunity]:
+    """Runs of statements inside a method that touch no instance state.
+
+    The book's conjoined-methods signal: the method does two things, and the
+    part that touches no instance state is the part that can leave. Only methods
+    that touch instance state *somewhere* are read, because a method that never
+    touches any is already a pure function and has nothing to split.
+
+    A candidate, not a finding: the run may be pure and still belong to the
+    method — it may need the arguments, or the sequence it sits in.
+    """
+    rows: list[Opportunity] = []
+    for module in index.modules:
+        for symbol in module.symbols:
+            body = symbol.body.splitlines()
+            if not any("this." in line or "self." in line for line in body):
+                continue
+            run_start = -1
+            for offset, line in enumerate(body + [""]):
+                pure = bool(line.strip()) and "this." not in line and "self." not in line
+                if pure and run_start < 0:
+                    run_start = offset
+                elif not pure and run_start >= 0:
+                    length = offset - run_start
+                    if length >= PURE_BLOCK_MIN_LINES:
+                        first = symbol.start + 1 + run_start
+                        rows.append(
+                            Opportunity(
+                                kind="pure-block",
+                                location=f"{module.display}:{first}",
+                                subject=symbol.name,
+                                measure=f"{length} statements",
+                                note=f"lines {first}-{symbol.start + offset} touch no instance state",
+                            )
+                        )
+                    run_start = -1
+    return rows
+
+
+def complexity_at(root: Path, revisions: list[str], displays: list[str], staging: Path) -> dict[str, list[tuple[str, int]]]:
+    """Statements plus branches per file at each revision, oldest first.
+
+    One lizard process per revision, not one per file: a reading that costs a
+    subprocess per file would not be run at all. The arithmetic is the same as
+    the shallow-module table's — statements plus the branches over one — so the
+    two can be read against each other.
+    """
+    series: dict[str, list[tuple[str, int]]] = {display: [] for display in displays}
+    for revision in revisions:
+        stage = staging / revision
+        present: list[str] = []
+        for display in displays:
+            text = git_show(root, revision, display)
+            if text is None:
+                continue
+            target = stage / display
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(text, encoding="utf-8")
+            present.append(display)
+        if not present:
+            continue
+        totals: dict[str, int] = {}
+        for row in run_lizard([stage.as_posix()]):
+            name = row["file"].split(stage.as_posix() + "/", 1)[-1]
+            totals[name] = totals.get(name, 0) + row["nloc"] + max(0, row["ccn"] - 1)
+        for display in present:
+            series[display].append((revision, totals.get(display, 0)))
+    return series
+
+
+def complexity_drift(root: Path, index: Index, weights: dict[str, int], revisions: int) -> list[Opportunity]:
+    """Whether the busiest files are getting more complex.
+
+    Samples the last `revisions` commits that touched any of the `DRIFT_FILES`
+    busiest files and measures each of them at each commit. Growth in a file
+    nobody touches costs nothing; growth in the file every change goes through
+    is the number worth watching, which is why the sample is the busiest files
+    rather than all of them.
+    """
+    if not (root / ".git").exists():
+        return []
+    busiest = sorted(index.modules, key=lambda module: (-weights.get(module.display, 1), module.display))[:DRIFT_FILES]
+    displays = [module.display for module in busiest]
+    if not displays:
+        return []
+    sampled = git_revisions(root, displays, revisions)
+    if len(sampled) < 2:
+        return []
+    with tempfile.TemporaryDirectory() as tmp:
+        series = complexity_at(root, sampled, displays, Path(tmp))
+    ranked: list[tuple[int, str, int, int, int]] = []
+    for display in displays:
+        points = series.get(display, [])
+        if len(points) < 2:
+            continue
+        first, last = points[0][1], points[-1][1]
+        if first == 0 and last == 0:
+            continue
+        ranked.append((last - first, display, first, last, len(points)))
+    ranked.sort(key=lambda row: (-row[0], row[1]))
+    return [
+        Opportunity(
+            kind="complexity-drift",
+            location=display,
+            subject=f"{points} revisions",
+            measure=f"{first} → {last} ({delta:+d})",
+            note=f"churn {weights.get(display, 1)}",
+        )
+        for delta, display, first, last, points in ranked
+    ]
+
+
+def print_opportunities(sections: list[tuple[str, str, list[Opportunity]]], trend: list[dict], shown: int) -> None:
+    for title, rule, rows in sections:
+        print(f"\n{title}  ({len(rows)})")
+        print(f"  {rule}")
+        if not rows:
+            print("  none")
+            continue
+        for row in rows[:shown]:
+            print(f"  {row.measure:<26} {row.location:<44} {row.subject:<26} {row.note}")
+        if len(rows) > shown:
+            print(f"  ... {len(rows) - shown} more")
+    if not trend:
+        return
+    first, last = trend[0], trend[-1]
+    print(f"\ntrend  {len(trend)} snapshots  {first.get('date')} → {last.get('date')}")
+    print(f"  findings {first.get('findings')} → {last.get('findings')}   score {first.get('score')} → {last.get('score')}")
+    before, after = first.get("flags", {}), last.get("flags", {})
+    for flag in sorted(set(before) | set(after)):
+        if before.get(flag, 0) != after.get(flag, 0):
+            print(f"  {flag:<34} {before.get(flag, 0):>4} → {after.get(flag, 0)}")
+
+
+def report_main(args) -> int:
+    """The readings, plus the trend. Never fails a build: nothing here has a
+    threshold, because every one of them needs somebody to decide."""
+    root = Path.cwd()
+    result = survey(args)
+    counts = dict(Counter(finding.flag for finding in result.findings).most_common())
+    sections = [
+        (
+            "shallow modules",
+            "interface = public methods + their parameters; implementation = statements + branches over one",
+            shallow_modules(result.index, result.weights),
+        ),
+        (
+            "deletion candidates",
+            "declared, never called, in a module nobody imports: dead code or an entry point",
+            deletion_candidates(result.index),
+        ),
+        (
+            "single-implementation abstractions",
+            "interfaces and abstract classes with one implementation or none",
+            single_implementation_abstractions(result.index),
+        ),
+        (
+            "pure blocks worth extracting",
+            "runs of statements that touch no instance state, inside a method that does",
+            pure_block_candidates(result.index),
+        ),
+        (
+            "complexity drift",
+            "the busiest files across their last revisions, in the shallow table's units",
+            complexity_drift(root, result.index, result.weights, args.revisions),
+        ),
+    ]
+    record_path = Path(args.record) if args.record else None
+    if record_path is not None:
+        record_snapshot(record_path, result.score, counts)
+    # Reading is harmless, so an existing trend is shown without --record;
+    # only writing needs to be asked for.
+    trend = read_trend(record_path or Path(DEFAULT_TREND))
+
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "findings": len(result.findings),
+                    "score": result.score,
+                    "counts": counts,
+                    "sections": {title: [asdict(row) for row in rows] for title, _, rows in sections},
+                    "trend": trend,
+                },
+                indent=2,
+            )
+        )
+        return 0
+    print(f"depth report  findings {len(result.findings)}  score {result.score}")
+    print_opportunities(sections, trend, args.top)
+    if not trend:
+        print(f"\n  no trend yet: --record keeps one ({DEFAULT_TREND} by default).")
+    return 0
+
+
+def moves_for(flag: str) -> list[dict[str, str]]:
+    return REPAIRS.get(flag, [])
+
+
+def report_text(findings: list[Finding], score: int, baseline: dict | None, shown: int) -> None:
+    counts = Counter(finding.flag for finding in findings)
+    print(f"depth  findings {len(findings)}  score {score}  (score = sum of per-file churn weights)")
+    if counts:
+        for flag, count in sorted(counts.items()):
+            print(f"  {flag:<34} {count:>3}   fix: {' | '.join(move['move'] for move in moves_for(flag))}")
+    print()
+    if not findings:
+        print("  no findings in scope")
+        return
+    print(f"  {'FLAG':<34} {'SYMBOL':<30} {'LOCATION':<28} MEASURE")
+    print(f"  {'-' * 34} {'-' * 30} {'-' * 28} {'-' * 12}")
+    # Sampled per flag rather than overall. One flag can carry hundreds of
+    # findings — a tree that never centralised its strings produces a
+    # `leaked-literal` for every UI label — and a flat top-N then shows nothing
+    # else, hiding the three-finding flag that is the day's work.
+    per_flag = max(1, shown // max(1, len(counts)))
+    hidden = 0
+    for flag in sorted(counts):
+        rows = [finding for finding in findings if finding.flag == flag]
+        for finding in rows[:per_flag]:
+            print(f"  {finding.flag:<34} {finding.symbol[:30]:<30} {finding.location:<28} {finding.measure}")
+        if len(rows) > per_flag:
+            hidden += len(rows) - per_flag
+            print(f"  {'':<34} ... {len(rows) - per_flag} more {flag}")
+    if hidden:
+        print(f"\n  {hidden} rows hidden: --top sets rows per flag, not rows overall")
+
+    if baseline is None:
+        print("\n  report only: no --baseline, so this run cannot fail. Add one to ratchet.")
+        return
+    known = baseline.get("findings", {})
+    new = [finding for finding in findings if finding.id not in known]
+    paid = [key for key in known if key not in {finding.id for finding in findings}]
+    print(f"\n  ratchet  new {len(new)}  paid {len(paid)}  baseline score {baseline.get('score', 0)}  now {score}")
+    for finding in new:
+        print(f"    NEW  {finding.flag}  {finding.location}  {finding.symbol}")
+    for key in paid:
+        print(f"    PAID {key}")
+    if paid:
+        print("  a paid finding is debt repaid: run --update-baseline to record it.")
+
+
+def explain(flag: str) -> None:
+    moves = moves_for(flag)
+    if not moves:
+        die(f"unknown flag '{flag}'. Known: {', '.join(sorted(REPAIRS))}")
+    print(f"{flag}\n")
+    for index, move in enumerate(moves, start=1):
+        print(f"  {index}. {move['move']}")
+        print(f"     apply when: {move['apply_when']}")
+        print(f"     not when:   {move['not_when']}\n")
+    print("Choosing among these is the whole job. A move that requires new behavior is a design change to report, not to make.")
+
+
+def die(message: str) -> NoReturn:
+    print(message, file=sys.stderr)
+    raise SystemExit(2)
+
+
+def main(argv: list[str] | None = None) -> int:
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    command = "report" if arguments and arguments[0] == "report" else "detect"
+    if command == "report":
+        arguments = arguments[1:]
+    parser = argparse.ArgumentParser(prog="depth", description=__doc__.split("Usage:")[0], formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("paths", nargs="*", help="files or directories (default: ./src, else .)")
+    parser.add_argument("--baseline", default=None, help=f"ratchet file (default when updating: {DEFAULT_BASELINE})")
+    parser.add_argument("--update-baseline", action="store_true", help="write the current findings as the accepted set")
+    parser.add_argument("--changed", action="store_true", help="only findings in files changed against --base")
+    parser.add_argument("--base", default=None, help="git ref to diff against (default: origin/HEAD, main, master)")
+    parser.add_argument("--include-tests", action="store_true", help="score test files too")
+    parser.add_argument("--json", action="store_true", help="machine-readable output")
+    parser.add_argument("--top", type=int, default=40, help="rows to show per flag in the text report")
+    parser.add_argument("--explain", metavar="FLAG", default=None, help="print the repair menu for one flag")
+    parser.add_argument("--revisions", type=int, default=DRIFT_REVISIONS, help=f"revisions to sample for the drift reading (report only, default {DRIFT_REVISIONS})")
+    parser.add_argument(
+        "--record",
+        nargs="?",
+        const=DEFAULT_TREND,
+        default=None,
+        help=f"append a dated snapshot to this file (report only, default {DEFAULT_TREND})",
+    )
+    args = parser.parse_args(arguments)
+
+    if args.explain:
+        explain(args.explain)
+        return 0
+
+    if command == "report":
+        return report_main(args)
+
+    findings, score = collect(args)
+    findings = disambiguate(findings)
+
+    if args.update_baseline:
+        path = Path(args.baseline or DEFAULT_BASELINE)
+        write_baseline(path, findings, score)
+        print(f"depth  accepted {len(findings)} findings into {path}  score {score}")
+        return 0
+
+    baseline = load_baseline(Path(args.baseline)) if args.baseline else None
+
+    if args.json:
+        payload = {
+            "score": score,
+            "count": len(findings),
+            "findings": [
+                {**asdict(finding), "id": finding.id, "location": finding.location, "moves": moves_for(finding.flag)} for finding in findings
+            ],
+        }
+        if baseline is not None:
+            known = baseline.get("findings", {})
+            payload["new"] = [finding.id for finding in findings if finding.id not in known]
+            payload["paid"] = [key for key in known if key not in {finding.id for finding in findings}]
+        print(json.dumps(payload, indent=2))
+    else:
+        report_text(findings, score, baseline, args.top)
+
+    if baseline is None:
+        return 0
+    known = baseline.get("findings", {})
+    if any(finding.id not in known for finding in findings):
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

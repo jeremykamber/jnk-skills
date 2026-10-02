@@ -1,0 +1,58 @@
+{
+  "note": "Gate stack for a Python project (mypy + ruff + pytest + coverage.py). Copy to gates.json at the repository root, then delete gates you do not have.",
+  "gates": [
+    {
+      "name": "types",
+      "run": "mypy --strict src",
+      "why": "the code is well-formed and typed",
+      "timeout": 300
+    },
+    {
+      "name": "lint",
+      "run": "ruff check . && ruff format --check .",
+      "why": "the project's lint and format rules hold",
+      "timeout": 300
+    },
+    {
+      "name": "depth",
+      "run": "depth --baseline .depth-baseline.json",
+      "changed_run": "depth --changed --baseline .depth-baseline.json",
+      "timeout": 300,
+      "advisory": true,
+      "why": "no NEW shallow method, pass-through method, comment that repeats its line, or declaration comment narrating the implementation. Four of Ousterhout's fourteen red flags: the four that are decidable from the source text. The other ten are judgements about meaning, and a metric that guesses at them gets ignored — those belong to jo-7, with a reviewer reading. Findings are ratcheted against .depth-baseline.json, so this gate means 'never worse than the baseline': create that file once with `depth --update-baseline` after reading what it accepted. A missing baseline is an error, not a pass, because a ratchet with nothing to ratchet against is a gate that checked nothing. Advisory until that first triage pass: these are heuristics on prose, and an unread wall of findings is how a real gate gets muted. Arm it by deleting this line once the baseline has been read."
+    },
+    {
+      "name": "unit",
+      "run": "coverage run -m pytest && coverage json -o coverage/coverage-final.json",
+      "why": "the named behaviors hold, and this emits the coverage file the crap gate reads",
+      "timeout": 900
+    },
+    {
+      "name": "crap",
+      "run": "crap --threshold 10",
+      "changed_run": "crap --changed --threshold 10",
+      "why": "no function is both complex and under-tested. Must run after unit.",
+      "timeout": 300
+    },
+    {
+      "name": "dry",
+      "run": "npx jscpd --min-lines 5 --min-tokens 50 --format python src",
+      "why": "no duplicated block above the threshold",
+      "timeout": 300,
+      "advisory": true
+    },
+    {
+      "name": "arch",
+      "run": "lint-imports",
+      "why": "imports follow the layers declared in .importlinter",
+      "timeout": 300
+    },
+    {
+      "name": "mutation",
+      "run": "mutmut run",
+      "why": "the assertions detect changed behavior. UNVERIFIED: unlike the TypeScript mutation gate, this one has not been tested against a fixture with a known-killable and a known-surviving mutant, so treat its score as a report, not a gate, until you have. See the mutation section of templates/stryker.conf.cjs for the two failure modes to test for: a tool that reports every mutant as survived, and a tool that reports a perfect score made of mutants it never measured \u2014 a timeout or an interrupted run is not a survivor.",
+      "timeout": 3600,
+      "advisory": true
+    }
+  ]
+}

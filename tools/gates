@@ -1,0 +1,481 @@
+#!/usr/bin/env python3
+"""Run a project's deterministic gates in order and report pass or fail.
+
+This is the loop primitive. An agent does not need to be told how to write good
+code; it needs a command that says no. `gates` is that command:
+
+    gates                 # run the stack, stop at the first failure
+    gates --keep-going    # run everything, report every failure
+    gates --changed       # scope to changed files where the gate supports it
+    gates crap            # run one gate by name
+    gates --list          # show the stack without running it
+
+Exit status: 0 all passed, 1 a gate failed, 2 the config or a gate's setup is
+broken. Gates marked `"advisory": true` report but never fail the run — use that
+for a metric you are still calibrating.
+
+A gate can also assert on its own output, which is how you catch the worst kind
+of failure: a tool that exits 0 without doing its job, so the gate looks green.
+
+    {
+      "name": "arch",
+      "run": "npx depcruise -c .dependency-cruiser.cjs src",
+      "expect": "\\([1-9][0-9]* modules",
+      "why": "dependencies point where the rules say"
+    }
+
+`expect` is a regex the output MUST contain; `reject` is one it MUST NOT. Use
+`expect` to prove the tool actually did work — dependency-cruiser cruises zero
+modules and exits 0 when it cannot load the TypeScript compiler — and `reject`
+to name a signature that means the run itself is invalid, such as Stryker's
+"Ran 0.00 tests per mutant". `expect` is checked only when the command exits 0;
+`reject` is checked whatever the exit code, so a broken tool is named as a
+broken tool rather than reported as a bad score. Neither works with `--stream`,
+which does not capture output.
+
+Config lives in gates.json at the repository root. Comments are allowed.
+
+    {
+      "gates": [
+        {
+          "name": "types",
+          "run": "npx tsc --noEmit",
+          "why": "the code is well-formed and typed",
+          "timeout": 300
+        },
+        {
+          "name": "crap",
+          "run": "python3 tools/crap --threshold 10",
+          "changed_run": "python3 tools/crap --changed --threshold 10",
+          "why": "no function is both complex and under-tested"
+        }
+      ]
+    }
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import shutil
+import subprocess
+import sys
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+
+DEFAULT_CONFIG = "gates.json"
+DEFAULT_TIMEOUT = 900
+OUTPUT_TAIL_LINES = 40
+
+ADAPTERS = Path(__file__).resolve().parent / "adapters"
+TEMPLATES = Path(__file__).resolve().parent.parent / "templates"
+
+PASS, FAIL, SKIP, ADVISORY = "ok", "FAIL", "skip", "advisory"
+
+MARKERS = {PASS: "  ok ", FAIL: "FAIL ", SKIP: "skip ", ADVISORY: "warn "}
+
+
+@dataclass
+class Gate:
+    name: str
+    run: str
+    changed_run: str | None = None
+    why: str = ""
+    advisory: bool = False
+    timeout: int = DEFAULT_TIMEOUT
+    expect: str | None = None
+    reject: str | None = None
+
+    def command(self, changed: bool) -> str:
+        if changed and self.changed_run:
+            return self.changed_run
+        return self.run
+
+
+@dataclass
+class Result:
+    gate: Gate
+    status: str
+    seconds: float
+    output: str = ""
+    exit_code: int = 0
+    notes: list[str] = field(default_factory=list)
+
+
+def die(message: str) -> None:
+    print(message, file=sys.stderr)
+    raise SystemExit(2)
+
+
+def strip_comments(text: str) -> str:
+    """Remove // line comments that are not inside a string."""
+    out = []
+    for line in text.splitlines():
+        in_string = False
+        escaped = False
+        index = 0
+        while index < len(line):
+            char = line[index]
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = not in_string
+            elif not in_string and char == "/" and line[index : index + 2] == "//":
+                line = line[:index]
+                break
+            index += 1
+        out.append(line)
+    return "\n".join(out)
+
+
+def load_gates(path: Path) -> list[Gate]:
+    if not path.is_file():
+        die(
+            f"no gate config at {path}\n"
+            "Write a stack into this project:\n"
+            "  gates --init                    infers the adapter from the project\n"
+            "  gates --init --adapter python   picks one explicitly\n"
+            "or write gates.json by hand."
+        )
+
+    try:
+        data = json.loads(strip_comments(path.read_text()))
+    except json.JSONDecodeError as exc:
+        die(f"{path} is not valid JSON: {exc}")
+
+    raw_gates = data.get("gates")
+    if not isinstance(raw_gates, list) or not raw_gates:
+        die(f"{path} must contain a non-empty \"gates\" array")
+
+    gates: list[Gate] = []
+    seen: set[str] = set()
+    for index, entry in enumerate(raw_gates):
+        if not isinstance(entry, dict):
+            die(f"{path}: gate {index} is not an object")
+        name = entry.get("name")
+        command = entry.get("run")
+        if not name or not command:
+            die(f'{path}: gate {index} needs both "name" and "run"')
+        if name in seen:
+            die(f'{path}: duplicate gate name "{name}"')
+        seen.add(name)
+        for field_name in ("expect", "reject"):
+            pattern = entry.get(field_name)
+            if pattern is not None:
+                try:
+                    re.compile(pattern)
+                except re.error as exc:
+                    die(f'{path}: gate "{name}" has an invalid {field_name} regex: {exc}')
+        gates.append(
+            Gate(
+                name=name,
+                run=command,
+                changed_run=entry.get("changed_run"),
+                why=entry.get("why", ""),
+                advisory=bool(entry.get("advisory", False)),
+                timeout=int(entry.get("timeout", DEFAULT_TIMEOUT)),
+                expect=entry.get("expect"),
+                reject=entry.get("reject"),
+            )
+        )
+    return gates
+
+
+def tail(text: str, lines: int = OUTPUT_TAIL_LINES) -> str:
+    stripped = text.strip()
+    if not stripped:
+        return ""
+    parts = stripped.splitlines()
+    if len(parts) <= lines:
+        return "\n".join(parts)
+    omitted = len(parts) - lines
+    return f"... {omitted} earlier line(s) omitted\n" + "\n".join(parts[-lines:])
+
+
+def check_output(gate: Gate, output: str, passed: bool) -> str | None:
+    """Return a message when a gate's output contradicts what it claims.
+
+    `expect` proves a command that exited 0 actually did the work. `reject` is
+    checked whatever the exit code, because it names a signature that means the
+    run itself is invalid: Stryker printing "Ran 0.00 tests per mutant" is a
+    broken tool, not a bad score. Saying so is the difference between fixing the
+    tool and rewriting tests that were already correct.
+    """
+    if gate.reject and re.search(gate.reject, output):
+        return (
+            f"the output matched /{gate.reject}/ — this run did not test what it "
+            "claims to; treat it as a broken tool rather than a bad result"
+        )
+    if passed and gate.expect and not re.search(gate.expect, output):
+        return (
+            f"exited 0, but the output did not match /{gate.expect}/ — "
+            "the command did not do the job it claims to do"
+        )
+    return None
+
+
+def run_gate(gate: Gate, root: Path, changed: bool, timeout: int, stream: bool) -> Result:
+    command = gate.command(changed)
+    limit = timeout or gate.timeout
+    started = time.monotonic()
+
+    if stream:
+        print(f"  ... {gate.name}: {command}", flush=True)
+        try:
+            proc = subprocess.run(command, shell=True, cwd=root, timeout=limit)
+        except subprocess.TimeoutExpired:
+            return Result(gate, FAIL, time.monotonic() - started,
+                          f"timed out after {limit}s", 124)
+        skipped = []
+        if gate.expect or gate.reject:
+            skipped.append("output assertions skipped: --stream does not capture output")
+        return Result(gate, PASS if proc.returncode == 0 else FAIL,
+                      time.monotonic() - started, "", proc.returncode, skipped)
+
+    try:
+        proc = subprocess.run(
+            command, shell=True, cwd=root,
+            capture_output=True, text=True, timeout=limit,
+        )
+    except subprocess.TimeoutExpired:
+        return Result(gate, FAIL, time.monotonic() - started,
+                      f"timed out after {limit}s", 124)
+    except OSError as exc:
+        return Result(gate, FAIL, time.monotonic() - started, str(exc), 127)
+
+    combined = (proc.stdout or "") + (proc.stderr or "")
+    status = PASS if proc.returncode == 0 else FAIL
+    notes: list[str] = []
+
+    violation = check_output(gate, combined, status == PASS)
+    if violation:
+        notes.append(violation)
+        combined = f"{violation}\n\n{combined}"
+        if status == PASS:
+            status = FAIL
+
+    if status == FAIL and gate.advisory:
+        status = ADVISORY
+    return Result(gate, status, time.monotonic() - started, combined, proc.returncode, notes)
+
+
+def summarise(results: list[Result]) -> tuple[int, int, int]:
+    failed = sum(1 for r in results if r.status == FAIL)
+    advised = sum(1 for r in results if r.status == ADVISORY)
+    passed = sum(1 for r in results if r.status == PASS)
+    return passed, failed, advised
+
+
+def print_report(results: list[Result], changed: bool) -> None:
+    width = max((len(r.gate.name) for r in results), default=8)
+    print()
+    for result in results:
+        marker = MARKERS[result.status]
+        note = " (advisory)" if result.status == ADVISORY else ""
+        print(
+            f"  {marker} {result.gate.name:<{width}}  "
+            f"{result.seconds:>6.1f}s  {result.gate.command(changed)}{note}"
+        )
+
+    for result in results:
+        for message in result.notes:
+            print(f"  note  {result.gate.name}: {message}")
+
+    for result in results:
+        if result.status in (FAIL, ADVISORY) and result.output.strip():
+            print(f"\n  --- {result.gate.name} (exit {result.exit_code}) ---")
+            for line in tail(result.output).splitlines():
+                print(f"  {line}")
+            print(f"  --- end {result.gate.name} ---")
+
+    passed, failed, advised = summarise(results)
+    summary = f"\n  {passed} passed, {failed} failed"
+    if advised:
+        summary += f", {advised} advisory"
+    print(summary)
+
+
+def adapter_names() -> list[str]:
+    return sorted(p.stem for p in ADAPTERS.glob("*.json"))
+
+
+def read_adapter(name: str) -> dict:
+    if name not in adapter_names():
+        die(
+            f'no adapter named "{name}"\n'
+            f"adapters available: {', '.join(adapter_names())}\n"
+            "usage: gates --init [--adapter NAME] [--force]"
+        )
+    return json.loads((ADAPTERS / f"{name}.json").read_text())
+
+
+def companion_files(config: Path) -> list[str]:
+    """The config files a stack declares it needs, when the stack says so."""
+    try:
+        spec = json.loads(strip_comments(config.read_text()))
+    except (OSError, json.JSONDecodeError):
+        return []
+    entries = spec.get("files", [])
+    return [e["to"] for e in entries if isinstance(e, dict) and "to" in e]
+
+
+def init_stack(root: Path, adapter: str | None, force: bool) -> int:
+    """Write the stack and its companion configs into a project.
+
+    The adapter names its own files and where each one lands. Doing this here,
+    rather than in a doc full of `cp` commands, is the difference between a
+    stack that is correct and one that is nearly correct: `dependency-cruiser.cjs`
+    and `.dependency-cruiser.cjs` differ by one character, and the wrong one
+    makes the arch gate cruise nothing at all. A doc cannot stop you making that
+    mistake; an adapter cannot let you.
+    """
+    name = adapter
+    if name is None:
+        if (root / "package.json").is_file():
+            name = "typescript"
+        else:
+            die(
+                "cannot infer an adapter: there is no package.json here\n"
+                f"adapters available: {', '.join(adapter_names())}\n"
+                "usage: gates --init [--adapter NAME] [--force]"
+            )
+    name = Path(name).stem
+    spec = read_adapter(name)
+
+    targets = [(ADAPTERS / f"{name}.json", root / DEFAULT_CONFIG)]
+    for entry in spec.get("files", []):
+        targets.append((TEMPLATES / entry["from"], root / entry["to"]))
+
+    wrote: list[str] = []
+    kept: list[str] = []
+    for src, dst in targets:
+        if not src.is_file():
+            die(f"{src.name} is named by the adapter but is not in {TEMPLATES}")
+        if dst.exists() and not force:
+            kept.append(dst.name)
+            continue
+        shutil.copyfile(src, dst)
+        wrote.append(dst.name)
+
+    print(f"stack  {name}")
+    for written in wrote:
+        print(f"  wrote  {written}")
+    for existing in kept:
+        print(f"  kept   {existing}   (already exists — --force to overwrite)")
+    if wrote:
+        print("\nnext: edit the lines marked EDIT ME, then run `gates --list`")
+    else:
+        print("\nnothing to do: the stack is already in place")
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        prog="gates",
+        description="Run the project's deterministic gates in order.",
+    )
+    parser.add_argument("gates", nargs="*", help="gate names to run (default: all, in config order)")
+    parser.add_argument("--config", default=DEFAULT_CONFIG, help=f"config path (default: {DEFAULT_CONFIG})")
+    parser.add_argument("--list", action="store_true", help="list the stack and exit")
+    parser.add_argument("--changed", action="store_true", help="use each gate's changed_run when it has one")
+    parser.add_argument("--keep-going", action="store_true", help="run every gate even after a failure")
+    parser.add_argument("--timeout", type=int, default=0, help="override every gate's timeout, in seconds")
+    parser.add_argument("--stream", action="store_true", help="stream gate output instead of capturing it")
+    parser.add_argument("--json", action="store_true", help="machine-readable output")
+    parser.add_argument("--dry-run", action="store_true", help="print the commands without running them")
+    parser.add_argument("--init", action="store_true", help="write the stack and its config files into this project")
+    parser.add_argument("--adapter", help="adapter for --init (default: inferred from the project)")
+    parser.add_argument("--force", action="store_true", help="with --init, overwrite files that already exist")
+    args = parser.parse_args()
+
+    root = Path.cwd()
+
+    if args.init:
+        return init_stack(root, args.adapter, args.force)
+
+    gates = load_gates(root / args.config)
+
+    if args.gates:
+        wanted = set(args.gates)
+        unknown = wanted - {g.name for g in gates}
+        if unknown:
+            die(f"unknown gate(s): {', '.join(sorted(unknown))}\n"
+                f"known: {', '.join(g.name for g in gates)}")
+        gates = [g for g in gates if g.name in wanted]
+
+    if args.list:
+        width = max(len(g.name) for g in gates)
+        print(f"gates  {len(gates)} configured  ({args.config})")
+        print()
+        for gate in gates:
+            tag = " [advisory]" if gate.advisory else ""
+            scoped = " [changed-aware]" if gate.changed_run else ""
+            print(f"  {gate.name:<{width}}  {gate.run}{tag}{scoped}")
+            if gate.why:
+                print(f"  {'':<{width}}  {gate.why}")
+            checks = []
+            if gate.expect:
+                checks.append(f"expect /{gate.expect}/")
+            if gate.reject:
+                checks.append(f"reject /{gate.reject}/")
+            if checks:
+                print(f"  {'':<{width}}  output: {', '.join(checks)}")
+        missing = [f for f in companion_files(root / args.config) if not (root / f).is_file()]
+        if missing:
+            print()
+            print(f"  missing  {', '.join(missing)}")
+            print("           the gates that read these fail until they exist — `gates --init` writes them")
+        return 0
+
+    if args.dry_run:
+        for gate in gates:
+            print(gate.command(args.changed))
+        return 0
+
+    if not args.json:
+        scope = " (changed files)" if args.changed else ""
+        print(f"gates  {len(gates)} configured{scope}")
+
+    results: list[Result] = []
+    for gate in gates:
+        if not args.json and not args.stream:
+            print(f"  ... {gate.name}", flush=True)
+        result = run_gate(gate, root, args.changed, args.timeout, args.stream)
+        results.append(result)
+        if result.status == FAIL and not args.keep_going:
+            remaining = [g for g in gates if g.name not in {r.gate.name for r in results}]
+            results.extend(Result(g, SKIP, 0.0) for g in remaining)
+            break
+
+    if args.json:
+        print(json.dumps(
+            {
+                "changed": args.changed,
+                "results": [
+                    {
+                        "name": r.gate.name,
+                        "status": r.status,
+                        "seconds": round(r.seconds, 2),
+                        "exit_code": r.exit_code,
+                        "command": r.gate.command(args.changed),
+                        "notes": r.notes,
+                        "output": tail(r.output),
+                    }
+                    for r in results
+                ],
+            },
+            indent=2,
+        ))
+    else:
+        print_report(results, args.changed)
+
+    _, failed, _ = summarise(results)
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

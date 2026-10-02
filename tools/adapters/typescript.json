@@ -1,0 +1,74 @@
+{
+  "note": "Gate stack for a TypeScript project (tsc + eslint + vitest). Copy to gates.json at the repository root, then delete gates you do not have. The arch and mutation gates carry output assertions — read their `why` before you change them.",
+  "files": [
+    {
+      "from": "dependency-cruiser.cjs",
+      "to": ".dependency-cruiser.cjs"
+    },
+    {
+      "from": "stryker.conf.cjs",
+      "to": "stryker.conf.cjs"
+    },
+    {
+      "from": "stryker-vitest-runner.mjs",
+      "to": "stryker-vitest-runner.mjs"
+    }
+  ],
+  "gates": [
+    {
+      "name": "types",
+      "run": "npx tsc --noEmit",
+      "why": "the code is well-formed and typed",
+      "timeout": 300
+    },
+    {
+      "name": "lint",
+      "run": "npx eslint .",
+      "why": "the project's lint rules hold",
+      "timeout": 300
+    },
+    {
+      "name": "depth",
+      "run": "depth --baseline .depth-baseline.json",
+      "changed_run": "depth --changed --baseline .depth-baseline.json",
+      "timeout": 300,
+      "advisory": true,
+      "why": "no NEW shallow method, pass-through method, comment that repeats its line, or declaration comment narrating the implementation. Four of Ousterhout's fourteen red flags: the four that are decidable from the source text. The other ten are judgements about meaning, and a metric that guesses at them gets ignored — those belong to jo-7, with a reviewer reading. Findings are ratcheted against .depth-baseline.json, so this gate means 'never worse than the baseline': create that file once with `depth --update-baseline` after reading what it accepted. A missing baseline is an error, not a pass, because a ratchet with nothing to ratchet against is a gate that checked nothing. Advisory until that first triage pass: these are heuristics on prose, and an unread wall of findings is how a real gate gets muted. Arm it by deleting this line once the baseline has been read."
+    },
+    {
+      "name": "unit",
+      "run": "npx vitest run --coverage --coverage.reporter=json --coverage.reportsDirectory=coverage",
+      "why": "the named behaviors hold, and this emits the coverage file the crap gate reads",
+      "timeout": 900
+    },
+    {
+      "name": "crap",
+      "run": "crap --threshold 10",
+      "changed_run": "crap --changed --threshold 10",
+      "why": "no function is both complex and under-tested. Must run after unit.",
+      "timeout": 300
+    },
+    {
+      "name": "dry",
+      "run": "npx jscpd --min-lines 5 --min-tokens 50 --format typescript,javascript src",
+      "why": "no duplicated block above the threshold",
+      "timeout": 300,
+      "advisory": true
+    },
+    {
+      "name": "arch",
+      "run": "npx depcruise -c .dependency-cruiser.cjs src",
+      "expect": "[1-9][0-9]* modules",
+      "why": "dependencies point where the architecture rules say they point. The `expect` is load-bearing: dependency-cruiser cannot load the TypeScript compiler on TypeScript 7, so it cruises zero modules, prints 'no dependency violations found' and exits 0. Without the assertion that silent pass is a green gate that checked nothing.",
+      "timeout": 300
+    },
+    {
+      "name": "mutation",
+      "run": "npx stryker run stryker.conf.cjs",
+      "changed_run": "npx stryker run stryker.conf.cjs --incremental",
+      "reject": "Ran (0\\.00|NaN) tests per mutant",
+      "why": "the assertions detect changed behavior. Slow — run it deliberately, and scope it: `--mutate <paths>` (a tree, a file, or a line range like `src/core/plan/direction.ts:120-180`) is what bounds a run, and `--incremental` is what makes the next one cheap — pass both. `--incremental` alone is a cache, not a scope: Stryker documents it as \"store results in a file and use that file to speed up the next run\", so a cold cache with no `--mutate` is the whole sweep, hours of it. Let the gate's own timeout do the timing: a run cut short by a shorter deadline reports nothing and reads exactly like a pass. Two ways this gate lies, both documented in templates/stryker.conf.cjs: Stryker's vitest integration reports every mutant as survived (the `reject` pattern names it) — templates/stryker-vitest-runner.mjs is the fix for that, `templates/stryker.conf.cjs` ships it, and it is what makes `coverageAnalysis: \"perTest\"` usable \u2014 measured at 3m39s -> 22-40s on a real 1196-file project through `mutate-changed`, same verdicts, with checks/test_mutation.sh pinning the shipped template and both runners against a fixture whose one undetectable mutant must survive. `gates --init` writes the plugin next to the config; the project still needs `npm i -D @stryker-mutator/vitest-runner` — and a command runner left at its default concurrency times every mutant out and reports a 100% score made of nothing but timeouts. The `concurrency` and `timeoutMS` settings in the template are what stop the second.",
+      "timeout": 3600
+    }
+  ]
+}

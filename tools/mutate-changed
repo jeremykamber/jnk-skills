@@ -1,0 +1,435 @@
+#!/usr/bin/env python3
+"""mutate-changed — run Stryker on what changed, not on the whole tree.
+
+    mutate-changed                    mutate the files changed against the base
+    mutate-changed --full             the deliberate audit: everything, no cache
+    mutate-changed --files src/a.ts   mutate exactly these
+    mutate-changed --dry-run          print the plan, run nothing
+    mutate-changed --json             the plan and the result as JSON
+
+Why this exists: the mutation gate is the slowest one in the stack, and the
+obvious way to run it — the whole tree, every time — is the one that makes
+people stop running it. Almost every mutant is in code the change did not
+touch, and almost every mutant needs a handful of test files rather than the
+suite. Scope both and a run that took minutes takes seconds.
+
+Measured on a fixture with one unrelated suite that takes 1.6s: 15.5s for the
+whole tree and the whole suite, 3.4s for one mutated file and its one test
+file, same result (11 killed, 1 survived). On a real 54-file suite, one test
+file instead of all of them took the per-mutant dry run from seconds to 807ms.
+
+Four things this does that are easy to get wrong by hand:
+
+1. **Which tests cover the change.** Not a filename guess: `vitest related`
+   asks vitest's own module graph which test files import the changed files,
+   transitively. A guess of `foo.ts -> foo.test.ts` misses the test that
+   exercises it through another module, and a missing test file reads as a
+   survivor, which reads as "write an assertion for this" — for a mutant the
+   suite already kills.
+
+2. **The cache key.** Stryker's incremental report is keyed on the mutant, not
+   on what ran: a survivor is reused when no test was added. With
+   `testRunner: "command"` and `coverageAnalysis: "off"` the report holds one
+   pseudo-test, `All tests`, so a scoped run and a whole-suite run look
+   identical to it — and the scoped run's survivors are exactly the mutants the
+   whole suite would kill. This gives every scope its own incremental file, so
+   two scopes can never read each other's survivors.
+
+3. **Concurrency against the suite you actually run.** Stryker's command runner
+   starts one process per core and each of those starts the test command. With
+   the whole suite that is the timeout trap the stryker config documents, so
+   the config's default stays low. With one test file a mutant is well under a
+   second, and the cores are safe to use.
+
+4. **A tree left instrumented by an aborted run.** `inPlace: true` mutates your
+   files and restores them on the way out — but not if the process is killed,
+   times out, or exits through an error path. The next run then fails its dry
+   run with "There were failed tests in the initial test run", which reads as a
+   broken test suite. This refuses to start on such a tree and says how to put
+   it back.
+
+Exit codes: 0 Stryker passed, 1 Stryker failed or the mutation score broke its
+threshold, 2 a setup problem (no Stryker config, no changed files, a tree that
+needs restoring). `--dry-run` exits 0 unless it found a setup problem.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+EXIT_OK = 0
+EXIT_GATE_FAILED = 1
+EXIT_SETUP = 2
+
+# A file whose name says it is a test is not a mutation target, whatever the
+# project's layout: `--mutate` on the command line replaces the config's list,
+# so the config's own exclusions do not apply to what this tool passes.
+TEST_FILE = re.compile(r"(^|/)(__tests__|tests?)/|\.(test|spec)\.[cm]?[jt]sx?$")
+
+# Stryker's inPlace instrumentation. Its presence in a source file means an
+# earlier run did not get to restore it.
+INSTRUMENTED = re.compile(r"stryNS_|__STRYKER_ACTIVE_MUTANT__")
+
+
+def run(cmd: list[str], cwd: Path, **kw) -> subprocess.CompletedProcess:
+    return subprocess.run(cmd, cwd=cwd, text=True, **kw)
+
+
+def git_lines(root: Path, *args: str) -> list[str]:
+    proc = run(["git", *args], root, capture_output=True)
+    if proc.returncode != 0:
+        return []
+    return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+
+
+def default_base(root: Path) -> str:
+    for candidate in ("origin/HEAD", "main", "master"):
+        if run(["git", "rev-parse", "--verify", "--quiet", candidate], root,
+               capture_output=True).returncode == 0:
+            return candidate
+    return "HEAD"
+
+
+def changed_files(root: Path, base: str, paths: list[str]) -> list[str]:
+    """Production files changed against `base`, committed or not."""
+    tracked = git_lines(root, "diff", "--name-only", "--diff-filter=ACMR", base, "--", *paths)
+    untracked = git_lines(root, "ls-files", "--others", "--exclude-standard", "--", *paths)
+    seen: dict[str, None] = {}
+    for name in tracked + untracked:
+        if TEST_FILE.search(name):
+            continue
+        if name.endswith(".d.ts"):
+            continue
+        if (root / name).is_file():
+            seen[name] = None
+    return sorted(seen)
+
+
+def glob_match(pattern: str, path: str) -> bool:
+    """Stryker's glob semantics: `**` crosses directories, `*` and `?` do not."""
+    out: list[str] = []
+    i = 0
+    while i < len(pattern):
+        char = pattern[i]
+        if char == "*":
+            if pattern[i : i + 3] == "**/":
+                out.append("(?:[^/]+/)*")
+                i += 3
+                continue
+            if pattern[i : i + 2] == "**":
+                out.append(".*")
+                i += 2
+                continue
+            out.append("[^/]*")
+            i += 1
+            continue
+        if char == "?":
+            out.append("[^/]")
+            i += 1
+            continue
+        if char in "[{":
+            close = "]" if char == "[" else "}"
+            end = pattern.find(close, i)
+            if end == -1:
+                out.append(re.escape(char))
+                i += 1
+                continue
+            inner = pattern[i + 1 : end]
+            if char == "[":
+                out.append(f"[{inner}]")
+            else:
+                out.append("(?:" + "|".join(re.escape(a) for a in inner.split(",")) + ")")
+            i = end + 1
+            continue
+        out.append(re.escape(char))
+        i += 1
+    return re.fullmatch("".join(out), path) is not None
+
+
+def config_mutate(root: Path, config: Path) -> list[str] | None:
+    """The config's own `mutate` patterns, asked of node rather than guessed.
+
+    They matter because `--mutate` on the command line REPLACES them: a scoped
+    run that ignores them mutates files the project deliberately excluded (DOM
+    glue with no unit test, a renderer proven by a real render), and the
+    survivors that produces are ones nobody can kill.
+    """
+    if shutil.which("node") is None:
+        return None
+    script = (
+        "const c=require(process.argv[1]);"
+        "const m=c&&c.mutate;"
+        "process.stdout.write(JSON.stringify(Array.isArray(m)?m:null));"
+    )
+    proc = run(["node", "-e", script, str(config.resolve())], root, capture_output=True)
+    if proc.returncode != 0 or not proc.stdout.strip():
+        return None
+    try:
+        value = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        return None
+    return value if isinstance(value, list) and value else None
+
+
+def apply_mutate_scope(files: list[str], patterns: list[str]) -> tuple[list[str], list[str]]:
+    """Filter by the config's patterns, in order, later pattern wins (as Stryker does)."""
+    kept, dropped = [], []
+    for name in files:
+        selected = False
+        for pattern in patterns:
+            negated = pattern.startswith("!")
+            if glob_match(pattern.lstrip("!"), name):
+                selected = not negated
+        (kept if selected else dropped).append(name)
+    return kept, dropped
+
+
+def instrumented_files(root: Path, files: list[str]) -> list[str]:
+    """Files still carrying Stryker's in-place instrumentation."""
+    leaked = []
+    for name in files:
+        try:
+            head = (root / name).read_text(errors="ignore")[:4000]
+        except OSError:
+            continue
+        if INSTRUMENTED.search(head):
+            leaked.append(name)
+    return leaked
+
+
+def related_tests(root: Path, files: list[str]) -> tuple[list[str] | None, str]:
+    """The test files that import `files`, from vitest's own module graph.
+
+    Returns (tests, note). `None` means the question could not be answered —
+    vitest is not the runner here, or it refused — and the caller must fall back
+    to the whole suite rather than to a guess.
+    """
+    if shutil.which("npx") is None:
+        return None, "npx is not on PATH; running the whole suite"
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / "related.json"
+        proc = run(
+            ["npx", "vitest", "related", *files, "--run", "--reporter=json",
+             f"--outputFile={out}"],
+            root, capture_output=True,
+        )
+        if not out.is_file():
+            return None, "vitest related produced no report; running the whole suite"
+        try:
+            report = json.loads(out.read_text())
+        except json.JSONDecodeError:
+            return None, "vitest related produced unreadable JSON; running the whole suite"
+        tests = []
+        for entry in report.get("testResults", []):
+            name = entry.get("name")
+            if not name:
+                continue
+            try:
+                tests.append(os.path.relpath(name, root))
+            except ValueError:
+                tests.append(name)
+        if not tests:
+            return [], (
+                "no test imports these files, so nothing can kill a mutant in "
+                "them; the whole suite runs so the gate stays honest"
+            )
+        if proc.returncode not in (0, 1):
+            return tests, f"vitest related exited {proc.returncode}; using what it reported"
+        return sorted(tests), f"{len(tests)} test file(s) import the changed files"
+
+
+def config_fingerprint(path: Path) -> str:
+    """What the config says, so a changed runner cannot reuse the old verdicts.
+
+    The key used to hold the config's *path*, which meant editing
+    `stryker.conf.cjs` — switching `testRunner`, turning `coverageAnalysis` on,
+    moving a threshold, changing `mutate` — left the incremental report in place
+    and Stryker reused a mutant's verdict from a different configuration. Two
+    runners do not always agree on the same mutant (per-test analysis labels an
+    uncovered mutant NoCoverage where a whole-suite run calls it Survived), so
+    that reuse is a wrong answer, not a slow one.
+
+    Comments and whitespace are stripped first, so documenting the config does
+    not cost a re-run. Other formatting does — a trailing comma is a new
+    fingerprint, which costs a run rather than a wrong answer.
+    """
+    try:
+        text = path.read_text()
+    except OSError:
+        return "unreadable"
+    text = re.sub(r"/\*.*?\*/", " ", text, flags=re.S)
+    text = re.sub(r"(?m)^\s*//.*$", " ", text)
+    return hashlib.sha1(re.sub(r"\s+", " ", text).strip().encode()).hexdigest()[:12]
+
+
+def scope_key(files: list[str], tests: list[str] | None, command: str, config: str = "") -> str:
+    """A cache key for this exact scope: the mutants and what runs against them."""
+    material = "\n".join(
+        [*files, "---", *(tests or ["<whole suite>"]), "---", command, "---", config]
+    )
+    return hashlib.sha1(material.encode()).hexdigest()[:12]
+
+
+def concurrency_for(tests: list[str] | None) -> int | None:
+    """Cores minus one when a mutant runs one test file, else None (config default).
+
+    One test file is well under a second per mutant, so the cores are safe. The
+    whole suite is not: that is the configuration that times every mutant out
+    and reports 100% made of timeouts.
+    """
+    if not tests:
+        return None
+    cores = os.cpu_count() or 2
+    return max(1, min(cores - 1, 8))
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        prog="mutate-changed",
+        description="Run Stryker on the files that changed, with the tests that cover them.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("paths", nargs="*", help="roots to look for changes under (default: ./src, else .)")
+    parser.add_argument("--base", help="git ref to diff against (default: origin/HEAD, main, master)")
+    parser.add_argument("--files", nargs="+", help="mutate exactly these files, ignoring git")
+    parser.add_argument("--config", default="stryker.conf.cjs", help="Stryker config file")
+    parser.add_argument("--full", action="store_true",
+                        help="the deliberate audit: the whole tree, the whole suite, no cache")
+    parser.add_argument("--whole-suite", action="store_true",
+                        help="scope the mutants but run the whole suite (no test-file scoping)")
+    parser.add_argument("--concurrency", type=int, help="Stryker workers (default: sized to the scope)")
+    parser.add_argument("--dry-run", action="store_true", help="print the plan and exit")
+    parser.add_argument("--json", action="store_true", help="machine-readable plan and result")
+    parser.add_argument("--timeout", type=int, default=0, help="seconds before giving up (0: none)")
+    args = parser.parse_args()
+
+    root = Path.cwd()
+    paths = args.paths or (["src"] if (root / "src").is_dir() else ["."])
+
+    config = root / args.config
+    if not config.is_file():
+        print(f"mutate-changed: no {args.config} here — run `gates --init` or pass --config",
+              file=sys.stderr)
+        return EXIT_SETUP
+
+    base = args.base or default_base(root)
+    files = sorted(args.files) if args.files else ([] if args.full else changed_files(root, base, paths))
+
+    if not args.full and not files:
+        note = f"nothing changed against {base} under {' '.join(paths)}"
+        print(json.dumps({"skipped": note}) if args.json else f"mutate-changed: {note}")
+        return EXIT_OK
+
+    # `--mutate` on the command line replaces the config's list, so the config's
+    # exclusions have to be applied here or a scoped run mutates what the
+    # project chose not to.
+    excluded: list[str] = []
+    patterns = None if args.full else config_mutate(root, config)
+    if patterns:
+        files, excluded = apply_mutate_scope(files, patterns)
+    if excluded:
+        print(f"mutate-changed: {len(excluded)} changed file(s) are excluded by {args.config}, "
+              f"not mutating: {', '.join(excluded[:4])}"
+              + (" …" if len(excluded) > 4 else ""), file=sys.stderr)
+    if not args.full and not files:
+        note = "every changed file is excluded by the Stryker config"
+        print(json.dumps({"skipped": note}) if args.json else f"mutate-changed: {note}")
+        return EXIT_OK
+
+    leaked = instrumented_files(root, files)
+    if leaked:
+        print(
+            "mutate-changed: these files still carry Stryker's in-place instrumentation,\n"
+            "which means an earlier run did not restore them:\n"
+            + "".join(f"  {name}\n" for name in leaked)
+            + "Restore them before running (the mutations are not in your history):\n"
+            f"  git checkout -- {' '.join(leaked)}\n"
+            "An instrumented tree also fails Stryker's dry run, which reads as a broken\n"
+            "test suite rather than as a leftover.",
+            file=sys.stderr,
+        )
+        return EXIT_SETUP
+
+    tests: list[str] | None = None
+    note = "the whole suite runs per mutant"
+    if not args.full and not args.whole_suite:
+        tests, note = related_tests(root, files)
+
+    scope = scope_key(
+        files,
+        tests,
+        f"{args.config} {' '.join(paths)}",
+        config_fingerprint(root / args.config),
+    )
+    incremental = root / "reports" / f"stryker-incremental-{scope}.json"
+    concurrency = args.concurrency if args.concurrency is not None else concurrency_for(tests)
+
+    cmd = ["npx", "stryker", "run", args.config]
+    if args.full:
+        note = "the full audit: every mutant, the whole suite, no cache"
+    else:
+        cmd += ["--mutate", ",".join(files), "--incremental", f"--incrementalFile={incremental}"]
+        if concurrency:
+            cmd += ["--concurrency", str(concurrency)]
+
+    env = dict(os.environ)
+    if tests:
+        env["MUTATE_TESTS"] = " ".join(tests)
+
+    plan = {
+        "base": base,
+        "files": files,
+        "excluded": excluded,
+        "tests": tests if tests is not None else "the whole suite",
+        "concurrency": concurrency if concurrency is not None else "the config's default",
+        "incrementalFile": None if args.full else str(incremental.relative_to(root)),
+        "command": " ".join(cmd),
+        "note": note,
+    }
+
+    if args.json and not args.dry_run:
+        print(json.dumps({"plan": plan}, indent=2), file=sys.stderr)
+
+    if not args.json:
+        print(f"mutate-changed  {note}")
+        if not args.full:
+            print(f"  mutants   {len(files)} file(s): {', '.join(files[:6])}"
+                  + (f" … and {len(files) - 6} more" if len(files) > 6 else ""))
+            if excluded:
+                print(f"  excluded  {len(excluded)} file(s) the config's mutate list leaves out")
+            print(f"  tests     {plan['tests'] if tests is not None else 'the whole suite'}")
+            print(f"  workers   {plan['concurrency']}")
+            print(f"  cache     {plan['incrementalFile']}")
+        print(f"  command   {' '.join(cmd)}")
+        print()
+
+    if args.dry_run:
+        if args.json:
+            print(json.dumps(plan, indent=2))
+        return EXIT_OK
+
+    try:
+        proc = subprocess.run(cmd, cwd=root, env=env, timeout=args.timeout or None)
+    except subprocess.TimeoutExpired:
+        print(f"mutate-changed: gave up after {args.timeout}s", file=sys.stderr)
+        return EXIT_SETUP
+    except FileNotFoundError:
+        print("mutate-changed: npx is not on PATH", file=sys.stderr)
+        return EXIT_SETUP
+
+    if args.json:
+        print(json.dumps({"plan": plan, "exit": proc.returncode}))
+    return proc.returncode
+
+
+if __name__ == "__main__":
+    sys.exit(main())

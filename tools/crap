@@ -1,0 +1,345 @@
+#!/usr/bin/env python3
+"""CRAP (Change Risk Anti-Patterns).
+
+    CRAP(m) = comp(m)^2 * (1 - cov(m))^3 + comp(m)
+
+`comp` is McCabe cyclomatic complexity, read from lizard (30+ languages). `cov`
+is the statement coverage of the function's line range, read from either an
+istanbul `coverage-final.json` (vitest, jest, c8) or coverage.py's `coverage
+json` output. The format is detected from the file's shape.
+
+Why this metric: a function that is complex and untested is the expensive place
+to change. At 0% coverage the score is comp^2 + comp, so risk grows
+quadratically with complexity. At 100% coverage it collapses to comp. The cube
+on the uncovered fraction makes coverage the dominant lever.
+
+Exit status is 1 when any reported function exceeds --threshold, 0 otherwise,
+so this can be a gate in a loop the agent runs until green.
+
+Usage:
+    crap                       # analyse ./src against ./coverage/coverage-final.json
+    crap src lib               # specific paths
+    crap --changed             # only functions in files changed vs --base
+    crap --threshold 6         # tighter gate
+    crap --json                # machine-readable
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+import os
+import re
+import subprocess
+import sys
+from dataclasses import asdict, dataclass
+from pathlib import Path
+
+SOURCE_EXT = {".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"}
+DEFAULT_COVERAGE = "coverage/coverage-final.json"
+DEFAULT_THRESHOLD = 10.0
+BASE_CANDIDATES = ("origin/HEAD", "origin/main", "origin/master", "main", "master")
+
+# Test files and build output are not production code. Scoring them buries the
+# functions that matter under a page of noise, so they are filtered out of the
+# analysis rather than reported.
+BUILD_DIRS = re.compile(r"(^|/)(node_modules|dist|build|\.next|\.svelte-kit|coverage|out)(/|$)")
+TEST_FILES = re.compile(r"(^|/)(__tests__|__mocks__|test|tests|e2e|spec)(/|$)|\.(test|spec)\.[cm]?[jt]sx?$")
+
+
+def is_default_excluded(path: str, include_tests: bool) -> bool:
+    if BUILD_DIRS.search(path):
+        return True
+    return (not include_tests) and bool(TEST_FILES.search(path))
+
+
+@dataclass
+class Function:
+    name: str
+    file: str  # path as given to lizard, for display
+    abspath: str
+    start: int
+    end: int
+    ccn: int
+    nloc: int
+    statements: int
+    covered: int
+    coverage: float
+    crap: float
+    low_confidence: bool
+
+    @property
+    def location(self) -> str:
+        return f"{self.file}:{self.start}"
+
+
+def crap_score(ccn: int, coverage: float) -> float:
+    """The metric. coverage is a fraction in [0, 1]."""
+    uncovered = 1.0 - coverage
+    return ccn * ccn * (uncovered ** 3) + ccn
+
+
+def run_lizard(paths: list[str], language: str | None, exclude: list[str]) -> list[dict]:
+    """Run lizard in CSV mode and return its rows as dicts.
+
+    Lizard's CSV columns are:
+        nloc, ccn, tokens, param, length, location, file, name, long_name,
+        start_line, end_line
+    """
+    cmd = [sys.executable, "-m", "lizard", "--csv", *paths]
+    if language:
+        cmd += ["--language", language]
+    for pattern in exclude:
+        cmd += ["--exclude", pattern]
+
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+    except FileNotFoundError:
+        die("lizard is not installed. Run: python3 -m pip install --user lizard")
+
+    if proc.returncode != 0 and not proc.stdout.strip():
+        die(f"lizard failed:\n{proc.stderr.strip()}")
+
+    rows = []
+    for row in csv.reader(proc.stdout.splitlines()):
+        if len(row) < 11:
+            continue
+        try:
+            rows.append(
+                {
+                    "nloc": int(row[0]),
+                    "ccn": int(row[1]),
+                    "file": row[6],
+                    "name": row[7],
+                    "start": int(row[9]),
+                    "end": int(row[10]),
+                }
+            )
+        except ValueError:
+            continue  # lizard's summary line, or a malformed row
+    return rows
+
+
+def load_istanbul(raw: dict) -> dict[str, list[tuple[int, int]]]:
+    """istanbul / c8 `coverage-final.json`, as vitest and jest emit it."""
+    coverage: dict[str, list[tuple[int, int]]] = {}
+    for key, entry in raw.items():
+        statements = entry.get("statementMap") or {}
+        hits = entry.get("s") or {}
+        points = []
+        for sid, span in statements.items():
+            line = (span.get("start") or {}).get("line")
+            if line is None:
+                continue
+            points.append((int(line), int(hits.get(sid, 0))))
+        coverage[os.path.realpath(entry.get("path") or key)] = points
+    return coverage
+
+
+def load_coverage_py(raw: dict) -> dict[str, list[tuple[int, int]]]:
+    """coverage.py `coverage json` output."""
+    coverage: dict[str, list[tuple[int, int]]] = {}
+    for key, entry in (raw.get("files") or {}).items():
+        points = [(int(line), 1) for line in entry.get("executed_lines") or []]
+        points += [(int(line), 0) for line in entry.get("missing_lines") or []]
+        coverage[os.path.realpath(key)] = points
+    return coverage
+
+
+def load_coverage(path: Path) -> dict[str, list[tuple[int, int]]]:
+    """Read a coverage report.
+
+    Returns {realpath: [(line, hit_count), ...]}. Only the line is kept; CRAP
+    needs a per-function fraction, not a per-statement report.
+
+    Two formats are understood, chosen by shape:
+      - istanbul / c8 `coverage-final.json` (vitest, jest, c8)
+      - coverage.py `coverage json` (Python)
+    """
+    if not path.is_file():
+        die(
+            f"no coverage file at {path}\n"
+            "Generate one first, for example:\n"
+            "  npx vitest run --coverage --coverage.reporter=json "
+            "--coverage.reportsDirectory=coverage\n"
+            "  coverage json -o coverage/coverage-final.json"
+        )
+
+    try:
+        raw = json.loads(path.read_text())
+    except json.JSONDecodeError as exc:
+        die(f"{path} is not valid JSON: {exc}")
+
+    if not isinstance(raw, dict):
+        die(f"{path} must contain a JSON object")
+
+    if isinstance(raw.get("files"), dict):
+        return load_coverage_py(raw)
+    return load_istanbul(raw)
+
+
+def coverage_for(start: int, end: int, points: list[tuple[int, int]]) -> tuple[int, int]:
+    """Statement counts inside [start, end]. Returns (covered, total)."""
+    inside = [hits for line, hits in points if start <= line <= end]
+    return sum(1 for hits in inside if hits > 0), len(inside)
+
+
+def git_changed(base: str | None, cwd: Path) -> set[str]:
+    """Absolute paths of files changed against base, plus untracked files."""
+    ref = base
+    if not ref:
+        for candidate in BASE_CANDIDATES:
+            probe = subprocess.run(
+                ["git", "rev-parse", "--verify", "--quiet", candidate],
+                capture_output=True,
+                text=True,
+                cwd=cwd,
+            )
+            if probe.returncode == 0:
+                ref = candidate
+                break
+    if not ref:
+        die("--changed was requested but no base ref could be resolved. Pass --base <ref>.")
+
+    changed: set[str] = set()
+    commands = [
+        ["git", "diff", "--name-only", "--diff-filter=ACMR", ref],
+        ["git", "ls-files", "--others", "--exclude-standard"],
+    ]
+    for cmd in commands:
+        proc = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
+        if proc.returncode != 0:
+            die(f"{' '.join(cmd)} failed:\n{proc.stderr.strip()}")
+        for line in proc.stdout.splitlines():
+            line = line.strip()
+            if line:
+                changed.add(os.path.realpath(cwd / line))
+    return changed
+
+
+def collect(args) -> list[Function]:
+    cwd = Path.cwd()
+    paths = args.paths or (["src"] if Path("src").is_dir() else ["."])
+    rows = run_lizard(paths, args.language, args.exclude)
+    rows = [row for row in rows if not is_default_excluded(row["file"], args.include_tests)]
+    coverage = load_coverage(Path(args.coverage))
+
+    changed = git_changed(args.base, cwd) if args.changed else None
+
+    functions: list[Function] = []
+    for row in rows:
+        abspath = os.path.realpath(cwd / row["file"])
+        if changed is not None and abspath not in changed:
+            continue
+
+        points = coverage.get(abspath)
+        if points is None:
+            covered = total = 0
+        else:
+            covered, total = coverage_for(row["start"], row["end"], points)
+
+        # No statements mapped inside the range means the coverage file and the
+        # source disagree (or the function has no statements). Do not invent a
+        # penalty for it; flag it instead.
+        low_confidence = total == 0
+        fraction = 1.0 if low_confidence else covered / total
+
+        functions.append(
+            Function(
+                name=row["name"],
+                file=row["file"],
+                abspath=abspath,
+                start=row["start"],
+                end=row["end"],
+                ccn=row["ccn"],
+                nloc=row["nloc"],
+                statements=total,
+                covered=covered,
+                coverage=fraction,
+                crap=round(crap_score(row["ccn"], fraction), 2),
+                low_confidence=low_confidence,
+            )
+        )
+
+    functions.sort(key=lambda f: f.crap, reverse=True)
+    return functions
+
+
+def report_text(functions: list[Function], threshold: float, top: int) -> None:
+    shown = functions[:top]
+    over = [f for f in functions if f.crap > threshold]
+
+    print(f"CRAP  threshold {threshold:g}  functions {len(functions)}  over {len(over)}")
+    print()
+    if not shown:
+        print("  no functions in scope")
+        return
+
+    print(f"  {'CRAP':>6}  {'CCN':>3}  {'COV%':>6}  {'STMTS':>5}  {'FUNCTION':<28}  LOCATION")
+    print(f"  {'-' * 6}  {'-' * 3}  {'-' * 6}  {'-' * 5}  {'-' * 28}  {'-' * 30}")
+    for f in shown:
+        flags = ("!" if f.crap > threshold else "") + ("?" if f.low_confidence else "")
+        print(
+            f"  {f.crap:>6.1f}  {f.ccn:>3}  {f.coverage * 100:>5.0f}%  {f.statements:>5}  "
+            f"{f.name[:28]:<28}  {f.location}{('  ' + flags) if flags else ''}"
+        )
+
+    if len(functions) > len(shown):
+        print(f"\n  ... {len(functions) - len(shown)} more (use --top to widen)")
+    print("\n  ! = over the threshold")
+    if any(f.low_confidence for f in shown):
+        print("  ? = no statements mapped into the function's line range; coverage "
+              "treated as 100%. Check the coverage file covers this source.")
+
+
+def die(message: str) -> None:
+    print(message, file=sys.stderr)
+    raise SystemExit(2)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        prog="crap",
+        description="CRAP metric (complexity x coverage) for TypeScript and JavaScript.",
+    )
+    parser.add_argument("paths", nargs="*", help="files or directories (default: ./src, else .)")
+    parser.add_argument("--coverage", default=DEFAULT_COVERAGE, help=f"istanbul JSON (default: {DEFAULT_COVERAGE})")
+    parser.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD, help=f"gate (default: {DEFAULT_THRESHOLD:g})")
+    parser.add_argument("--top", type=int, default=20, help="rows to print (default: 20)")
+    parser.add_argument("--changed", action="store_true", help="only files changed against --base")
+    parser.add_argument("--base", default=None, help="git ref for --changed")
+    parser.add_argument("--language", default=None, help="force a lizard language (default: detect per file)")
+    parser.add_argument("--exclude", action="append", default=[], help="lizard exclude glob, repeatable")
+    parser.add_argument("--include-tests", action="store_true",
+                        help="also score test files (excluded by default)")
+    parser.add_argument("--json", action="store_true", help="machine-readable output")
+    args = parser.parse_args()
+
+    functions = collect(args)
+    over = [f for f in functions if f.crap > args.threshold]
+
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "threshold": args.threshold,
+                    "count": len(functions),
+                    "over": len(over),
+                    "functions": [asdict(f) for f in functions],
+                },
+                indent=2,
+            )
+        )
+    else:
+        report_text(functions, args.threshold, args.top)
+        if over:
+            print(f"\n  {len(over)} function(s) over {args.threshold:g}: "
+                  f"{', '.join(f.name for f in over[:8])}"
+                  f"{' ...' if len(over) > 8 else ''}")
+
+    return 1 if over else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
