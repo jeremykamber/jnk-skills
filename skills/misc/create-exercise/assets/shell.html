@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<style>
+  :root {
+    --bg: #fbfbfa; --fg: #16181d; --muted: #5c6270; --line: #d8dbe2;
+    --card: #fff; --accent: #1b4dff; --ok: #0a6b3d; --ok-bg: #e8f5ee;
+    --no: #a3231d; --no-bg: #fdecea; --warn-bg: #fff8e5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14161a; --fg:#eef0f4; --muted:#9aa1ad; --line:#2c3038;
+            --card:#1b1e24; --accent:#7d9bff; --ok:#7ddba8; --ok-bg:#12301f;
+            --no:#ff9a92; --no-bg:#3a1a17; --warn-bg:#332c12; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); }
+  body {
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    max-width: 46rem; margin: 0 auto; padding: 1.25rem 1.25rem 4rem;
+  }
+  header { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: baseline; justify-content: space-between; }
+  h1 { font-size: 1.25rem; margin: 0; }
+  .obj { color: var(--muted); font-size: .9rem; margin: .35rem 0 1rem; }
+  .bar { height: .35rem; background: var(--line); border-radius: 999px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s ease; }
+  .meta { display: flex; justify-content: space-between; color: var(--muted); font-size: .8rem; margin: .4rem 0 1.5rem; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: .75rem; padding: 1.1rem 1.15rem; }
+  .prompt { font-size: 1.1rem; font-weight: 600; margin: 0 0 .2rem; }
+  .why { color: var(--muted); font-size: .85rem; margin: 0 0 1rem; }
+  button { font: inherit; color: inherit; background: var(--card); border: 1px solid var(--line);
+           border-radius: .5rem; padding: .6rem .8rem; text-align: left; cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  button:disabled { cursor: default; opacity: .85; }
+  .opts { display: grid; gap: .5rem; }
+  .opts[data-multi] button::before { content: "☐ "; }
+  .opts[data-multi] button[aria-pressed="true"]::before { content: "☑ "; }
+  .opts button[aria-pressed="true"] { border-color: var(--accent); }
+  .row { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .9rem; }
+  input[type=text], textarea { font: inherit; color: inherit; background: var(--bg);
+    border: 1px solid var(--line); border-radius: .5rem; padding: .55rem .7rem; width: 100%; }
+  textarea { min-height: 4.5rem; resize: vertical; }
+  .fb { margin-top: 1rem; padding: .8rem .9rem; border-radius: .5rem; border: 1px solid var(--line); }
+  .fb[data-ok="1"] { background: var(--ok-bg); border-color: var(--ok); }
+  .fb[data-ok="0"] { background: var(--no-bg); border-color: var(--no); }
+  .fb[data-ok="info"] { background: var(--warn-bg); border-color: var(--line); }
+  .fb b { display: block; margin-bottom: .25rem; }
+  .fb .ans { color: var(--muted); font-size: .85rem; margin-top: .5rem; }
+  .fb .src { color: var(--muted); font-size: .8rem; margin-top: .5rem; }
+  .bucket { display: grid; gap: .5rem; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); margin-top: .5rem; }
+  .bucket button { text-align: center; }
+  .pool { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .6rem; }
+  .pool button { padding: .4rem .6rem; }
+  .seq { display: grid; gap: .35rem; margin: .6rem 0; }
+  .seq button { display: flex; gap: .6rem; }
+  .seq button > span:first-child { color: var(--muted); min-width: 1.2rem; }
+  .muted { color: var(--muted); font-size: .85rem; }
+  footer { color: var(--muted); font-size: .8rem; margin-top: 2rem; }
+  .summary table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  .summary td, .summary th { text-align: left; padding: .35rem .4rem; border-bottom: 1px solid var(--line); }
+  .skip { margin-top: .9rem; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title"></h1>
+  <span class="muted" id="pass"></span>
+</header>
+<p class="obj" id="objective"></p>
+<div class="bar"><i id="progress"></i></div>
+<div class="meta"><span id="pos"></span><span id="score"></span></div>
+<main id="stage" aria-live="polite"></main>
+<footer id="footer"></footer>
+
+<script type="module">
+/*__ENGINE__*/
+
+const SPEC = /*__SPEC__*/;
+
+const els = {
+  title: document.getElementById('title'),
+  objective: document.getElementById('objective'),
+  pass: document.getElementById('pass'),
+  progress: document.getElementById('progress'),
+  pos: document.getElementById('pos'),
+  score: document.getElementById('score'),
+  stage: document.getElementById('stage'),
+  footer: document.getElementById('footer')
+};
+
+let session = createSession(SPEC);
+let committed = null;     // answer collected but not submitted
+
+const el = (tag, attrs = {}, ...kids) => {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'text') node.textContent = v;
+    else if (k === 'html') node.innerHTML = v;
+    else if (v === true) node.setAttribute(k, '');
+    else if (v !== false && v != null) node.setAttribute(k, v);
+  }
+  kids.filter(Boolean).forEach(k => node.append(k));
+  return node;
+};
+
+function render() {
+  const step = session.current();
+  els.title.textContent = SPEC.meta.title;
+  els.objective.textContent = SPEC.meta.objective;
+  els.footer.textContent = SPEC.meta.source ? `Sources: ${SPEC.meta.source}` : '';
+  if (!step) return renderSummary();
+
+  const p = session.progress();
+  els.progress.style.width = Math.round((p.position - 1) / p.total * 100) + '%';
+  els.pos.textContent = `Step ${p.position} of ${p.total}`;
+  els.score.textContent = `${p.answered} correct so far`;
+  els.pass.textContent = p.pass === 2 ? 'Second pass — only what you missed' : '';
+
+  committed = step.kind === 'multi' ? new Set() : null;
+  let answerOf = () => null;
+  let afterRender = null;
+
+  const card = el('section', { class: 'card' });
+  card.append(el('p', { class: 'prompt', text: step.prompt }));
+  if (step.why) card.append(el('p', { class: 'why', text: step.why }));
+
+  const body = el('div');
+  card.append(body);
+  const actions = el('div', { class: 'row' });
+  card.append(actions);
+
+  switch (step.kind) {
+    case 'choice':
+    case 'multi': {
+      const opts = el('div', { class: 'opts', role: 'group' });
+      if (step.kind === 'multi') opts.dataset.multi = '1';
+      const chosen = step.kind === 'multi' ? committed : { value: null };
+      (step.options || []).forEach(opt => {
+        const b = el('button', { type: 'button', 'aria-pressed': 'false', text: opt.text });
+        b.onclick = () => {
+          if (step.kind === 'multi') {
+            const on = b.getAttribute('aria-pressed') === 'true';
+            b.setAttribute('aria-pressed', on ? 'false' : 'true');
+            on ? chosen.delete(opt.id) : chosen.add(opt.id);
+          } else {
+            [...opts.children].forEach(c => c.setAttribute('aria-pressed', 'false'));
+            b.setAttribute('aria-pressed', 'true');
+            chosen.value = opt.id;
+          }
+          submitBtn.disabled = false;
+        };
+        opts.append(b);
+      });
+      body.append(opts);
+      answerOf = () => step.kind === 'multi' ? [...chosen] : chosen.value;
+      break;
+    }
+    case 'order': {
+      const truth = (step.order || step.items || []).map(x => typeof x === 'string' ? { id: x, text: x } : x);
+      const picked = [];
+      const seq = el('div', { class: 'seq' });
+      const pool = el('div', { class: 'pool' });
+      const draw = () => {
+        seq.replaceChildren();
+        picked.forEach((item, i) => {
+          const b = el('button', { type: 'button' }, el('span', { text: String(i + 1) }), el('span', { text: item.text }));
+          b.onclick = () => { picked.splice(i, 1); draw(); };
+          seq.append(b);
+        });
+        pool.replaceChildren();
+        truth.filter(t => !picked.includes(t)).forEach(item => {
+          const b = el('button', { type: 'button', text: item.text });
+          b.onclick = () => { picked.push(item); draw(); };
+          pool.append(b);
+        });
+        submitBtn.disabled = picked.length !== truth.length;
+      };
+      body.append(el('p', { class: 'muted', text: 'Click the lines in the order they run. Click a chosen line to remove it.' }), seq, pool);
+      answerOf = () => picked.map(p => p.id);
+      afterRender = draw;
+      break;
+    }
+    case 'match': {
+      const pairs = step.pairs || [];
+      const map = {};
+      const rows = el('div', { class: 'seq' });
+      const rightOptions = [...new Set(pairs.map(p => p.right))];
+      pairs.forEach(p => {
+        const sel = el('select', {});
+        sel.append(el('option', { value: '', text: 'choose…' }));
+        rightOptions.forEach(r => sel.append(el('option', { value: r, text: r })));
+        sel.onchange = () => { map[p.left] = sel.value; submitBtn.disabled = pairs.some(x => !map[x.left]); };
+        rows.append(el('div', { class: 'row' }, el('span', { text: p.left }), sel));
+      });
+      body.append(rows);
+      answerOf = () => map;
+      break;
+    }
+    case 'classify': {
+      const map = {};
+      const pool = el('div', { class: 'pool' });
+      const buckets = el('div', { class: 'bucket' });
+      let current = null;
+      (step.items || []).forEach(item => {
+        const b = el('button', { type: 'button', text: item.text });
+        b.onclick = () => { current = item.text; [...pool.children].forEach(c => c.setAttribute('aria-pressed', 'false')); b.setAttribute('aria-pressed', 'true'); };
+        pool.append(b);
+      });
+      (step.buckets || []).forEach(bucket => {
+        const target = el('button', { type: 'button', text: bucket });
+        target.onclick = () => {
+          if (!current) return;
+          map[current] = bucket;
+          [...pool.children].filter(c => c.textContent === current).forEach(c => { c.disabled = true; c.setAttribute('aria-pressed', 'false'); });
+          current = null;
+          submitBtn.disabled = Object.keys(map).length !== (step.items || []).length;
+        };
+        buckets.append(target);
+      });
+      body.append(el('p', { class: 'muted', text: 'Pick an item, then pick the bucket it belongs in.' }), pool, buckets);
+      answerOf = () => map;
+      break;
+    }
+    case 'numeric':
+    case 'text': {
+      const input = el('input', { type: 'text', inputmode: step.kind === 'numeric' ? 'decimal' : 'text', autocomplete: 'off' });
+      input.oninput = () => { submitBtn.disabled = input.value.trim() === ''; };
+      body.append(input);
+      answerOf = () => input.value;
+      break;
+    }
+    case 'explain': {
+      const ta = el('textarea', { placeholder: 'Say it in your own words before you look…' });
+      ta.oninput = () => { submitBtn.disabled = ta.value.trim() === ''; };
+      body.append(el('p', { class: 'muted', text: 'Answer in your own words. Nothing is graded here — the act of producing it is the point.' }), ta);
+      answerOf = () => ta.value;
+      break;
+    }
+    case 'reveal': {
+      break;
+    }
+  }
+
+  const label = step.kind === 'explain' ? 'Compare with the model answer' : step.kind === 'reveal' ? 'Show me' : 'Check';
+  const submitBtn = el('button', { type: 'button', text: label, disabled: step.kind !== 'reveal' });
+  actions.append(submitBtn);
+  let hintBtn = null;
+  if (step.hint) {
+    hintBtn = el('button', { type: 'button', text: 'Hint' });
+    hintBtn.onclick = () => {
+      hintBtn.disabled = true;
+      card.append(el('div', { class: 'fb', 'data-ok': 'info' }, el('b', { text: 'Hint' }), el('span', { text: session.hint(step.id) })));
+    };
+    actions.append(hintBtn);
+  }
+
+  submitBtn.onclick = () => {
+    const graded = session.submit(step.id, answerOf());
+    submitBtn.disabled = true;
+    hintBtn && (hintBtn.disabled = true);
+    [...card.querySelectorAll('button:not(.next), input, select, textarea')].forEach(n => n.disabled = true);
+
+    const fb = el('div', { class: 'fb', 'data-ok': graded.correct ? '1' : '0' });
+    fb.append(el('b', { text: graded.correct ? '✓ ' + (step.kind === 'explain' ? 'Model answer' : 'Correct') : '✗ Not yet' }));
+    fb.append(el('span', { text: graded.feedback || '' }));
+    if (!graded.correct && graded.answer) fb.append(el('div', { class: 'ans', text: `The answer: ${graded.answer}` }));
+    if (step.source) fb.append(el('div', { class: 'src', text: `Source: ${step.source}` }));
+    if (step.explainPrompt) fb.append(el('div', { class: 'ans', text: step.explainPrompt }));
+    card.append(fb);
+
+    const nextBtn = el('button', { class: 'next', type: 'button', text: 'Next', autofocus: true });
+    nextBtn.onclick = () => { const r = session.next(); r.done ? renderSummary() : render(); };
+    actions.replaceChildren(nextBtn);
+    nextBtn.focus();
+    els.score.textContent = `${session.progress().answered} correct so far`;
+  };
+
+  els.stage.replaceChildren(card);
+  afterRender?.();
+}
+
+function renderSummary() {
+  const s = session.summary();
+  els.progress.style.width = '100%';
+  els.pos.textContent = 'Done';
+  els.score.textContent = '';
+  els.pass.textContent = '';
+  const card = el('section', { class: 'card summary' });
+  card.append(el('h2', { text: `${s.firstTry} of ${s.total} right on the first try` }));
+  const advice = s.firstTryRate >= 0.8
+    ? 'That is the level to walk in with. Re-run this tomorrow rather than tonight — the gap is what makes it stick.'
+    : s.firstTryRate >= 0.5
+      ? 'The misses below are the whole exercise. Reread the hint, then re-run in a day.'
+      : 'Most of it did not land yet. Do not reread the whole thing: work the missed items below, then ask about the ones still unclear.';
+  card.append(el('p', { class: 'muted', text: advice }));
+
+  const table = el('table');
+  table.append(el('tr', {}, el('th', { text: 'Step' }), el('th', { text: 'First try' }), el('th', { text: 'Hints' })));
+  s.rows.forEach(r => {
+    table.append(el('tr', {},
+      el('td', { text: r.prompt }),
+      el('td', { text: r.firstTry ? '✓' : '✗' }),
+      el('td', { text: r.hints ? String(r.hints) : '' })));
+  });
+  card.append(table);
+
+  if (s.missed.length) {
+    const again = el('button', { type: 'button', text: `Run the ${s.missed.length} missed step(s) again` });
+    again.onclick = () => {
+      session = createSession({ ...SPEC, steps: SPEC.steps.filter(x => s.missed.includes(x.id)) }, { retryMissed: false });
+      render();
+    };
+    card.append(el('div', { class: 'row' }, again));
+  }
+
+  const answers = el('details', { class: 'skip' });
+  answers.append(el('summary', { text: 'Show every answer (for review after class)' }));
+  SPEC.steps.forEach(step => {
+    const line = el('p', { class: 'muted' });
+    const truth = step.kind === 'choice' || step.kind === 'multi'
+      ? (step.options || []).filter(o => o.correct).map(o => o.text).join(', ')
+      : step.kind === 'numeric' ? String(step.answer)
+        : step.kind === 'text' ? (step.accept || []).join(' / ')
+          : step.reveal || (step.order || []).map(o => o.text || o).join(' → ');
+    line.textContent = `${step.prompt} — ${truth}`;
+    answers.append(line);
+  });
+  card.append(answers);
+  els.stage.replaceChildren(card);
+}
+
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,122 @@
+{
+  "meta": {
+    "title": "Complexity: predict before you measure",
+    "objective": "predict the growth class of a piece of code before you run it",
+    "audience": "students who have seen loops and arrays but not formal analysis",
+    "mode": "general",
+    "source": "CLRS, Introduction to Algorithms (3rd ed.), ch. 3; Sedgewick & Wayne, Algorithms (4th ed.), §1.4"
+  },
+  "steps": [
+    {
+      "id": "slowest",
+      "kind": "choice",
+      "prompt": "Which of these grows slowest as n gets large?",
+      "why": "The whole point of the notation: it is about the shape of the curve, not the constant.",
+      "difficulty": 1,
+      "hint": "Compare them at n = 1,000,000. Which one barely notices?",
+      "source": "CLRS §3.1, asymptotic notation",
+      "options": [
+        { "id": "a", "text": "log n", "correct": true, "feedback": "Yes — doubling n adds one step, whatever n is." },
+        { "id": "b", "text": "n", "correct": false, "feedback": "Not wrong as a guess, but log n is strictly slower-growing: n doubles when n doubles, log n adds 1." },
+        { "id": "c", "text": "n log n", "correct": false, "feedback": "This is the sorting bound — faster than n², but it still grows faster than n." },
+        { "id": "d", "text": "n²", "correct": false, "feedback": "This is the fastest-growing option here, not the slowest." }
+      ]
+    },
+    {
+      "id": "buckets",
+      "kind": "classify",
+      "prompt": "Put each operation in the bucket its cost grows like.",
+      "why": "Recognising the shape of a loop is most of the analysis you will ever do.",
+      "difficulty": 1,
+      "hint": "A single index into an array is one step. A loop over half the array is not.",
+      "source": "Sedgewick §1.4",
+      "buckets": ["O(1)", "O(log n)", "O(n)"],
+      "items": [
+        { "text": "arr[i] = 0", "bucket": "O(1)" },
+        { "text": "binary search of a sorted array", "bucket": "O(log n)" },
+        { "text": "for x in arr: total += x", "bucket": "O(n)" },
+        { "text": "if arr.length > 0", "bucket": "O(1)" },
+        { "text": "halving the search range on each pass", "bucket": "O(log n)" }
+      ]
+    },
+    {
+      "id": "growth-order",
+      "kind": "order",
+      "prompt": "Order these from slowest-growing to fastest-growing.",
+      "why": "Ranking functions is how you compare two designs without running either.",
+      "difficulty": 2,
+      "hint": "Constants are invisible here. n log n sits between n and n².",
+      "source": "CLRS §3.2",
+      "order": [
+        { "id": "log", "text": "log n" },
+        { "id": "sqrt", "text": "√n" },
+        { "id": "n", "text": "n" },
+        { "id": "nlogn", "text": "n log n" },
+        { "id": "n2", "text": "n²" },
+        { "id": "exp", "text": "2ⁿ" }
+      ]
+    },
+    {
+      "id": "binary-steps",
+      "kind": "numeric",
+      "prompt": "Binary search on a sorted array of 1024 elements. At most, how many comparisons?",
+      "why": "Turning log n into a number you can say out loud is the difference between knowing the notation and using it.",
+      "difficulty": 2,
+      "hint": "Count the halvings: 1024 → 512 → … → 1.",
+      "tolerance": 0,
+      "answer": 10,
+      "feedback": "Right: 2¹⁰ = 1024, so ten halvings reach one element. Doubling the array adds exactly one comparison.",
+      "source": "CLRS §2.3"
+    },
+    {
+      "id": "which-nlogn",
+      "kind": "multi",
+      "prompt": "Which of these are O(n log n)? Select all that apply.",
+      "why": "This is the class most real algorithms live in, and the one students misremember as O(n²).",
+      "difficulty": 2,
+      "hint": "One of these is n² in the worst case, whatever the average case looks like.",
+      "source": "Sedgewick §2.2–2.4",
+      "options": [
+        { "id": "merge", "text": "merge sort", "correct": true, "feedback": "Yes — log n levels, each level merging n elements." },
+        { "id": "heap", "text": "heapsort", "correct": true, "feedback": "Yes — n extractions from a heap, each costing log n." },
+        { "id": "quick", "text": "quicksort (worst case)", "correct": false, "feedback": "Worst-case quicksort is n² — that is exactly why the average case is worth stating separately." },
+        { "id": "insertion", "text": "insertion sort", "correct": false, "feedback": "Insertion sort is n² in general, though it is linear on nearly-sorted input." }
+      ]
+    },
+    {
+      "id": "name-it",
+      "kind": "text",
+      "prompt": "What do we call the fact that constants are ignored? (one word)",
+      "why": "Naming the idea makes it retrievable later.",
+      "difficulty": 2,
+      "hint": "It starts with 'a' and the notation uses a capital O.",
+      "accept": ["asymptotic", "asymptotic analysis", "asymptotics"],
+      "feedback": "Asymptotic — the statement is about behaviour as n grows without bound, not about any particular machine.",
+      "source": "CLRS §3.1"
+    },
+    {
+      "id": "why-one-comparison",
+      "kind": "explain",
+      "prompt": "In your own words: why does doubling n add only one comparison to binary search?",
+      "why": "Self-explanation is what turns a remembered fact into a working model.",
+      "difficulty": 3,
+      "hint": "Think about what each comparison does to the range, not to n.",
+      "reveal": "Each comparison halves the remaining range. Doubling n means one more halving is needed to get down to a single element — the work grows with how many times you can halve, which is log n. Nothing about the comparison itself gets harder.",
+      "source": "CLRS §2.3"
+    },
+    {
+      "id": "trap",
+      "kind": "choice",
+      "prompt": "You must choose between an O(n²) loop and an O(n log n) routine. What actually decides it?",
+      "why": "The misconception this exercise exists to kill: the notation ranks growth, and growth only dominates at scale.",
+      "difficulty": 3,
+      "hint": "At what n does the difference start to matter, and how large does n actually get?",
+      "source": "Sedgewick §1.4, limits of the notation",
+      "options": [
+        { "id": "a", "text": "The input size the code will actually see, and the constants", "correct": true, "feedback": "Right. Below a few dozen elements the constant dominates and the quadratic version can win; the notation tells you what happens as n grows, not what happens at n = 12." },
+        { "id": "b", "text": "The lower asymptotic class always wins", "correct": false, "feedback": "This is the trap. Asymptotics describe growth, not your actual n — and they hide the constants that dominate small inputs." },
+        { "id": "c", "text": "Whichever one has fewer lines of code", "correct": false, "feedback": "Readability matters, but it is not the complexity question being asked here." }
+      ]
+    }
+  ]
+}

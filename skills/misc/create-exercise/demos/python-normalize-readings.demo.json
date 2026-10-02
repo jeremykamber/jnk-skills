@@ -1,0 +1,20 @@
+{
+  "lang": "python",
+  "slug": "normalize-readings",
+  "title": "Normalize a series of sensor readings",
+  "objective": "Return a new list of readings clamped into range and rounded to one decimal place, leaving the caller's list untouched.",
+  "audience": "CS1 students who have been writing list-and-loop code for a few weeks",
+  "estimateMinutes": 25,
+  "concepts": [
+    "names bound to objects rather than to storage",
+    "copying a list before changing it",
+    "clamping a value into a range",
+    "rounding to a fixed number of decimals",
+    "empty input as a normal case"
+  ],
+  "misconceptions": [
+    "`out = readings` binds the same list, so writing through `out` writes into the caller's list",
+    "rebinding the loop variable does not write to the list, so the fix looks like it works on a read-back that goes through the same alias",
+    "clamping without rounding still returns values the specification rejects"
+  ]
+}

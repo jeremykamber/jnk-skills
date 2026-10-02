@@ -1,0 +1,19 @@
+{
+  "lang": "node",
+  "slug": "chunk-batches",
+  "title": "Split a job queue into fixed-size batches",
+  "objective": "Implement chunk(items, size) so that every item lands in exactly one batch and the final short batch survives, without touching the caller's array.",
+  "audience": "CS1 students who can write a for loop over an array index",
+  "estimateMinutes": 30,
+  "concepts": [
+    "loop bounds and the remainder",
+    "slicing without mutating",
+    "input validation and thrown errors",
+    "empty input as a normal case"
+  ],
+  "misconceptions": [
+    "`i + size <= items.length` as the loop guard silently drops the final short batch",
+    "`items.splice(0, size)` empties the caller's array as a side effect",
+    "a size of 0 or 1.5 is never rejected, so the loop either never advances or returns fractional batches"
+  ]
+}

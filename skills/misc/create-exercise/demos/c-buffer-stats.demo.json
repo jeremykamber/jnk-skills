@@ -1,0 +1,20 @@
+{
+  "lang": "c",
+  "slug": "buffer-stats",
+  "title": "Statistics over a buffer you are handed a pointer to",
+  "objective": "Implement count_above and max_value so that each one reads exactly the n elements it was given, answers the empty case instead of guessing, and never reads past the buffer.",
+  "audience": "CS2 students who have written a few C functions over arrays",
+  "estimateMinutes": 40,
+  "concepts": [
+    "array-to-pointer decay in a parameter list",
+    "the length as a separate argument",
+    "size_t loops and the empty case",
+    "out-parameters and their failure convention",
+    "a running maximum and its starting value"
+  ],
+  "misconceptions": [
+    "`sizeof values / sizeof values[0]` inside the function measures the pointer, not the buffer, and yields 2 on a 64-bit machine",
+    "`int best = 0` as the running maximum returns 0 for a buffer of negative values",
+    "an empty buffer is treated as a normal buffer, so values[0] is read before any length check"
+  ]
+}
