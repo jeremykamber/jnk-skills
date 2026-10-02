@@ -53,6 +53,15 @@ Then edit the lines marked `EDIT ME`: the layers in `.dependency-cruiser.cjs`, a
 
 `gates --list` shows the stack and warns about any config it cannot find. `gates` runs it.
 
+**A repo with no stack gets one, it does not get a note saying there isn't one.** Any beat that reaches for the gates — verify, a checkpoint, pickup — and finds no `gates.json` stands the stack up first:
+
+```sh
+gates --init              # infers the adapter from the project; --adapter <name> when it cannot
+depth --update-baseline   # accept today's design findings, so the ratchet has something to ratchet against
+gates --list              # the stack, and any config file it cannot find
+```
+
+The third line is the cheap one: it names the config files that are missing. `gates` itself is what shows the gates whose tooling is absent — a young project cannot run everything the adapter lists, so delete those gates, bring them back as the tooling lands, and name what was dropped. `depth --update-baseline` is day-one debt accepted, not triage done — the baseline is a ratchet, and the findings in it are still there to read. A missing `AGENTS.md` is the same kind of gap: write it from `templates/constitution.md` before auditing a diff against it.
 
 ## The beats
 

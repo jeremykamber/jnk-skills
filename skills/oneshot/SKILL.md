@@ -93,7 +93,7 @@ For each slice:
 1. Understand the existing behavior and the smallest change required.
 2. Add or update the most useful test when practical. For behavioral changes, prefer seeing the new test fail before making it pass.
 3. Implement the smallest correct solution.
-4. Run the gates — `gates types lint unit` for the cheap subset mid-slice, `gates --changed` before you finish. The design gate rides in that sweep, scoped to the files you touched, and it ratchets: a *new* finding is yours to answer, not something to push into the baseline.
+4. Run the gates — `gates types lint unit` for the cheap subset mid-slice, `gates --changed` before you finish. A project with no stack has nothing to run: stand it up first (`gates --init`, then `depth --update-baseline`), drop the gates its tooling cannot run, and name what you dropped. The design gate rides in that sweep, scoped to the files you touched, and it ratchets: a *new* finding is yours to answer, not something to push into the baseline.
 5. Run additional checks for behavior that could have been affected.
 6. Review the resulting diff before moving on.
 

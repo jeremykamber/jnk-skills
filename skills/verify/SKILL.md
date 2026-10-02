@@ -1,6 +1,6 @@
 ---
 name: jnk-4-verify
-description: "Verify a completed change with evidence, honestly. User-invoked only via /skill:jnk-4-verify. Runs the project's gate stack, checks the measured-by metric when one exists, logs squawks, reconciles the IOU ledger, and audits the diff against AGENTS.md itself via subagent."
+description: "Verify a completed change with evidence, honestly. User-invoked only via /skill:jnk-4-verify. Runs the project's gate stack — standing one up when the project has none — checks the measured-by metric when one exists, logs squawks, reconciles the IOU ledger, and audits the diff against AGENTS.md itself via subagent."
 disable-model-invocation: true
 ---
 
@@ -16,6 +16,15 @@ Verify the whole change with evidence, and say plainly what remains unverified. 
 
 1. **Run the gate stack: `gates`.** The project's `gates.json` *is* the definition of "verified" — one command, exit 0 or not, and the failing gate's output is the finding. Show the run and its result. The acceptance gate is the one that says the spec holds — which scenarios in `features/<feature>.feature` pass, and which do not. A scenario still red is an unlanded slice, and it is reported as one rather than as a pass with a caveat. Then the parts no gate can hold: the LLM-as-judge passes the route called for (same rubric, report the scores), and the manual path you can actually run. When the decision record names a `Measured by` — latency, cost per call, quality score, conversion — check it if you can; if you can't (no prod access, needs traffic, needs time), say so plainly in the unverified list. Gates verify the code; the metric verifies the change.
 
+   **No stack is not a finding — it is the first thing to fix.** A repo with no `gates.json` is not a repo where "verified" means whatever you decided to run; it is one that has not been stood up. Stand it up before you report anything:
+
+   ```sh
+   gates --init              # infers the adapter from the project; --adapter <name> when it cannot
+   depth --update-baseline   # the design ratchet errors without a baseline — a ratchet with nothing to ratchet against checked nothing
+   gates --list              # the stack, and any config file it cannot find
+   ```
+
+   Then delete the gates the project has no tooling for and bring them back as the tooling lands — README's rule — running `gates` is what shows you which, and the report says what you dropped and why. Treat the baseline as day-one debt accepted, not triage done. Two blanks are said out loud rather than papered over: no adapter for the language (`gates --init --adapter <name>` lists the shipped ones; beyond those, hand-write `gates.json` from an adapter's shape in the workflow checkout), and no `features/*.feature` (there is no acceptance gate to run until design writes the spec). The adapter's stack is the floor; when the project has the workflow's layout (`tests/unit`, `tests/acceptance`), `templates/gates.json` in that checkout is the fuller stack — acceptance, coverage, build, e2e — and you delete what it cannot run from that too. Only a *threshold* stays the user's call: an absent stack is stand-up work, not calibration, and "there is no baseline to ratchet against" stops being true the moment you run the second line.
 
    The loop is: run, read the failure, fix the cause, run again. Do not report a gate as passing that you did not run. Do not edit `gates.json` to clear a finding — raising a threshold is not fixing a defect. If a gate is genuinely miscalibrated, that is the user's decision, with the reason stated out loud.
 
@@ -35,7 +44,7 @@ Verify the whole change with evidence, and say plainly what remains unverified. 
 
 7. **Reconcile the IOUs.** Which unknowns from /skill:jnk-1-explore got answered? Update `understanding.md` as you go — retire the answered ones so pickup reads truth, not archaeology. Remaining ones become squawks or next steps.
 
-8. **AGENTS.md enforcement.** Before final verification, spawn a subagent to audit the diff against the project's `AGENTS.md`. Read `AGENTS.md` and hand the subagent **the file itself** — never a restatement of it. A copied principle list drifts silently: this step once carried a hard-coded nine principles from an earlier `AGENTS.md` while the file had moved on to six different ones, so the step enforced principles that no longer existed and missed every principle that did. Nothing could detect it, because nothing was checking. The file is the single source; quote from it.
+8. **AGENTS.md enforcement.** Before final verification, spawn a subagent to audit the diff against the project's `AGENTS.md`. Read `AGENTS.md` and hand the subagent **the file itself** — never a restatement of it. A copied principle list drifts silently: this step once carried a hard-coded nine principles from an earlier `AGENTS.md` while the file had moved on to six different ones, so the step enforced principles that no longer existed and missed every principle that did. Nothing could detect it, because nothing was checking. The file is the single source; quote from it. When the project has no `AGENTS.md` at all, that is not a blank to report either: write one — the workflow checkout `gates` resolves from ships `templates/constitution.md` as the starting shape, and its header says what to cut — then audit the diff against the file you just wrote.
 
    Give it the design findings for the diff too (`depth --changed --base <ref>`), so its reading covers the principles the tool cannot decide — information leakage, conjoining, special/general mixture — with the decidable ones already listed rather than re-argued.
 
@@ -76,10 +85,12 @@ Models will attempt these rationalizations. Intercept them:
 | "The unit tests assert the new behavior" | Tests written beside the code encode the code, bugs included; green proves the implementation matches itself | Exercise the real path and show what came back |
 | "There is no way to exercise it here" | Sometimes true — which makes it an unverified item, not a pass | Name what you could not reach, and why |
 | "That design finding is in the baseline" | The baseline is what you accepted before this change | Read the change's `new` list, not the total |
+| "This repo has no gate stack, so there's nothing to run" | An absent stack is the first finding to fix, not a fact to report | Stand it up (`gates --init`, `depth --update-baseline`), drop the gates the tooling cannot run, name what you dropped |
+| "There's no `AGENTS.md` here, so the audit can't run" | No standard is missing work, not a missing check | Write one from the workflow's `templates/constitution.md`, then audit against it |
 
 ## Output
 
-Verification report (what passed, what's unverified) / The exercised path (what was run, and what came back) / The design ledger (new and paid findings, and what each new one got) / Squawk list / IOU reconciliation / AGENTS.md compliance report
+Verification report (what passed, what's unverified) / The stack, when this beat had to stand one up (what was written, what could not run) / The exercised path (what was run, and what came back) / The design ledger (new and paid findings, and what each new one got) / Squawk list / IOU reconciliation / AGENTS.md compliance report
 
 ## Handoff
 
@@ -95,3 +106,4 @@ If the user is satisfied, close the loop: run /skill:jnk-commit to write any fix
 - Restate the principles instead of handing the subagent `AGENTS.md` itself.
 - Report a change as verified on the strength of tests written by the same context that wrote the code, without exercising the path a user takes.
 - Leave a new design finding neither fixed nor answered.
+- Report an absent gate stack, or a missing `AGENTS.md`, as a fact about the repo instead of standing one up first.

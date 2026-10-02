@@ -34,6 +34,7 @@ gates                      # run it
 
 `--init` writes every config file the adapter declares it needs. Do not copy those by hand: one is a dotfile, and the wrong name makes the arch gate cruise nothing at all.
 
+**A repo with no stack gets one stood up, from any beat.** If a beat reaches for the gates and finds no `gates.json`, it does not report the absence — it writes the stack: `gates --init` (`--adapter <name>` when it cannot infer one), then `depth --update-baseline` so the design ratchet has a baseline (without one that gate errors rather than passes), then `gates --list`, then it deletes the gates the project's tooling cannot run and names what it dropped. That is stand-up work; only a *threshold* is your decision. The same goes for a missing `AGENTS.md`: it is written from `templates/constitution.md` before any diff is audited against it.
 
 Bring gates back one at a time as you install their tooling. The template ships a TypeScript stack — types, lint, unit, acceptance, coverage, crap, arch, dry, build, e2e, mutation — and the `why` on each one says what it proves.
 

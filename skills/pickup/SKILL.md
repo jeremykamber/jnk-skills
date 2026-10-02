@@ -1,6 +1,6 @@
 ---
 name: jnk-pickup
-description: Pick up where a previous session left off. User-invoked only via /skill:jnk-pickup. Finds the work in the engineering notebook (.ai/contexts/), reads what was learned and what's unfinished — including the live handoff — reports the gate stack, and presents the state before any beat starts.
+description: Pick up where a previous session left off. User-invoked only via /skill:jnk-pickup. Finds the work in the engineering notebook (.ai/contexts/), reads what was learned and what's unfinished — including the live handoff — stands the gate stack up when there is none, and presents the state before any beat starts.
 disable-model-invocation: true
 ---
 
@@ -23,12 +23,12 @@ Pick up where a previous session left off. Find the work in the engineering note
    - What landed and what's airborne
    - The route file's ledger (when one exists) — done / in flight / owed / deferred
    - Squawks and IOUs still open
-   - The gate stack — run `gates --list` when `gates.json` exists, and say which gates work and which cannot run. Name any config file it reports missing. If there is no `gates.json`, say that too: a project with no gates is a project where "verified" will mean whatever the agent decided to run.
+   - The gate stack — run `gates --list` when `gates.json` exists, and say which gates work and which cannot run. Name any config file it reports missing. If there is no `gates.json`, that is not a note, it is stand-up work: run `gates --init` (`--adapter <name>` when it cannot infer one), then `depth --update-baseline` (the design ratchet errors without one), then `gates --list` again — and report the stack as stood up, naming each gate the project has no tooling for and what you dropped.
    - The next step — the handoff's named next action when one exists, else the previous session's named next step
 
 4. **Gate.** Ask: "Is this the right place to pick up?" Offer to re-derive where things actually stand by running the open slices' checkpoints — the file is state, the tests are truth. Then propose the next beat — usually /skill:jnk-1-explore or /skill:jnk-2-design. Do not start it until the user confirms.
 
-   If the project has no `gates.json`, name it and offer `gates --init`. Do not run it unasked: which gates a project holds, and at what thresholds, is the user's decision. Scaffolding a stack silently is the same move as editing a threshold to clear a finding.
+   If the project has no `gates.json`, step 3 stands it up rather than asking: a stack is infrastructure, and a project where "verified" means whatever the agent decided to run is one where every later gate is unverifiable. What stays the user's decision is a *threshold*, never whether a gate exists.
 
 ## Do not
 
@@ -36,4 +36,4 @@ Pick up where a previous session left off. Find the work in the engineering note
 - Re-read git history or the whole codebase — the notebook is the source of truth for state.
 - Create a new context dir for existing work — reuse the one that exists.
 - Pretend a memory exists when nothing matches — say so.
-- Scaffold a gate stack unasked — name what is missing and let the user decide.
+- Leave a project with no gate stack as it is — stand one up, and name the gates its tooling cannot run yet.
