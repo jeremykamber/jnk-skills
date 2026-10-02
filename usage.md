@@ -126,7 +126,7 @@ One more thing the agent will name at decision time: a **thread name** (e.g. `pe
 
 ## Reading what the agent wrote — the layered walkthrough
 
-The implement checkpoint (`/skill:jnk-3-implement`) teaches each slice in layers — where it sits, how data flows through it, the critical decisions (and the agent's least-confident choices), and what's mundane plumbing you can safely skip. Depth scales with the slice's risk: mechanical slices get the two-line version; risky ones get the full teach plus the adversarial reviewer's findings.
+The implement checkpoint (`/skill:jnk-3-implement`) teaches each slice in layers — where it sits, how data flows through it, the critical decisions (and the agent's least-confident choices), and what's mundane plumbing you can safely skip. Depth scales with the slice's risk: mechanical slices get the two-line version; risky ones get the full teach plus the review panel's findings — six seats, one per subagent: the code and its APIs, three groups of Ousterhout's red flags, a simplification pass, and a primed bug hunt.
 
 Use the loop — the agent is your tutor, not your authority:
 

@@ -2,7 +2,7 @@
 
 Private notes for the human. The agent never sees this file.
 
-**What:** Make a small, well-understood change end to end in one pass — checks what the repo already knows, builds in vertical slices with a checkpoint after each, self-reviews the diff, verifies with evidence, writes durable facts to docs/external/, escalates when the change outgrows one shot.
+**What:** Make a small, well-understood change end to end in one pass — checks what the repo already knows, stands the gate stack up when there is none, builds in vertical slices with a checkpoint after each, self-reviews the diff (the six-seat review panel when the change is substantial or risky), verifies with evidence, writes durable facts to docs/external/, escalates when the change outgrows one shot.
 
 **When:** small, well-understood changes — the ~80% case. The default for quick fixes.
 

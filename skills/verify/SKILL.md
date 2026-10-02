@@ -38,7 +38,7 @@ Verify the whole change with evidence, and say plainly what remains unverified. 
 
 4. **Do not fool yourself.** Report flaky tests, failures, and ugly truths — especially when fixing them silently is tempting.
 
-5. **Fresh eyes.** If the session was long, offer a fresh-eyes pass: re-read the diff as a real adversary — argue for the defect, don't perform agreement. For a small change, re-read the diff yourself. If nothing's wrong, say why the change is genuinely sound; a token objection validates nothing.
+5. **Fresh eyes.** If the session was long, offer a fresh-eyes pass: re-read the diff as a real adversary — argue for the defect, don't perform agreement. For a change the route called risky, that adversary is the review panel rather than one generalist: run its seats over the whole diff — one subagent per seat, one batch, read-only (`jnk-3-implement`'s `references/review-panel.md`) — and triage every finding the way step 1 triages a design finding. For a small change, re-read the diff yourself. If nothing's wrong, say why the change is genuinely sound; a token objection validates nothing.
 
 6. **The squawk sheet.** Anything noticed but not fixed — duplication, debt, skipped tests — becomes a squawk: `[squawk] severity | location | what | why deferred`. Load `references/squawk-sheet.md` for the taxonomy. Squawks are logged and offered, never silently fixed during verification.
 

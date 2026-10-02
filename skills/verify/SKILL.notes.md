@@ -2,7 +2,7 @@
 
 Private notes for the human. The agent never sees this file.
 
-**What:** Verify a completed change with evidence, honestly — the narrowest check that gives confidence, the measured-by metric when it exists, squawks logged, IOUs reconciled.
+**What:** Verify a completed change with evidence, honestly — run the gate stack (standing one up when the project has none), the change's own design ledger, the measured-by metric when it exists, the review panel's fresh-eyes pass on risky diffs, squawks logged, IOUs reconciled.
 
 **When:** the implementation lands.
 

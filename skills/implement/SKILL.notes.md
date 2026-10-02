@@ -2,7 +2,7 @@
 
 Private notes for the human. The agent never sees this file.
 
-**What:** Implement the route one vertical slice at a time — red-green-refactor, adversarial review where the route calls for it, the slice ledger stays visible and is written back to the route file, a gate between slices — and each checkpoint teaches the slice in layers, so the user owns the understanding (tutor, not authority).
+**What:** Implement the route one vertical slice at a time — red-green-refactor, the six-seat review panel on the slices the route calls risky (`references/review-panel.md`: logic and APIs; leakage and obscurity; module shape; generality and repetition; simplification; a primed bug hunt), the slice ledger stays visible and is written back to the route file, a gate between slices — and each checkpoint teaches the slice in layers, so the user owns the understanding (tutor, not authority).
 
 **When:** the route is approved.
 

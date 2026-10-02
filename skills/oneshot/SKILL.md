@@ -1,6 +1,6 @@
 ---
 name: jnk-oneshot
-description: Make a small, well-understood change end to end in one pass. Break work into thin vertical slices, use subagents to implement or review slices when they materially help, verify every slice, self-review the final diff, record durable facts, and commit the result.
+description: Make a small, well-understood change end to end in one pass. Break work into thin vertical slices, use subagents to implement slices when they materially help, stand up (or run) the gate stack, verify every slice, run the review panel on a substantial change, record durable facts, and commit the result.
 disable-model-invocation: true
 ---
 
@@ -147,7 +147,7 @@ Look specifically for:
 
 Fix genuine defects.
 
-If the change is substantial or risky, use a subagent for an independent final review. Give it the actual diff and ask for concrete defects, not generic feedback. Resolve real findings; record legitimate but out-of-scope findings as squawks.
+If the change is substantial or risky, run the review panel rather than one generalist reviewer — one subagent per seat, read-only, over the complete diff (`jnk-3-implement`'s `references/review-panel.md`: what each seat gets, and what it returns). Give it the actual diff and ask for concrete defects, not generic feedback. Fix real findings — each arrives with the move its seat chose — and record legitimate but out-of-scope findings as squawks.
 
 Review against `AGENTS.md` too — read the file and check the change against the principles it actually states. Do not work from a remembered list. This step once ran against a copied set of nine principles while the file had moved on to six different ones, and nothing could see the drift, because nothing was checking. Hand a reviewer the file itself, never a restatement of it.
 

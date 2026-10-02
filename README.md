@@ -81,7 +81,8 @@ See `usage.md` for the full modes and day-to-day mechanics.
 - **Evidence is a run, not a suite**: a green suite written beside the code proves the implementation matches itself, bugs included — the failure mode most likely to fool an agent and its reviewer. A beat that changes behavior exercises the real path and shows what came back; a path it could not reach is named as unverified rather than assumed.
 - **The acceptance spec is executable**: design writes `features/<feature>.feature` in the language of the problem, implementation makes it run and turns the scenarios green. The `acceptance` gate parses the file rather than trusting a transcription of it, so the spec and the tests cannot drift apart.
 - **Write-in-the-moment persistence**: IOUs and squawks written to disk at every gate, not at debrief
-- **Subagent architecture**: Slice validator, parallel execution with dependency graph, implementation reviewer (used in both implement and oneshot)
+- **Subagent architecture**: Slice validator, parallel execution with dependency graph, and the review panel — six seats over one diff (logic and APIs; leakage and obscurity; module shape; generality and repetition; simplification; a primed bug hunt), read in parallel, repaired by one writer
+- **Adversarial review is a panel, not a generalist**: one reviewer reads everything the same way and misses what a seat with a single question catches. Three of the seats own a group of Ousterhout's red flags; one is the simplification seat, which asks the question nobody else does — why is this so complicated?; one hunts correctness and dead code; one is primed that the bugs are there. Each seat is briefed on why its group costs maintainability and which moves retire it, and returns a finding with the move already chosen — `depth --explain`'s menu for the nine flags the tool decides, the seat brief's for the rest.
 - **AGENTS.md enforcement**: a subagent audits the diff against the project's `AGENTS.md` itself — never a restatement of it, because a copied principle list drifts silently
 - **Anti-rationalization tables**: Intercept model rationalizations for skipping gates
 - **Gates that target attention**: the teach leads with what the gates flagged — CRAP hotspots, coverage gaps, mutation survivors, arch violations, new design findings — so review attention goes where the risk actually is
@@ -90,7 +91,7 @@ See `usage.md` for the full modes and day-to-day mechanics.
 
 1. **Explore** (`/skill:jnk-1-explore`): Build shared mental model, think first, explore candidate directions
 2. **Design** (`/skill:jnk-2-design`): Read the design the code already has (`depth report`), choose direction with lenses, write ADR, shape (ASCII, contracts, failure paths, the acceptance spec), route (vertical slices with dependencies) — as far as the first gate
-3. **Implement** (`/skill:jnk-3-implement`): Follow route, red-green-refactor, gates at each checkpoint, subagent validation, parallel execution. Slice one wires the acceptance spec so it runs; every later slice turns more of it green
+3. **Implement** (`/skill:jnk-3-implement`): Follow route, red-green-refactor, gates at each checkpoint, subagent validation, the review panel on risky slices, parallel execution. Slice one wires the acceptance spec so it runs; every later slice turns more of it green
 4. **Verify** (`/skill:jnk-4-verify`): Run the gate stack, read the change's own design ledger, exercise the real path, AGENTS.md enforcement, reconcile IOUs
 5. **Commit** (`/skill:jnk-commit`): Write the history
 

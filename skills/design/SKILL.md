@@ -99,7 +99,7 @@ The shape is agreed; now the build order. Slice the work by what the user can se
    - What changes (files and areas)
    - Its checkpoint — the gate that will prove it: a named gate from `gates.json`, plus anything a gate cannot hold (an LLM-as-judge pass, rubric-scored, or a manual path). A checkpoint that cannot fail is not a checkpoint.
    - What it leaves working
-   - Whether it earns an **adversarial review** before its gate, and why. Slices with subtle logic, state, concurrency, LLM-dependent output, parsing, or integration seams get one; mechanical slices don't. Spend the review budget where the risk is.
+   - Whether it earns an **adversarial review** before its gate, and why. Slices with subtle logic, state, concurrency, LLM-dependent output, parsing, or integration seams get one; mechanical slices don't. Spend the review budget where the risk is: the review is a panel of six seats (`jnk-3-implement`'s `references/review-panel.md`), so the route can name the seats this slice most needs.
    - **Dependencies** — which slices must complete before this one can start
    - **Parallelizable** — can this run in parallel with other slices?
 
