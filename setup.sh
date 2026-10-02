@@ -8,11 +8,12 @@
 #
 # Safe to re-run. Existing symlinks are replaced; nothing is deleted.
 #
-# The gate tooling — the `gates` runner, the `crap` metric, and the two
-# configs the arch and mutation gates read — comes from the uncle-bob-workflow
-# kit. This script finds it and runs its installer. It deliberately does not
-# carry its own copy of any of that: two copies of a gate drift silently, the
-# same way a copied principle list does, and nothing catches it.
+# The gate tooling — the `gates` runner, the `crap` metric, `depth`, and the
+# configs the arch and mutation gates read — is vendored in ./tools and
+# ./templates, so this checkout stands alone: clone it, run this script, and the
+# beats work. The uncle-bob-workflow kit is where those files are developed;
+# ./tools/VENDORED.md records the version this copy came from, and
+# ./tools/sync-from-kit.sh moves the copy forward when the kit is present.
 
 set -euo pipefail
 
@@ -53,45 +54,15 @@ run() {
   fi
 }
 
-find_kit() {
-  if [ -n "${KIT:-}" ]; then
-    # An explicit KIT is an instruction, not a hint: report it rather than
-    # silently falling back to a different kit than the one asked for.
-    if [ -x "${KIT}/install.sh" ]; then
-      printf '%s\n' "$KIT"
-      return
-    fi
-    echo "KIT is set to ${KIT}, which has no install.sh" >&2
-    exit 2
-  fi
-  for candidate in \
-    "$(dirname "$WF")/uncle-bob-workflow" \
-    "$HOME/Developer/workflows/uncle-bob-workflow"; do
-    if [ -x "$candidate/install.sh" ]; then
-      printf '%s\n' "$candidate"
-      return
-    fi
-  done
-  printf '\n'
-}
-
-KIT="$(find_kit)"
-if [ -z "$KIT" ]; then
-  echo "cannot find the uncle-bob-workflow kit." >&2
-  echo "It owns the gate tooling: set KIT=/path/to/uncle-bob-workflow and re-run." >&2
-  exit 2
-fi
-
 echo "workflow  $WF"
-echo "kit       $KIT"
 echo "skills    ${SKILL_DIRS[*]}"
 echo
 
-echo "tools and kit skills"
+echo "tools"
 if [ "$DRY" -eq 1 ]; then
-  echo "  would  $KIT/install.sh"
+  echo "  would  $WF/install.sh --dry-run"
 else
-  "$KIT/install.sh"
+  "$WF/install.sh"
 fi
 
 echo
@@ -147,10 +118,10 @@ if [ -n "$PROJECT" ]; then
   echo
   echo "project   $PROJECT"
   if [ "$DRY" -eq 1 ]; then
-    echo "  would  (cd $PROJECT && gates --init)"
+    echo "  would  (cd $PROJECT && $WF/tools/gates --init)"
     echo "  would  cp $WF/templates/gates.json $PROJECT/"
   else
-    (cd "$PROJECT" && gates --init)
+    (cd "$PROJECT" && "$WF/tools/gates" --init)
     if [ -f "$PROJECT/gates.json" ] && [ "$(cd "$PROJECT" && grep -c '"acceptance"' gates.json || true)" = "0" ]; then
       cp "$WF/templates/gates.json" "$PROJECT/gates.json"
       echo "  put    the workflow stack in place (acceptance, coverage, build, e2e)"
