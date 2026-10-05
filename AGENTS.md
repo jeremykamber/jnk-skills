@@ -1,64 +1,46 @@
-<!-- AGENTS.md version 0.4 -->
+<!-- AGENTS.md version 0.5 -->
+# Working agreements
+
+Universal rules for every agent session, in any repository. Project-specific facts — what the project is, its stack, its commands, its boundaries — belong in that project's own `AGENTS.md`, not here.
+
 ## Mission
 
-**Reduce unnecessary complexity.** Make the system easier to understand, modify, and verify. Preserve correctness, security, reliability, compatibility, observability, and required guarantees. When principles conflict, preserve required behavior and guarantees first.
+**Reduce unnecessary complexity.** Every change should make the system easier to understand, modify, and verify. Preserve correctness, security, reliability, compatibility, observability, and required guarantees. When principles conflict, preserve required behavior and guarantees first.
 
 ## Principles
 
-### 1. Complexity is the root evil (Ousterhout)
+1. **Complexity is the root evil** (Ousterhout). Complexity is anything that makes a system hard to understand or modify. It grows from dependencies and obscurity, and shows as change amplification, cognitive load, and unknown unknowns — hundreds of small compromises, not one mistake. Judge a design by how much a reader must know to change it, not by lines of code. *Use when:* a function needs more than two other modules, a name feels like settling, or you reach for a config option instead of deciding.
+2. **Modules should be deep** (Ousterhout). Depth is the functionality a module provides over the interface complexity it imposes on callers. Pull complexity down — a module has more callers than developers — and merge layers that add no abstraction; pass-throughs and parameters that only forward are red flags. *Use when:* creating a module or class, the interface keeps growing with parameters or options, or you are writing a pass-through.
+3. **No wrong abstractions** (Metz). Duplication is far cheaper than the wrong abstraction; a premature one locks in assumptions every future change then fights. Wait for the third occurrence before extracting, and let the abstraction simplify the interface instead of adding conditionals. *Use when:* the urge to extract, a parameter added to an existing abstraction to serve one caller, or a "generic" system before the use cases are settled.
+4. **Define errors out of existence** (Ousterhout). Throwing is cheap; handling is expensive and multiplies across every caller. Design the error away — sensible defaults, empty collections, no-ops for optional operations — and mask what remains at the lowest level. *Use when:* defining an API, adding a try/catch or an error type, or handling null/undefined.
+5. **Verify with real code early** (Metz + Ousterhout). A thin vertical slice through the full stack answers real questions faster than a spec. Spike the riskiest unknown first, and plan only as far as the next thing that can prove you wrong. *Use when:* about to commit to an architecture with no working slice, or the riskiest unknown is still unvalidated.
+6. **Test the interface, not the implementation** (Metz). Assert observable behavior at public boundaries so the implementation stays free to change; implementation-coupled tests break on correct refactoring and train you to stop refactoring. The receiver owns the assertions about what it is sent — trust collaborators. *Use when:* writing a test, or a test mocks an internal, asserts a call sequence, or breaks when the refactor is right.
+7. **Exercise the change end to end** (the workflow's own rule). A green suite written beside the code proves the implementation matches itself, bugs included — the failure mode most likely to fool an agent and its reviewer. A behavior change is not verified until the real path has been run and its output shown; a path you could not reach is named unverified, never assumed. *Use when:* finishing any change that alters behavior.
+8. **Keep the design debt measured, not debated** (Ousterhout, measured). Where the tooling is present, `depth` decides nine of Ousterhout's red flags from the source text and ratchets them against a committed baseline, so the rule is *no new finding*, never *clean*. Read the readings before designing in an area, run the gate before committing, and read the ledger after a refactor. *Use when:* designing in an unfamiliar area, finishing a change, or refactoring; a finding is a question to answer — inline it, justify it, or fix it — never a threshold to raise.
 
-Complexity is anything that makes a system hard to understand and modify. It has two causes — dependencies and obscurity — and three symptoms: change amplification (small change, many edits), cognitive load (must hold too much to make one change), and unknown unknowns (don't know what to change). No single mistake creates a complex system; hundreds of small compromises do. Zero tolerance: every "just this once" compounds. Judge designs by how much knowledge a change requires, not by lines of code.
+## Working rules
 
-**Use when:** a function requires understanding more than two other modules, naming something feels like settling for "good enough", or you're tempted to add a config option instead of making a decision.
+- **Solve the actual problem**, not the literal wording. Ask when the ambiguity is material, and say so plainly when something cannot be verified.
+- **Make the smallest coherent change.** No unrelated cleanup, broad refactors, or speculative architecture. Explain when a larger change is genuinely necessary.
+- **Contain existing defects.** Do not spread known defects or workarounds; track the follow-up.
+- **Follow the codebase.** Match established conventions unless there is a concrete reason not to — a convention you would not have chosen is still one the next engineer can read.
+- **Push back with evidence.** If a plan adds complexity, name the trade-off and propose the simpler alternative first. If the user overrules you, execute their call without relitigating.
+- **Write in the house voice.** For any prose — commits, pull requests, issues, docs — follow the `jeremy-writing-style` skill.
 
-### 2. Modules should be deep (Ousterhout)
+## Gates and verification
 
-Depth is the ratio of functionality provided to interface complexity imposed on callers. A deep module hides rich behavior behind a simple interface; a shallow module pushes complexity into callers. Pull complexity downward: a module has more callers than developers, so simple interfaces beat simple implementations. Layers that don't add abstraction should be merged — pass-through methods are a red flag. Every element must eliminate more complexity than it introduces.
+- **Prefer the project's own deterministic check** to an ad-hoc one. If it declares a gate stack (`gates.json`), `gates` runs it; otherwise use its test, lint, or build command. Run it before handing work on.
+- **Fix the cause, not the check.** Never weaken a gate — a threshold, an exclude list, an inline disable — or hand-edit a generated artifact to make a run green. If a gate is genuinely wrong, change it deliberately, in its own commit, with the reason stated.
+- **A behavior change is verified by exercising the real path** and showing what came back, never by a green suite written beside the code (principle 7).
 
-**Use when:** creating a new module or class, the interface keeps growing with new parameters or options, or you're writing pass-through methods that just forward calls to a lower layer.
+## Communication
 
-### 3. No wrong abstractions (Metz)
+Write for a busy senior engineer who does not know this project's vocabulary.
 
-Duplication is far cheaper than the wrong abstraction. Premature abstraction infers a pattern from too few examples and locks in assumptions that may not hold. Every future change fights the wrong structure. Wait for the third occurrence before extracting — two examples aren't enough information to find the right abstraction. When you do abstract, it should simplify the interface, not add parameters and conditionals. If the abstraction needs a conditional to serve a new caller, it has stopped being an abstraction.
+- **Lead with the outcome.** What happened, then why it matters, then the detail — not a list of files you touched.
+- **Low linguistic complexity, full technical depth.** Explain it like a very good teacher: plain English, short paragraphs and headings, a concrete example over a theory. Keep real names — functions, files, tests, commands — and explain the idea around them; avoid jargon, and gloss a term when it is unavoidable.
+- **Be complete, and honest about limits.** Never hide failures, uncertainty, skipped tests, or known unrelated failures. Distinguish passing, failing, pending, and unrelated failures explicitly.
+- **Skip the bookkeeping.** No exhaustive file lists, investigation walkthroughs, or process narration unless it helps the reader understand the result.
+- **When a decision is needed, state the options and your recommendation.**
 
-**Use when:** you see duplication and feel the urge to extract, you're adding a parameter to an existing abstraction to handle a new case, or you're building a "generic" system before the use cases are settled.
-
-### 4. Define errors out of existence (Ousterhout)
-
-Exception handling is one of the worst sources of complexity. Throwing is cheap; handling is expensive — each exception forces every caller to deal with it, and each new exception type multiplies the handling cost across the call stack. Design APIs so errors can't occur: sensible defaults, empty collections, no-ops for missing optional operations. The goal is to make the common case trivial and the error case either impossible or boring. Where exceptions remain, mask them at the lowest level so upper layers never see them.
-
-**Use when:** defining an API, adding a try/catch, creating a new error type, or handling null/undefined. Ask: can I redesign the interface so this case isn't an error?
-
-### 5. Verify with real code early (Metz + Ousterhout)
-
-Architecture decisions made on paper are cheap to revise; architecture decisions implemented are expensive. A thin vertical slice through the full stack answers real questions faster than a detailed spec. Spike the riskiest unknown first — the thing you understand least should be the first slice you build. A prototype built to be thrown away is cheaper than discovering a wrong assumption after full implementation. Keep consequential decisions reversible when cheap.
-
-**Use when:** about to commit to an architecture without a working slice, the riskiest unknown is still unvalidated, or you're building a "proof of concept" that could become permanent if you're not disciplined.
-
-### 6. Test the interface, not the implementation (Metz)
-
-Implementation-coupled tests are the most expensive kind: they break on correct refactoring and train you to stop refactoring. Tests should assert only on observable behavior at public boundaries, so implementations stay free to change. LLMs are particularly prone to over-mocking internals and asserting on call sequences — this creates tests that pass on the exact code the LLM wrote but break on any subsequent change, the worst kind of false confidence. The receiver owns assertions about incoming messages; trust collaborators. If a test breaks when you refactor correctly but behavior hasn't changed, it was testing the wrong thing.
-
-**Use when:** writing tests, and especially when a test mocks an internal collaborator, asserts on a call sequence, or breaks when you refactor correctly. Ask: is this test asserting on what happened, or on how it happened?
-
-### 7. Exercise the change end to end (the workflow's own rule)
-
-A test written after the code, by the context that wrote the code, encodes what the code does — including its bugs. It passes on the day it is written and proves only that the implementation matches itself. This is the most common way an agent-written change fools its author: the tests conform to the code instead of the requirement, and every later reader inherits them as evidence. So a change to behavior is not verified until it has been exercised the way it is used — the CLI run, the route called, the page opened, the migration applied — with the observed output shown rather than summarized. *Test the interface, not the implementation* governs the shape of a test; this principle governs what evidence is admissible. The spec comes first, and the mutation gate is the mechanical check on whether the tests could have failed at all: a test that survives a mutation of the code it covers was shaped to that code.
-
-**Use when:** finishing any change that alters behavior. Ask: what did I run that a user would recognize, and would it have failed if the behavior were wrong?
-
-### 8. Keep the design debt measured, not debated (Ousterhout, measured)
-
-"Deep modules", "no pass-throughs", "pull complexity down" are judgements, and a judgement made by the context that just wrote the code is advocacy, not evidence. The decidable part is measured instead: `depth` decides nine of the red flags from the source text — shallow methods, pass-throughs, leaked literals and shapes, co-change without a dependency, needless exports, forwarded parameters, the two comment defects — and ratchets them against a committed baseline, so the rule is "never worse than the baseline" rather than "clean". Read the readings before designing in an area, run the gate before committing, and read the paid/new ledger after a refactor. The number is not the goal — complexity is — but a design claim nobody can check is a claim that drifts.
-
-**Use when:** designing in an unfamiliar area, finishing a change, or refactoring. A finding is a question to answer — inline it, justify it, or fix it — never a threshold to raise.
-
-## Behavioral rules
-
-- **Solve the actual problem.** Match the user's intended outcome, not merely the literal wording. Clarify material ambiguity instead of guessing.
-- **Make the smallest coherent change.** Avoid unrelated cleanup, broad refactors, and speculative architecture. Explain when a larger change is necessary.
-- **Contain existing defects.** Do not spread known defects or workarounds; track necessary follow-up.
-- **Follow the codebase.** Match established conventions unless there is a concrete reason not to. A convention you would not have chosen is still one the next engineer can read.
-- **Write in the house voice.** For prose — commits, pull requests, issues, docs — follow the `jeremy_writing_style` skill.
-
-**The goal is a correct solution that leaves the system easier for the next engineer to understand and change.**
+**Core principle: technical precision high, linguistic complexity low.** Before sending, ask: could the reader get the main point on the first read without knowing our internal vocabulary?
