@@ -21,7 +21,7 @@ Turn the session's work into a history that reads like the story of what happene
    - `git add` only the paths that belong to that chapter — never `git add -A` or `git add .`
    - Write the message: a one-line subject, `type(scope): summary`, in plain language. Add a body only when the subject alone would leave a reviewer guessing — keep it to a few lines.
 
-4. **Follow the writing style.** Load the jeremy_writing_style skill before writing messages. Simple and concrete; no hype, no corporate language. Commits answer: what changed, and why.
+4. **Follow the writing style.** Load the jeremy-writing-style skill before writing messages. Simple and concrete; no hype, no corporate language. Commits answer: what changed, and why.
 
 5. **Verify.** `git log --oneline` reads like the story; `git status` shows nothing staged and only non-story work remaining.
 
