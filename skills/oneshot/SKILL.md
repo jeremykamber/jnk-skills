@@ -149,7 +149,7 @@ Fix genuine defects.
 
 If the change is substantial or risky, run the review panel rather than one generalist reviewer — one subagent per seat, read-only, over the complete diff (`jnk-3-implement`'s `references/review-panel.md`: what each seat gets, and what it returns). Give it the actual diff and ask for concrete defects, not generic feedback. Fix real findings — each arrives with the move its seat chose — and record legitimate but out-of-scope findings as squawks.
 
-Review against `AGENTS.md` too — read the file and check the change against the principles it actually states. Do not work from a remembered list. This step once ran against a copied set of nine principles while the file had moved on to six different ones, and nothing could see the drift, because nothing was checking. Hand a reviewer the file itself, never a restatement of it.
+Review against the effective `AGENTS.md` too — the machine's global rules file and the project's own. Read them and check the change against the principles they actually state. Do not work from a remembered list. This step once ran against a copied set of nine principles while the file had moved on to six different ones, and nothing could see the drift, because nothing was checking. Hand a reviewer the files themselves, never a restatement of them.
 
 ### 7. Record durable knowledge
 

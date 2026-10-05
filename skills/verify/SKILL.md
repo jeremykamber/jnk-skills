@@ -1,6 +1,6 @@
 ---
 name: jnk-4-verify
-description: "Verify a completed change with evidence, honestly. User-invoked only via /skill:jnk-4-verify. Runs the project's gate stack — standing one up when the project has none — checks the measured-by metric when one exists, logs squawks, reconciles the IOU ledger, and audits the diff against AGENTS.md itself via subagent."
+description: "Verify a completed change with evidence, honestly. User-invoked only via /skill:jnk-4-verify. Runs the project's gate stack — standing one up when the project has none — checks the measured-by metric when one exists, logs squawks, reconciles the IOU ledger, and audits the diff against the effective AGENTS.md — the machine's global rules plus the project's own — via subagent."
 disable-model-invocation: true
 ---
 
@@ -44,7 +44,7 @@ Verify the whole change with evidence, and say plainly what remains unverified. 
 
 7. **Reconcile the IOUs.** Which unknowns from /skill:jnk-1-explore got answered? Update `understanding.md` as you go — retire the answered ones so pickup reads truth, not archaeology. Remaining ones become squawks or next steps.
 
-8. **AGENTS.md enforcement.** Before final verification, spawn a subagent to audit the diff against the project's `AGENTS.md`. Read `AGENTS.md` and hand the subagent **the file itself** — never a restatement of it. A copied principle list drifts silently: this step once carried a hard-coded nine principles from an earlier `AGENTS.md` while the file had moved on to six different ones, so the step enforced principles that no longer existed and missed every principle that did. Nothing could detect it, because nothing was checking. The file is the single source; quote from it. When the project has no `AGENTS.md` at all, that is not a blank to report either: write one — the workflow checkout `gates` resolves from ships `templates/constitution.md` as the starting shape, and its header says what to cut — then audit the diff against the file you just wrote.
+8. **AGENTS.md enforcement.** Before final verification, spawn a subagent to audit the diff against the effective `AGENTS.md` — the machine's global rules file and the project's own. Read both and hand the subagent **the files themselves** — never a restatement of them. A copied principle list drifts silently: this step once carried a hard-coded nine principles from an earlier `AGENTS.md` while the file had moved on to six different ones, so the step enforced principles that no longer existed and missed every principle that did. Nothing could detect it, because nothing was checking. The file is the single source; quote from it. When the project has no `AGENTS.md` at all, that is not a blank to report either: write the project's facts from `templates/project-agents.md` (the workflow checkout `gates` resolves from ships it), read the global `AGENTS.md` for the law it does not restate, and audit the diff against both.
 
    Give it the design findings for the diff too (`depth --changed --base <ref>`), so its reading covers the principles the tool cannot decide — information leakage, conjoining, special/general mixture — with the decidable ones already listed rather than re-argued.
 
@@ -103,7 +103,7 @@ If the user is satisfied, close the loop: run /skill:jnk-commit to write any fix
 - Declare done without the user's sign-off.
 - Skip the AGENTS.md enforcement step.
 - Edit `gates.json` to clear a finding, or report a gate as passing that you did not run.
-- Restate the principles instead of handing the subagent `AGENTS.md` itself.
+- Restate the principles instead of handing the subagent the `AGENTS.md` files themselves.
 - Report a change as verified on the strength of tests written by the same context that wrote the code, without exercising the path a user takes.
 - Leave a new design finding neither fixed nor answered.
 - Report an absent gate stack, or a missing `AGENTS.md`, as a fact about the repo instead of standing one up first.
