@@ -16,7 +16,7 @@ with the pi coding agent.
 - `install.sh` — puts the tools on your PATH and checks what they need
 - `usage.md` — the practical guide: how to invoke the beats, answer gates, and manage context
 - `templates/gates.json` — the recommended gate stack, for a project's `gates.json`
-- `templates/` — the gate configs and the starting shapes for a project's constitution and acceptance spec
+- `templates/` — the gate configs, the acceptance spec, and the agent-instruction starting shapes (`project-agents.md` for a new project; `constitution.md` as the generic law for a machine with no global rules file)
 
 ## Install
 
@@ -29,12 +29,14 @@ It checks what the tools need (one Python package, `lizard`), puts `gates`, `cra
 
 Skills register as `/skill:jnk-*` (and `/skill:teach`, `/skill:slides`, `/skill:create-exercise`).
 
+`setup.sh` also links the checkout's `AGENTS.md` — the universal rules — to `~/.agents/AGENTS.md`, so every agent session, in every repo, loads it. If `~/.agents` is not writable by you (a root-owned setup), that step is skipped with a note rather than failing setup; link it once by hand: `sudo ln -sfn <checkout>/AGENTS.md ~/.agents/AGENTS.md`.
+
 The beats verify by running `gates`, which lives in `./tools` with the rest of the gate tooling — vendored from the `uncle-bob-workflow` kit so this checkout stands alone: clone it, run `./setup.sh`, and every beat works with no second repository to find. `tools/VENDORED.md` records where each file came from and `tools/sync-from-kit.sh` moves the copy forward; the `vendored` gate in `gates.json` fails the moment the copy drifts, so the one thing a copy must not do — drift silently — is the one thing it cannot do.
 
 ## Stand up a project
 
 ```sh
-./setup.sh --project <dir>   # gates --init, then the jnk-skills stack
+./setup.sh --project <dir>   # gates --init, the jnk-skills stack, and the project's AGENTS.md
 ```
 
 Or by hand, if the tools are already on your PATH:
@@ -61,7 +63,7 @@ depth --update-baseline   # accept today's design findings, so the ratchet has s
 gates --list              # the stack, and any config file it cannot find
 ```
 
-The third line is the cheap one: it names the config files that are missing. `gates` itself is what shows the gates whose tooling is absent — a young project cannot run everything the adapter lists, so delete those gates, bring them back as the tooling lands, and name what was dropped. `depth --update-baseline` is day-one debt accepted, not triage done — the baseline is a ratchet, and the findings in it are still there to read. A missing `AGENTS.md` is the same kind of gap: write it from `templates/constitution.md` before auditing a diff against it.
+The third line is the cheap one: it names the config files that are missing. `gates` itself is what shows the gates whose tooling is absent — a young project cannot run everything the adapter lists, so delete those gates, bring them back as the tooling lands, and name what was dropped. `depth --update-baseline` is day-one debt accepted, not triage done — the baseline is a ratchet, and the findings in it are still there to read. A missing `AGENTS.md` is the same kind of gap, in two layers. The project's own file holds only the facts — what it is, its stack, its commands, its boundaries — and `setup.sh --project` writes it from `templates/project-agents.md` before any diff is audited against it. The universal rules live once, in the machine's global `~/.agents/AGENTS.md`, and are not restated in each repo. A machine with no global rules file can carry the generic law in the project instead, from `templates/constitution.md`.
 
 ## The beats
 
@@ -83,7 +85,7 @@ See `usage.md` for the full modes and day-to-day mechanics.
 - **Write-in-the-moment persistence**: IOUs and squawks written to disk at every gate, not at debrief
 - **Subagent architecture**: Slice validator, parallel execution with dependency graph, and the review panel — six seats over one diff (logic and APIs; leakage and obscurity; module shape; generality and repetition; simplification; a primed bug hunt), read in parallel, repaired by one writer
 - **Adversarial review is a panel, not a generalist**: one reviewer reads everything the same way and misses what a seat with a single question catches. Three of the seats own a group of Ousterhout's red flags; one is the simplification seat, which asks the question nobody else does — why is this so complicated?; one hunts correctness and dead code; one is primed that the bugs are there. Each seat is briefed on why its group costs maintainability and which moves retire it, and returns a finding with the move already chosen — `depth --explain`'s menu for the nine flags the tool decides, the seat brief's for the rest.
-- **AGENTS.md enforcement**: a subagent audits the diff against the project's `AGENTS.md` itself — never a restatement of it, because a copied principle list drifts silently
+- **AGENTS.md enforcement**: a subagent audits the diff against the effective `AGENTS.md` — the machine's global rules and the project's own, handed as files, never a restatement of them, because a copied principle list drifts silently
 - **Anti-rationalization tables**: Intercept model rationalizations for skipping gates
 - **Gates that target attention**: the teach leads with what the gates flagged — CRAP hotspots, coverage gaps, mutation survivors, arch violations, new design findings — so review attention goes where the risk actually is
 
