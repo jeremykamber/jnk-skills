@@ -1,6 +1,6 @@
 ---
 name: jnk-oneshot
-description: Make a small, well-understood change end to end in one pass. Break work into thin vertical slices, use subagents to implement slices when they materially help, stand up (or run) the gate stack, verify every slice, run the review panel on a substantial change, record durable facts, and commit the result.
+description: Make a small, well-understood change end to end in one pass. Break work into thin vertical slices, use subagents to implement slices when they materially help, stand up (or run) the gate stack, verify every slice and prove the change holds beyond the diff (blast radius), drive the project's verification harness when one exists, run the review panel on a substantial change, keep a decision trail when the work is long or risky, record durable facts, and commit the result.
 disable-model-invocation: true
 ---
 
@@ -126,6 +126,12 @@ Name the ledger out loud as you go — done, next — so nothing is lost between
 
 Do not claim success without evidence, and do not report a gate as passing that you did not run.
 
+**Blast radius.** Listing the callers is not the job; a search finds those. Find the one fact this change is safe because of, and prove it by running real code: the ladder is you said so (worthless on its own), you pointed at the `file:line`, you showed the bad case cannot happen, you ran it, you reproduced it in the running app. Keep the confirmed risks, and list the ones you checked and cleared. The method is `rule://principle-blast-radius`.
+
+**Drive it, do not only test it.** When the change alters behavior, run the real path. When the project has a verification harness (`jnk-verify-app`), drive the app through it rather than a one-off script: the harness is how the next session proves the same feature the same way. When there is none, name what you could not drive.
+
+**Keep the trail when the work is long or risky.** One row per decision in `.ai/contexts/<slug>/decisions.tsv` (`jnk-decisions`): what, why, an evidence pointer, the result. It is what lets the user sample the run instead of re-reading it. A one-line fix does not need one.
+
 ### 6. Review independently
 
 Before finishing, review the complete diff as a hostile maintainer.
@@ -151,6 +157,8 @@ If the change is substantial or risky, run the review panel rather than one gene
 
 Review against the effective `AGENTS.md` too — the machine's global rules file and the project's own. Read them and check the change against the principles they actually state. Do not work from a remembered list. This step once ran against a copied set of nine principles while the file had moved on to six different ones, and nothing could see the drift, because nothing was checking. Hand a reviewer the files themselves, never a restatement of them.
 
+If the diff shows the same agent mistake a second time — the same shortcut, the same missing test, the same needless layer — that is a `jnk-correct` task, not another one-off fix. Name it, and fix the environment rather than the instance.
+
 ### 7. Record durable knowledge
 
 If the work reveals a reusable repository fact — for example an integration contract, environment convention, schema detail, or non-obvious behavior — record it in `docs/external/`.
@@ -171,6 +179,8 @@ Do not commit incrementally during the one-shot. Let the commit skill determine 
 - **Evidence over confidence** — and a gate that exits non-zero is evidence; a judgment that it looks right is not.
 - **Exercise the change end to end** — a unit test written beside the code is the weakest evidence there is, and the one most likely to be mistaken for proof.
 - **Read the design ledger** — a new finding is a question to answer, not a number to raise.
+- **Prove it holds beyond the diff** — name the one fact the change is safe because of, and prove it by running code.
+- **Encode the repeat** — the same agent mistake twice is a `jnk-correct` task, not another one-off fix.
 - **Subagents where they help, not for ceremony.**
 - **Independent review for risky work.**
 - **No silent scope creep.**
@@ -184,6 +194,8 @@ Finish with a concise report containing:
 
 - what changed;
 - how it was verified, including what was actually run end to end and what came back;
+- the blast radius — the one safety fact, the ladder step it reached, and the proof or `unproven`;
+- the decision trail path, when one was kept;
 - the design ledger — what this change introduced and what it retired — and what you did with each new finding;
 - what the gates flagged — a CRAP hotspot, a coverage gap, a mutation survivor, an arch violation, a new design finding — and what you did with each: fixed, squawked, or judged acceptable. Then say plainly what the gates cleared. That is what having them is for: they tell the reader where not to spend attention;
 - any uncertain decisions and why they were made;
