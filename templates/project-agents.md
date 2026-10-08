@@ -26,6 +26,19 @@ EDIT ME          # build, test, lint
 - **Never** EDIT ME — secrets, `vendor/`, migrations, generated files.
 - **Ask first** EDIT ME — schema changes, new dependencies, CI config.
 
+## Rules
+
+<!--
+The rule-to-enforcement table. When a correction repeats, add its rule here paired
+with what enforces it, so the next agent meets the check, not the instruction. A rule
+with nothing enforcing it is prose, and prose decays. Drop a rule once its mistake
+cannot happen. jnk-correct maintains this table.
+-->
+
+| Rule | Enforced by |
+| --- | --- |
+| EDIT ME | EDIT ME — a type, a lint whose error names the fix, a test, or a gate |
+
 <!--
 Where the architecture lives, if it is not obvious from the tree: a module map,
 an ADR folder, a design doc. Prefer a pointer to a copy.
