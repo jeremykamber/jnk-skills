@@ -14,6 +14,7 @@
 
      meta = {
        id, title, brief, door, root,
+       editor: {name, url},   // your editor's URL template — {abs}, {rel}, {line}
        candidates: [{key, name, summary}],
        recommend: {base, grafts: ["A: …"]}
      }
@@ -118,6 +119,7 @@ body.annotating{user-select:text}
   color:var(--fg);cursor:pointer;text-decoration:none;vertical-align:baseline}
 .chip:hover{border-color:var(--accent);text-decoration:none}
 .chip::before{content:"↗";color:var(--accent);font-size:.75rem}
+.chip.copyonly::before{content:"⧉";color:var(--muted)}
 .chip.copied{border-color:var(--ok)}
 .chip.copied::before{content:"✓";color:var(--ok)}
 
@@ -285,14 +287,26 @@ order.forEach(function(k){
 });
 
 /* ── code chips ────────────────────────────────────────────────────── */
+/* The editor is the reader's, not the tool's. meta.editor.url is a template —
+   {abs}, {rel}, {line} — e.g. "nvim://file/{abs}:{line}" or
+   "mvim://open?url=file://{abs}&line={line}". With no editor declared the chip
+   is copy-only: never a dead link to an editor the reader does not have. */
+var ED=(META.editor&&META.editor.url)?META.editor:null;
 Array.prototype.forEach.call(document.querySelectorAll("[data-code]"),function(el){
   var spec=el.getAttribute("data-code"),parts=spec.split(":"),line=parts.length>1&&/^\d+$/.test(parts[parts.length-1])?parts.pop():null;
   var p=parts.join(":"),abs=(META.root?META.root.replace(/\/$/,"")+"/":"")+p;
   var a=document.createElement("a");
-  a.className="chip";a.href="vscode://file/"+abs+(line?":"+line:"");a.textContent=p+(line?":"+line:"");
-  a.title="Open in editor · click to copy path";
-  a.addEventListener("click",function(e){
-    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(spec).catch(function(){});
+  a.className=ED?"chip":"chip copyonly";a.textContent=p+(line?":"+line:"");
+  if(ED){
+    a.href=encodeURI(ED.url.replace(/\{abs\}/g,abs).replace(/\{rel\}/g,p).replace(/\{line\}/g,String(line||1)))
+      .replace(/#/g,"%23").replace(/\?/g,"%3F");
+    a.title="Open in "+(ED.name||"your editor")+" · click to copy the path";
+  }else{
+    a.title="Click to copy the path · declare meta.editor to make this a link";
+  }
+  a.addEventListener("click",function(){
+    var t=(META.root?abs:p)+(line?":"+line:"");
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).catch(function(){});
     a.classList.add("copied");setTimeout(function(){a.classList.remove("copied");},900);
   });
   el.innerHTML="";el.appendChild(a);

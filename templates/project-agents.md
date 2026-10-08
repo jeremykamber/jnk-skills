@@ -26,6 +26,13 @@ EDIT ME          # build, test, lint
 - **Never** EDIT ME — secrets, `vendor/`, migrations, generated files.
 - **Ask first** EDIT ME — schema changes, new dependencies, CI config.
 
+## Tooling
+
+- **Editor:** EDIT ME — the URL template the arena review chips open, with `{abs}`, `{rel}` and
+  `{line}`: `nvim://file/{abs}:{line}` (terminal Neovim, and it needs an `nvim://` handler),
+  `mvim://open?url=file://{abs}&line={line}` (MacVim), `vscode://file/{abs}:{line}`. Omit it and the
+  chips copy the path instead.
+
 ## Rules
 
 <!--

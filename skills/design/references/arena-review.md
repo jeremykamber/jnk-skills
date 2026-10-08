@@ -17,10 +17,11 @@ the content changes.
 ```html
 <script type="application/json" id="arena-meta">
 {"id":"rate-limiter-placement",
- "title":"Arena — where the rate limiter lives",
+ "title":"Where the rate limiter lives",
  "brief":"one line, the problem in the user's words",
  "door":"a migration you cannot roll back",
  "root":"/abs/path/to/repo",
+ "editor":{"name":"Neovim","url":"nvim://file/{abs}:{line}"},
  "candidates":[{"key":"A","name":"At the gateway","summary":"one line"}],
  "recommend":{"base":"B","grafts":["A: the error model","C: the config surface"]}}
 </script>
@@ -72,9 +73,28 @@ Anywhere the design names a file, use the chip instead of plain text:
 <code data-code="src/api/limits.py:42"></code>
 ```
 
-The SDK turns it into a link that opens the file at the line in the editor (`vscode://file/…`,
-built from `meta.root`) and copies the path on click. That is the "pop into the code when needed"
-half of the review: the shape is visual, the evidence is one click away.
+The chip shows the repo-relative path and copies the absolute one on click. Where it *opens* is
+the reader's editor, declared once in `meta.editor.url` — a template with `{abs}`, `{rel}` and
+`{line}`:
+
+| Editor | `editor.url` |
+|---|---|
+| Neovim (terminal, with a `nvim://` handler) | `nvim://file/{abs}:{line}` |
+| MacVim | `mvim://open?url=file://{abs}&line={line}` |
+| VS Code | `vscode://file/{abs}:{line}` |
+| JetBrains | `idea://open?file={abs}&line={line}` |
+
+Neovim has no scheme of its own; `nvim://` comes from a third-party handler (on macOS,
+`kelvinst/nvim_url`, which needs kitty and an `--listen` socket), and MacVim's `mvim://` is
+official. Either way it is one line to declare, and it is the difference between a chip that opens
+your file and a chip that opens someone else's editor.
+
+**With no `editor` declared the chip is copy-only** — no dead link to an editor the reader may not
+have. Record the editor once in the project's `AGENTS.md` (`Editor: Neovim — nvim://file/{abs}:{line}`)
+so every arena in that project carries it, rather than asking again each time.
+
+That is the "pop into the code when needed" half of the review: the shape is visual, the evidence
+one click away.
 
 ## The feedback loop
 
@@ -96,6 +116,7 @@ different shape is a new round, not an edit.
 
 ## Do not
 
+- Hardcode an editor in the chips. `meta.editor.url` is the reader's, and absent it the chip copies.
 - Restyle or trim the SDK. Its buttons are the contract with the user's hands.
 - Let it reach the network, or link an external stylesheet, font, or script. One file, `file://`, offline.
 - Draw a third diagram in a third visual language. The vocabulary is shared or the comparison is lost.
