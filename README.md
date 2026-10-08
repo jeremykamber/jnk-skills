@@ -19,6 +19,7 @@ with the pi coding agent.
 - `usage.md` — the practical guide: how to invoke the beats, answer gates, and manage context
 - `templates/gates.json` — the recommended gate stack, for a project's `gates.json`
 - `templates/` — the gate configs, the acceptance spec, and the agent-instruction starting shapes (`project-agents.md` for a new project; `constitution.md` as the generic law for a machine with no global rules file)
+- `templates/rules/` — opt-in TTSR rules that fire while the agent edits: an `as any` cast, a tautological assertion, a stub body, a swallowed error, a `gates.json` edit, and a judged "claim without evidence". Copy the ones you want into a project's `.agents/rules/`.
 
 ## Install
 

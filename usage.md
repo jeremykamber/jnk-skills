@@ -261,6 +261,14 @@ Three skills fix the environment rather than the instance:
 - **`/skill:jnk-verify-app`** — the project gets a scripted way to drive the app: a project-local `verify-<app>` skill (launch, doctor, drive, evidence, cleanup) plus a feature map of what to drive and what end state proves it. Proven once, then reused by `jnk-4-verify` and `jnk-oneshot`. A periodic pass keeps the map honest.
 - **`/skill:jnk-decisions`** — the decision trail for long, risky, or unattended work: one row per decision, an evidence pointer, append-only. It is what lets you sample a run instead of re-reading it, and it is audited against the transcript before it is handed back.
 
+### TTSR: rules that fire while the agent works
+
+A rule with a `condition`, `astCondition`, or `question` does not wait for a gate. It fires during the run: an `astCondition` matches the new content of an edit or write, a `condition` matches streamed prose and tool arguments, and a `question` is judged on a completed reply. `templates/rules/` holds an opt-in set: an `as any` cast, a tautological assertion (`expect($A).toBe($A)`), a stub body, a swallowed error, an edit that touches `gates.json`, and a judged "claim without evidence". Copy the ones you want into `<project>/.agents/rules/`. All ship `interruptMode: never` (a warning after the tool result); raise it to `tool-only` or `always` only once the pattern is tight, because a rule that aborts the turn on a false positive costs more than it saves.
+
+TTSR is not a replacement for `depth`. It sees one file at a time, so the cross-module findings that make `depth` useful (a literal or shape leaked across modules, a needless export, a co-change without a dependency) stay in the gate. TTSR is a live guard on the diff; `depth` is the whole-tree ratchet.
+
+Test a rule before you trust it: `omp ttsr test --rule <file> --source tool --tool edit --path src/foo.ts '<snippet>'` fires it in isolation, and `omp ttsr list` shows the registered rules and their questions.
+
 ## The nightly pass
 
 `scripts/eval-nightly.sh` runs `jnk-eval` over your recent sessions a few times a week, unattended. It applies the safe edits itself (a typo, a wording fix, a missing example) and queues the foundational ones (a new principle, a skill's contract, a gate) in a report for you to approve. Install it with cron or the bundled launchd job:
