@@ -81,7 +81,6 @@ Bring gates back one at a time as you install their tooling. The template ships 
 | `/skill:jnk-interrogate` | You want to actually understand a repo or feature — not just approve it | The agent interrogates you across thirteen coverage areas: Socratic chains verified against the code, a teaching ladder where you gap (hint → concept → code → analogy → explain-back), and a "two areas left" signal before it ends. |
 | `/skill:jnk-handoff` | The live thread must cross a session boundary | Writes a compact thread checkpoint; pickup reads it next session. Split anywhere, not just at beat ends. |
 | `/skill:jnk-correct` | The same mistake keeps coming back | Finds the mistake classes and makes each one impossible at the highest level that works: architecture, then types, then a lint whose error names the fix, then a test, docs last. |
-| `/skill:jnk-arena` | A one-way-door direction | Two or three structurally distinct designs, a fresh-context judge on the design lenses, and a recommended base with the rest grafted in. Designs, not features; the user chooses. |
 | `/skill:jnk-verify-app` | The project has no scripted way to drive the app | Generates a project-local `verify-<app>` skill (launch, doctor, drive, evidence, cleanup) and a feature map, proves it once, and describes the upkeep loop. |
 | `/skill:jnk-decisions` | Long, risky, or unattended work | Owns the decision trail: one row per decision, an evidence pointer, append-only. The beats write to it; it audits and reviews it. |
 
