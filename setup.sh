@@ -2,7 +2,7 @@
 #
 # Set up the jnk workflow on this machine.
 #
-#   ./setup.sh                    tools, skills, and the global rules onto the machine
+#   ./setup.sh                    tools, skills, the global rules, and the principles onto the machine
 #   ./setup.sh --project <dir>    also stand up a project: its gate stack and its AGENTS.md
 #   ./setup.sh --dry-run          show what would change, change nothing
 #
@@ -104,6 +104,28 @@ for dir in "${RULE_DIRS[@]}"; do
   fi
   run ln -sfn "$WF/AGENTS.md" "$dir/AGENTS.md"
   [ "$DRY" -eq 1 ] || echo "  linked   $dir/AGENTS.md"
+done
+
+echo
+echo "principles"
+for dir in "${RULE_DIRS[@]}"; do
+  # Rulebook rules: the harness lists each rule by name and description in the
+  # system prompt and reads the body on demand. Installed beside the global
+  # rules, under the same writability rule.
+  [ -d "$dir" ] || continue
+  if [ ! -w "$dir" ]; then
+    echo "  skip     $dir/rules — $dir is not writable; run once with sudo to link it" >&2
+    continue
+  fi
+  if [ "$DRY" -eq 1 ]; then
+    echo "  would  link $WF/rules/*.md -> $dir/rules/"
+  else
+    mkdir -p "$dir/rules"
+    for rule in "$WF"/rules/*.md; do
+      ln -sfn "$rule" "$dir/rules/$(basename "$rule")"
+    done
+    echo "  linked   $dir/rules/"
+  fi
 done
 
 echo

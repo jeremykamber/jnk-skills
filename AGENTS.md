@@ -18,10 +18,17 @@ Universal rules for every agent session, in any repository. Project-specific fac
 7. **Exercise the change end to end** (the workflow's own rule). A green suite written beside the code proves the implementation matches itself, bugs included — the failure mode most likely to fool an agent and its reviewer. A behavior change is not verified until the real path has been run and its output shown; a path you could not reach is named unverified, never assumed. *Use when:* finishing any change that alters behavior.
 8. **Keep the design debt measured, not debated** (Ousterhout, measured). Where the tooling is present, `depth` decides nine of Ousterhout's red flags from the source text and ratchets them against a committed baseline, so the rule is *no new finding*, never *clean*. Read the readings before designing in an area, run the gate before committing, and read the ledger after a refactor. *Use when:* designing in an unfamiliar area, finishing a change, or refactoring; a finding is a question to answer — inline it, justify it, or fix it — never a threshold to raise.
 
+## Named principles
+
+Beside these rules, the machine loads a set of named engineering principles as rulebook rules (`.agents/rules/`, installed by the workflow's `setup.sh`, read at `rule://<name>`). Each carries a name, a description of when it applies, and a leaf to read on demand. When a description matches the situation you are in, read the leaf, apply it, and **name the decision it changed**. A principle cited with no decision behind it is a name-drop, not an application.
+
+Add a principle when a correction repeats and no gate can enforce it. When a gate can enforce it, encode it there instead.
+
 ## Working rules
 
 - **Solve the actual problem**, not the literal wording. Ask when the ambiguity is material, and say so plainly when something cannot be verified.
 - **Make the smallest coherent change.** No unrelated cleanup, broad refactors, or speculative architecture. Explain when a larger change is genuinely necessary.
+- **Encode a repeated correction in structure.** When the same correction comes twice, make the mistake impossible (architecture, then types, then a lint whose error names the fix, then a test) instead of writing the instruction again. `jnk-correct` runs this pass, and the project's rule table pairs each rule with what enforces it.
 - **Contain existing defects.** Do not spread known defects or workarounds; track the follow-up.
 - **Follow the codebase.** Match established conventions unless there is a concrete reason not to — a convention you would not have chosen is still one the next engineer can read.
 - **Push back with evidence.** If a plan adds complexity, name the trade-off and propose the simpler alternative first. If the user overrules you, execute their call without relitigating.
