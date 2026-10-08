@@ -22,6 +22,8 @@ This is AGENTS.md principle 5 applied to the plan itself: a thin vertical slice 
 
 Go further up front only when falsifying is expensive: a migration you cannot roll back, an interface someone else is already coding against, a boundary you cannot move afterwards. Then design it fully — and say which of those it is, out loud.
 
+**A one-way door earns an arena.** When falsifying is expensive, the direction itself is worth designing more than once. Before choosing, run `/skill:jnk-arena`: two or three structurally distinct designs, a fresh context judging them on the lenses below, and a recommended base with the others' best ideas grafted in. The candidates are designs, not features, so the cost is a conversation — cheap against a boundary you cannot move afterwards.
+
 ## Lenses
 
 Apply these to every option; name the lens you are using. **Every lens must speak to every option** — no silent carry. If a lens finds an option unremarkable, say so in one line; silence reads as agreement.
@@ -40,7 +42,7 @@ Apply these to every option; name the lens you are using. **Every lens must spea
 
 2. **Read the design you already have.** Before choosing a direction, run `depth report <the area you are about to change>`. It prints six readings: the shallow modules (a public interface nearly as large as the implementation behind it), deletion candidates, single-implementation abstractions, pure blocks worth extracting, complexity drift over the area's recent revisions, and the recorded trend. These are evidence for the direction, not a mandate: a shallow module in the area is where a new feature will make things worse, and a deletion candidate is free complexity reduction that belongs in the route rather than in a later cleanup. `depth report` never fails a build — it reports, and the judgment stays yours.
 
-3. **Generate options.** Meaningful alternatives only — the ones worth debating, and each one you could genuinely see implementing. For each: approach, pros, cons, cost. No filler options, no strawmen — if an option can't win on its merits, it isn't an option. **If explore already surfaced directions, those are the option list** — carry them forward and sharpen them into approach/pros/cons/cost. Do not re-present what explore already put in front of the user: that is the same conversation twice, and it is the ceremony this beat exists to avoid. Generate options here only when explore did not.
+3. **Generate options.** Meaningful alternatives only — the ones worth debating, and each one you could genuinely see implementing. For each: approach, pros, cons, cost. No filler options, no strawmen — if an option can't win on its merits, it isn't an option. **If explore already surfaced directions, those are the option list** — carry them forward and sharpen them into approach/pros/cons/cost. Do not re-present what explore already put in front of the user: that is the same conversation twice, and it is the ceremony this beat exists to avoid. Generate options here only when explore did not. When the direction is a one-way door, those options are worth designing more than once: run `/skill:jnk-arena` and bring its recommended shape back here as the option list.
 
 4. **Debate with the lenses.** Challenge your own and the user's assumptions. Seek the strongest reasoning, not agreement. Where lenses point in different directions, say so. **Do not let every lens converge on one option** — if they do, you are probably pattern-matching instead of reasoning. Each lens should find something real to say about each option; when a lens has nothing to say, that is a sign the lens is being lazy, not that the option is perfect. The value of the debate is the friction, not the consensus.
 
@@ -124,7 +126,7 @@ Before proceeding to the next beat, confirm:
 
 ## Output
 
-Product line (who / problem / pitch) / Goal / Success criteria / Measured by (when one exists) / Options considered / Decision / Tradeoffs / Failure mode to watch / Thread name / Open questions / Agreed shape (diagram, HTML mockup when user-facing, contracts, call stack, test shapes, or spike) / Acceptance spec (`features/<feature>.feature`) / Design-level decisions / Contracts per component / Failure paths designed / Numbered slices with checkpoints / Order and first slice / Blast radius / Verification strategy / The route file (when it earns keeping)
+Product line (who / problem / pitch) / Goal / Success criteria / Measured by (when one exists) / Options considered / The arena verdict, when one ran (the base, and what was grafted) / Decision / Tradeoffs / Failure mode to watch / Thread name / Open questions / Agreed shape (diagram, HTML mockup when user-facing, contracts, call stack, test shapes, or spike) / Acceptance spec (`features/<feature>.feature`) / Design-level decisions / Contracts per component / Failure paths designed / Numbered slices with checkpoints / Order and first slice / Blast radius / Verification strategy / The route file (when it earns keeping)
 
 ## Handoff
 
@@ -142,5 +144,6 @@ If the shape and the route hold, recommend /skill:jnk-3-implement. Do not start 
 - Treat the diagram as a commitment — the map is not the territory.
 - Decide without showing every option and getting the user's explicit choice — the call is theirs.
 - Pass off a prior lean (e.g. from explore) as a decision, or pass off "familiar" as "simple."
+- Settle a one-way-door direction from the option list. Run `/skill:jnk-arena` and choose from the shapes, or say out loud why the door is actually reversible.
 - Add abstraction without a demonstrated need.
 - Expand scope without justification.

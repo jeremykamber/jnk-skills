@@ -78,6 +78,7 @@ The third line is the cheap one: it names the config files that are missing. `ga
 - `commit` — write the history
 - `oneshot` / `attack` / `grill` / `interrogate` / `refactor` / `handoff` / `worktree` — the modes and the session tooling
 - `correct` / `verify-app` / `decisions` — the environment passes: make the repeat impossible, script the app drive, keep the trail
+- `arena` — design a one-way-door direction two or three times, then choose (the design beat points at it)
 
 See `usage.md` for the full modes and day-to-day mechanics.
 
@@ -97,6 +98,7 @@ See `usage.md` for the full modes and day-to-day mechanics.
 - **The decision trail**: `jnk-decisions` owns one TSV, one row per decision, evidence as a pointer, append-only. It is what lets a reviewer sample a long or unattended run instead of re-reading it, and it is audited against the transcript before it is handed back.
 - **Make the repeat impossible**: `jnk-correct` turns a mistake the agent keeps making into something the repo will not allow, fixing at the highest level that works — architecture, then types, then a lint whose error names the fix, then a test, docs last — and pairing each rule with what enforces it in the project's `AGENTS.md`.
 - **The workflow improves itself on a schedule**: `scripts/eval-nightly.sh` runs `jnk-eval` over recent sessions, applies the safe edits on its own, and queues the foundational ones for a human.
+- **Design it twice, when it is expensive to be wrong**: `jnk-arena` runs two or three structurally distinct designs for one brief, has a fresh context judge them on the design lenses, and recommends a base with the others' best ideas grafted in. Designs, not features, and the user still chooses. The design beat points at it for a one-way door.
 - **Gates that target attention**: the teach leads with what the gates flagged — CRAP hotspots, coverage gaps, mutation survivors, arch violations, new design findings — so review attention goes where the risk actually is
 
 ## The workflow
