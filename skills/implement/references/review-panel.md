@@ -1,6 +1,6 @@
-# The review panel — six skeptics on one diff
+# The review panel — seven skeptics on one diff
 
-A reviewed slice gets six subagents, one question each, run in one batch over the same diff. Seat 1 hunts defects in the code as written. Seats 2–4 judge the design, each against a different group of Ousterhout's red flags and the moves that retire them; seat 5 asks the whole-diff question — did this change need all of these parts? Seat 6 is primed that the bugs are there and does not stop at the first. The shape is the point: one generalist reviewer reads the whole diff the same way and misses what a seat with a single question would have caught.
+A reviewed slice gets seven subagents, one question each, run in one batch over the same diff. Seat 1 hunts defects in the code as written. Seats 2–4 judge the design, each against a different group of Ousterhout's red flags and the moves that retire them; seat 5 asks the whole-diff question — did this change need all of these parts? Seat 6 is primed that the bugs are there and does not stop at the first. Seat 7 questions the requirement itself, before any of the others: if the thing should not exist, nothing else matters. The shape is the point: one generalist reviewer reads the whole diff the same way and misses what a seat with a single question would have caught.
 
 Used by: `jnk-3-implement` step 4 (a slice the route marked for review), `jnk-4-verify` step 5 (fresh eyes on a risky change), `jnk-oneshot` step 6 (a substantial or risky change).
 
@@ -8,10 +8,10 @@ Used by: `jnk-3-implement` step 4 (a slice the route marked for review), `jnk-4-
 
 - **One seat per subagent, its brief quoted verbatim** — never this whole file. A seat that has read the other five is a generalist again, and each brief is written to be the only thing in its head.
 - **The same context for every seat:** the diff under review (the slice's files, or the whole change), the tests the diff touches, the `AGENTS.md` files — the machine's global rules and the project's own — **the files themselves, never a restatement of them** — the acceptance spec `features/*.feature` when one exists, and `depth --changed --base <ref> --json` for the changed files. That last one matters: `depth` decides nine of the fourteen red flags from the source text and lists them with their repair moves under `moves`, so no seat re-argues a decidable flag. The seats read for the flags a tool cannot decide — that is what a subagent is for.
-- **All six in one batch, read-only.** The panel reads in parallel; **one writer repairs serially.** Six seats editing one tree race on the same files, and four quality seats editing one file produce four conflicting fixes — a review that damages the code is not a review. The panel's product is findings with a named move; the repair is the implementer's, applied one at a time, with the gates re-run after.
+- **All seven in one batch, read-only.** The panel reads in parallel; **one writer repairs serially.** Seven seats editing one tree race on the same files, and five quality seats editing one file produce five conflicting fixes — a review that damages the code is not a review. The panel's product is findings with a named move; the repair is the implementer's, applied one at a time, with the gates re-run after.
 - **Every seat answers in the same shape:** `[seat] [high|med|low] location — the finding — why it matters — the move`. A seat with nothing to report says so plainly and says why (the tests cover X, the boundary is handled at Y). An all-clear with reasons is a valid result; a manufactured finding to look busy is a failed seat.
 - **Moves are chosen, not invented.** For the nine flags `depth` decides, the menu is its own — `depth --explain <flag>` prints the ways to fix it and when each applies. For the flags no tool decides, the menu is in the seat brief. Prefer the smallest move that answers the finding.
-- **Scale by seat, not by skipping review.** A reviewed slice runs all six. When the route names one risk ("the retry loop is the risk here"), say which seats you are not running and why — a narrower panel is a decision, never a default.
+- **Scale by seat, not by skipping review.** A reviewed slice runs all seven. When the route names one risk ("the retry loop is the risk here"), say which seats you are not running and why — a narrower panel is a decision, never a default.
 
 ## The triage rule
 
@@ -96,3 +96,17 @@ The other seats judge what is in front of them. You assume the bugs are there an
 **Where they live.** The branch the suite never takes: an error path, a partial-failure path, a fallback. The boundary the tests skipped: 0, 1, empty, max, max+1, negative, NaN, unicode, Feb 29, DST, midnight UTC. The second call: idempotence, reuse after close or dispose, a cached value gone stale, a queue drained twice. Ordering and concurrency: two calls in flight, an `await` missing, a shared mutable, a lock released twice, a promise nobody handles. The assumption about the caller: non-null, unique id, well-formed, sorted, non-empty, single-threaded. Resource lifetime: a file, socket, subscription, listener or timer not released on the failure path. Numbers and text: float rounding, integer division, locale-dependent parsing, a string cut mid-codepoint. The mutant the suite survives — if one exists, the assertion is missing. The call nobody expected to fail, so nobody handles it.
 
 **Method.** For each behavior the diff changes, write down the input or sequence that would falsify it, then run it or trace it to the wrong result before reporting. The diff's own tests are the first place to look for what is uncovered: the paths they never enter are the paths to attack. When the change warrants the exhaustive version, that is `/skill:jnk-attack` — name it in your report rather than duplicating it.
+
+## Seat 7 — The algorithm: question the requirement, then delete
+
+**Your question: does every requirement this diff satisfies actually exist, and is every part it adds actually needed?**
+
+This seat runs the order the other seats assume: question the requirement, delete the part or step, and only then simplify (seat 5), accelerate, and automate. It exists because the most common error of a smart engineer is optimizing a thing that should not exist, and a diff is the cheapest place to catch it.
+
+*The order.* 1. Make the requirement less dumb: name the person who asked, and question it even when it came from someone senior. 2. Try to delete the part or the process step: if nothing breaks without it, it was not needed. 3. Only then simplify. 4. Only then accelerate. 5. Automate last. Each step done out of order invalidates the one before it.
+
+**Hunt:** a requirement with no named owner; a spec line nothing depends on; a new file, layer, parameter, option, flag, or config key that no caller needs; a pipeline step that could be deleted; a "generic" mechanism added before its second caller; an abstraction whose only job is to hold another abstraction; work that got faster or cleaner before anyone asked whether it should exist; a new gate, check, or script that duplicates one already present.
+
+**Moves.** Delete the part or the step. Fold the requirement's real intent into what already exists. If the requirement must stay, say who owns it and why, then hand it to seat 5 to simplify. The strongest finding this seat can make is "delete this requirement's implementation, and nothing else changes".
+
+**Fence.** A hard external constraint (a protocol, a law, a contract) is not yours to delete. Record its owner and move on.
