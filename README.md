@@ -12,6 +12,8 @@ with the pi coding agent.
 - `skills/` — coding skills (one directory per skill: `SKILL.md` plus references and scripts)
 - `skills/misc/` — non-coding skills (`teach`, `slides`, `create-exercise`), same layout
 - `tools/` — the gate tooling (`gates`, `crap`, `depth`) and the adapters `gates --init` writes
+- `rules/` — the named engineering principles, installed as rulebook rules (`~/.agents/rules/`) the agent reads on demand at `rule://<name>` and steers by name
+- `scripts/` — the eval nightly runner and its launchd template
 - `checks/` — the tools' own test suite; `./tools/gates` runs it, and `gates.json` is that stack
 - `install.sh` — puts the tools on your PATH and checks what they need
 - `usage.md` — the practical guide: how to invoke the beats, answer gates, and manage context
@@ -73,6 +75,8 @@ The third line is the cheap one: it names the config files that are missing. `ga
 - `3-implement` — checkpoints; each slice taught in layers, subagent validation
 - `4-verify` / `debug` / `eval` — prove and review, AGENTS.md enforcement
 - `commit` — write the history
+- `oneshot` / `attack` / `grill` / `interrogate` / `refactor` / `handoff` / `worktree` — the modes and the session tooling
+- `correct` / `verify-app` / `decisions` — the environment passes: make the repeat impossible, script the app drive, keep the trail
 
 See `usage.md` for the full modes and day-to-day mechanics.
 
@@ -83,10 +87,15 @@ See `usage.md` for the full modes and day-to-day mechanics.
 - **Evidence is a run, not a suite**: a green suite written beside the code proves the implementation matches itself, bugs included — the failure mode most likely to fool an agent and its reviewer. A beat that changes behavior exercises the real path and shows what came back; a path it could not reach is named as unverified rather than assumed.
 - **The acceptance spec is executable**: design writes `features/<feature>.feature` in the language of the problem, implementation makes it run and turns the scenarios green. The `acceptance` gate parses the file rather than trusting a transcription of it, so the spec and the tests cannot drift apart.
 - **Write-in-the-moment persistence**: IOUs and squawks written to disk at every gate, not at debrief
-- **Subagent architecture**: Slice validator, parallel execution with dependency graph, and the review panel — six seats over one diff (logic and APIs; leakage and obscurity; module shape; generality and repetition; simplification; a primed bug hunt), read in parallel, repaired by one writer
-- **Adversarial review is a panel, not a generalist**: one reviewer reads everything the same way and misses what a seat with a single question catches. Three of the seats own a group of Ousterhout's red flags; one is the simplification seat, which asks the question nobody else does — why is this so complicated?; one hunts correctness and dead code; one is primed that the bugs are there. Each seat is briefed on why its group costs maintainability and which moves retire it, and returns a finding with the move already chosen — `depth --explain`'s menu for the nine flags the tool decides, the seat brief's for the rest.
+- **Subagent architecture**: Slice validator, parallel execution with dependency graph, and the review panel — seven seats over one diff (logic and APIs; leakage and obscurity; module shape; generality and repetition; simplification; a primed bug hunt; the algorithm, which questions the requirement and deletes before anything else), read in parallel, repaired by one writer
+- **Adversarial review is a panel, not a generalist**: one reviewer reads everything the same way and misses what a seat with a single question catches. Three of the seats own a group of Ousterhout's red flags; one is the simplification seat, which asks the question nobody else does — why is this so complicated?; one hunts correctness and dead code; one is primed that the bugs are there; one questions the requirement itself and deletes before the rest. Each seat is briefed on why its group costs maintainability and which moves retire it, and returns a finding with the move already chosen — `depth --explain`'s menu for the nine flags the tool decides, the seat brief's for the rest.
 - **AGENTS.md enforcement**: a subagent audits the diff against the effective `AGENTS.md` — the machine's global rules and the project's own, handed as files, never a restatement of them, because a copied principle list drifts silently
 - **Anti-rationalization tables**: Intercept model rationalizations for skipping gates
+- **Principles you steer by name**: `rules/` holds one file per engineering principle. The harness lists each by name and description in the prompt and reads the body on demand (`rule://<name>`), so a principle costs nothing until the situation matches, and one word redirects a run. The agent names the decision a principle changed; a name with no decision is a name-drop. On a harness without a rules primitive, the same files are plain markdown the agent reads.
+- **Verification is a project capability, not a conversation**: `jnk-verify-app` generates a project-local `verify-<app>` skill that launches the app, checks it is worth driving, drives a feature the way a user does, captures evidence, and cleans up, plus a feature map of what to drive. It is proven once end to end, and a periodic pass keeps the map honest without ever editing product code.
+- **The decision trail**: `jnk-decisions` owns one TSV, one row per decision, evidence as a pointer, append-only. It is what lets a reviewer sample a long or unattended run instead of re-reading it, and it is audited against the transcript before it is handed back.
+- **Make the repeat impossible**: `jnk-correct` turns a mistake the agent keeps making into something the repo will not allow, fixing at the highest level that works — architecture, then types, then a lint whose error names the fix, then a test, docs last — and pairing each rule with what enforces it in the project's `AGENTS.md`.
+- **The workflow improves itself on a schedule**: `scripts/eval-nightly.sh` runs `jnk-eval` over recent sessions, applies the safe edits on its own, and queues the foundational ones for a human.
 - **Gates that target attention**: the teach leads with what the gates flagged — CRAP hotspots, coverage gaps, mutation survivors, arch violations, new design findings — so review attention goes where the risk actually is
 
 ## The workflow

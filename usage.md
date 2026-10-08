@@ -80,6 +80,9 @@ Bring gates back one at a time as you install their tooling. The template ships 
 | `/skill:jnk-grill` | A decision that needs walking before it can be made | The agent fires it from any beat when a decision tree appears; one question at a time, you decide; back to that beat after. |
 | `/skill:jnk-interrogate` | You want to actually understand a repo or feature — not just approve it | The agent interrogates you across thirteen coverage areas: Socratic chains verified against the code, a teaching ladder where you gap (hint → concept → code → analogy → explain-back), and a "two areas left" signal before it ends. |
 | `/skill:jnk-handoff` | The live thread must cross a session boundary | Writes a compact thread checkpoint; pickup reads it next session. Split anywhere, not just at beat ends. |
+| `/skill:jnk-correct` | The same mistake keeps coming back | Finds the mistake classes and makes each one impossible at the highest level that works: architecture, then types, then a lint whose error names the fix, then a test, docs last. |
+| `/skill:jnk-verify-app` | The project has no scripted way to drive the app | Generates a project-local `verify-<app>` skill (launch, doctor, drive, evidence, cleanup) and a feature map, proves it once, and describes the upkeep loop. |
+| `/skill:jnk-decisions` | Long, risky, or unattended work | Owns the decision trail: one row per decision, an evidence pointer, append-only. The beats write to it; it audits and reviews it. |
 
 Rule of thumb: start with one-shot. If it tells you the change outgrew it (it "escalates"), switch to the beats.
 
@@ -126,7 +129,7 @@ One more thing the agent will name at decision time: a **thread name** (e.g. `pe
 
 ## Reading what the agent wrote — the layered walkthrough
 
-The implement checkpoint (`/skill:jnk-3-implement`) teaches each slice in layers — where it sits, how data flows through it, the critical decisions (and the agent's least-confident choices), and what's mundane plumbing you can safely skip. Depth scales with the slice's risk: mechanical slices get the two-line version; risky ones get the full teach plus the review panel's findings — six seats, one per subagent: the code and its APIs, three groups of Ousterhout's red flags, a simplification pass, and a primed bug hunt.
+The implement checkpoint (`/skill:jnk-3-implement`) teaches each slice in layers — where it sits, how data flows through it, the critical decisions (and the agent's least-confident choices), and what's mundane plumbing you can safely skip. Depth scales with the slice's risk: mechanical slices get the two-line version; risky ones get the full teach plus the review panel's findings — seven seats, one per subagent: the code and its APIs, three groups of Ousterhout's red flags, a simplification pass, a primed bug hunt, and the algorithm (question the requirement, delete, then simplify).
 
 Use the loop — the agent is your tutor, not your authority:
 
@@ -163,6 +166,7 @@ One principle governs what gets written: **don't serialize the conversation beca
 | Route / slice ledger | jnk-2-design → jnk-3-implement | `.ai/contexts/<feature>/route.md` | no — living document |
 | Spikes, throwaway prototypes | jnk-2-design | `.ai/contexts/<feature>/designs/` | no — throwaway |
 | Squawks | jnk-3-implement / jnk-4-verify | `.ai/contexts/<feature>/squawks.md` | no — session state |
+| Decision trail | jnk-oneshot / jnk-3-implement / jnk-run | `.ai/contexts/<feature>/decisions.tsv` | no — unless a reviewer needs the trail to trust the result |
 | Verification results | jnk-4-verify | `.ai/contexts/<feature>/verification/` | when needed |
 | System facts (env, integrations) | jnk-oneshot | `docs/external/` | yes |
 
@@ -236,6 +240,40 @@ Attention degrades as the context fills, no matter how big the window is. **Keep
 - **The notebook's durability?** `notes.md` is committed with the code (gitignore exception — see the notebook section above) so the session history survives machines and worktree cleanup; the rest of the notebook is local. Decisions, designs, specs, and system facts live in `docs/adr/`, `docs/designs/`, `features/`, and `docs/external/` — in the codebase by definition.
 - **Where the philosophy lives:** each skill's `SKILL.notes.md` — what it does, when to use it, why it exists, how it fits the other skills, and its sources. Private: the agent never sees them; read them when you want the why. This guide is the day-to-day.
 - **Code complexity:** the `crap` gate (`crap src --coverage coverage/coverage-final.json --threshold 10`) scores every function on complexity *and* coverage together — $CRAP = CCN^2 \times (1 - coverage)^3 + CCN$. It separates a complex function that is tested from one that is not, which a maintainability index cannot, because MI is driven mostly by size. Run it in the gate stack, after the gate that emits the coverage file.
+
+## Principles you steer by name
+
+Beside the eight rules every session already loads (`AGENTS.md`), the machine installs a set of named engineering principles from `rules/` into `~/.agents/rules/`. The harness lists each by name and description in the system prompt and reads the body only when you ask, at `rule://<name>`. So a principle costs nothing until the situation matches.
+
+Use one as steering, mid-run:
+
+> `/skill:jnk-3-implement` ... actually, question the requirement first — who asked for this field, and what breaks if it is gone?
+
+The agent reads the leaf and **names the decision the principle changed**. A principle named with no decision behind it is a name-drop, not an application. Add a principle to `rules/` when a correction repeats and no gate can enforce it; when a gate can enforce it, encode it there instead (`/skill:jnk-correct`).
+
+On a harness with no rules primitive, the files are plain markdown and the agent reads them like any other doc.
+
+## The environment passes
+
+Three skills fix the environment rather than the instance:
+
+- **`/skill:jnk-correct`** — a mistake the agent keeps making becomes something the repo will not allow. It fixes at the highest level that works (architecture, then types, then a lint whose error names the fix, then a test, docs last), proves each new check fails on the real past mistake, and keeps the rule-to-enforcement table in the project's `AGENTS.md`.
+- **`/skill:jnk-verify-app`** — the project gets a scripted way to drive the app: a project-local `verify-<app>` skill (launch, doctor, drive, evidence, cleanup) plus a feature map of what to drive and what end state proves it. Proven once, then reused by `jnk-4-verify` and `jnk-oneshot`. A periodic pass keeps the map honest.
+- **`/skill:jnk-decisions`** — the decision trail for long, risky, or unattended work: one row per decision, an evidence pointer, append-only. It is what lets you sample a run instead of re-reading it, and it is audited against the transcript before it is handed back.
+
+## The nightly pass
+
+`scripts/eval-nightly.sh` runs `jnk-eval` over your recent sessions a few times a week, unattended. It applies the safe edits itself (a typo, a wording fix, a missing example) and queues the foundational ones (a new principle, a skill's contract, a gate) in a report for you to approve. Install it with cron or the bundled launchd job:
+
+```sh
+# launchd (macOS), Mondays and Thursdays at 09:00
+sed "s|__JNK_HOME__|$PWD|" scripts/com.jnk.eval-nightly.plist > ~/Library/LaunchAgents/com.jnk.eval-nightly.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.jnk.eval-nightly.plist
+
+# or cron: 0 9 * * 1,4  $PWD/scripts/eval-nightly.sh
+```
+
+Reports and logs land in `~/.local/state/jnk-skills/` (`JNK_STATE_DIR` overrides it).
 
 ## The next frontier
 
