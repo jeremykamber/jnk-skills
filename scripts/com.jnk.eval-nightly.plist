@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+launchd job for scripts/eval-nightly.sh. Runs the jnk-eval nightly pass twice a
+week, Mondays and Thursdays at 09:00.
+
+Install:
+  1. Replace __JNK_HOME__ below with this checkout's absolute path.
+  2. cp scripts/com.jnk.eval-nightly.plist ~/Library/LaunchAgents/
+  3. launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.jnk.eval-nightly.plist
+
+Uninstall: launchctl bootout gui/$(id -u)/com.jnk.eval-nightly
+
+Logs land in JNK_STATE_DIR (default ~/.local/state/jnk-skills); the two paths
+below capture launchd's own noise.
+-->
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>com.jnk.eval-nightly</string>
+    <key>ProgramArguments</key>
+    <array>
+      <string>__JNK_HOME__/scripts/eval-nightly.sh</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <array>
+      <dict>
+        <key>Weekday</key>
+        <integer>1</integer>
+        <key>Hour</key>
+        <integer>9</integer>
+      </dict>
+      <dict>
+        <key>Weekday</key>
+        <integer>4</integer>
+        <key>Hour</key>
+        <integer>9</integer>
+      </dict>
+    </array>
+    <key>StandardOutPath</key>
+    <string>/tmp/jnk-eval-nightly.out</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/jnk-eval-nightly.err</string>
+  </dict>
+</plist>
