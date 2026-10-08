@@ -43,9 +43,13 @@ direction.
    same shape, record that convergence as evidence for the shape. If they diverged wildly, the
    brief was underspecified: rewrite it and run the arena again, rather than picking the least bad.
 
-5. **Present, and stop.** The chosen shape, the rejected candidates and the one thing each did
-   better, the rubric verdict, and the single assumption most likely to be wrong. The user decides;
-   the arena recommends. This is the decision gate's input, not a substitute for it.
+5. **Build the review, present, and stop.** Write `review.html` beside the candidates — the shapes
+   side by side, the rubric in one matrix, every file a click from its code — and open it. The
+   spec, the document contract, and the feedback loop are in `references/arena-review.md`. The user
+   reads the shapes, annotates what they would change, and chooses on the artifact; their notes
+   come back as the prompt. Then the chosen shape, the rejected candidates and the one thing each
+   did better, the rubric verdict, and the single assumption most likely to be wrong. The user
+   decides; the arena recommends. This is the decision gate's input, not a substitute for it.
 
 ## The candidate package
 
@@ -78,6 +82,7 @@ subagent owns its file and may not write to the repo.
 
 ## Do not
 
+- Present the candidates as three markdown files. The arena ends in `review.html` — the shapes drawn, the rubric in one matrix — because a wall of prose does not get judged.
 - Run the arena for a reversible, low-stakes decision. The option list and the debate settle those.
 - Let a candidate write to the repo, or commit any of them.
 - Let a candidate read another's file, or be a variation on another. Whole shapes, or it is not an arena.
