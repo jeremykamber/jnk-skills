@@ -13,6 +13,7 @@ You are the pilot; the agent is the copilot. You decide when each step starts, y
 - **Unresolved decision → the agent fires /skill:jnk-grill.** One question at a time, it proposes an answer and researches facts; you decide.
 - **Own the understanding → /skill:jnk-interrogate.** The agent interrogates you on a repo or feature until your understanding is real — brutal Socratic chains, a teaching ladder where you gap, and a "two areas left" signal so it never runs forever.
 - **Context at ~60% → finish the step and split, or /skill:jnk-handoff mid-beat; fresh session, pickup.**
+- **More work than one context, or it belongs on another machine → /skill:jnk-delegate.** You hold the brief and the review; agents on the target hold the typing. Every claim they make gets checked against the live tree before it goes anywhere.
 - **A beat proves it worked by running `gates`.** Verification is a command, not a judgment — see the next section.
 
 ## The gates — how a beat proves it worked
@@ -83,6 +84,7 @@ Bring gates back one at a time as you install their tooling. The template ships 
 | `/skill:jnk-correct` | The same mistake keeps coming back | Finds the mistake classes and makes each one impossible at the highest level that works: architecture, then types, then a lint whose error names the fix, then a test, docs last. |
 | `/skill:jnk-verify-app` | The project has no scripted way to drive the app | Generates a project-local `verify-<app>` skill (launch, doctor, drive, evidence, cleanup) and a feature map, proves it once, and describes the upkeep loop. |
 | `/skill:jnk-decisions` | Long, risky, or unattended work | Owns the decision trail: one row per decision, an evidence pointer, append-only. The beats write to it; it audits and reviews it. |
+| `/skill:jnk-delegate` | The work is bigger than one context, or belongs on another machine (the browser, the backend, the production data) | You write the brief; agents on the target machine run it over `herdr`. You read their diffs, verify every claim against the live tree, and steer until the ledger is complete. Production is delegated; verification never is. |
 
 Rule of thumb: start with one-shot. If it tells you the change outgrew it (it "escalates"), switch to the beats.
 
