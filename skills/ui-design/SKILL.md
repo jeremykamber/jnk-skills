@@ -1,5 +1,5 @@
 ---
-name: ui-design
+name: jnk-ui-design
 description: Visual and frontend design craft for UI work. Use when building or restyling a page, layout, component, or screen; when the UI looks generic, flat, or AI-default; or when auditing hierarchy, spacing, type, or color. Branches to layout, hierarchy, components, type-color-space, critique, and sources references.
 ---
 
