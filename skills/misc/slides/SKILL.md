@@ -1,6 +1,7 @@
 ---
 name: slides
-description: Build a themed Google Slides deck — lecture or lesson slides, workshop or training material, a briefing, readout or overview deck — as a JSON spec that a tested Apps Script turns into slides in the user's own template. Two modes: teach (lecture, lesson, workshop; optimizes durable learning, retrieval and transfer) and inform (briefing, update, readout, explainer; optimizes clarity, memorability and engagement). Use when the user asks for slides, a deck, a presentation, lecture slides, teaching or training material, or to turn notes/a doc/a topic into a slide deck.
+description: "Build a themed Google Slides deck — lecture or lesson slides, workshop or training material, a briefing, readout or overview deck — as a JSON spec that a tested Apps Script turns into slides in the user's own template. Two modes: teach (lecture, lesson, workshop; optimizes durable learning, retrieval and transfer) and inform (briefing, update, readout, explainer; optimizes clarity, memorability and engagement). Use when the user asks for slides, a deck, a presentation, lecture slides, teaching or training material, or to turn notes/a doc/a topic into a slide deck."
+disable-model-invocation: true
 ---
 
 # Slides

@@ -1,6 +1,7 @@
 ---
 name: create-exercise
-description: Build a practice exercise people actually learn from — an interactive web exercise (choice, order, match, numeric, text, explain) published to GitHub Pages with a QR code, or a code exercise repo (failing tests, a placed misconception, reference solution, rubric). Two modes: general and code. Use when the user asks for practice material, a quiz, an exercise, a worksheet, a coding challenge, a homework set, or a self-check students do before or after a class.
+description: "Build a practice exercise people actually learn from — an interactive web exercise (choice, order, match, numeric, text, explain) published to GitHub Pages with a QR code, or a code exercise repo (failing tests, a placed misconception, reference solution, rubric). Two modes: general and code. Use when the user asks for practice material, a quiz, an exercise, a worksheet, a coding challenge, a homework set, or a self-check students do before or after a class."
+disable-model-invocation: true
 ---
 
 # Create exercise

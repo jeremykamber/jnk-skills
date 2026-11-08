@@ -1,6 +1,7 @@
 ---
 name: teach
 description: 'Teach any topic so the learner can do, explain, recognize, and transfer it later — without the AI. Use when the user asks to learn, understand, master, study, or review a topic; says "I don''t understand/get X"; wants help preparing for a test, exam, or interview; or asks to be taught or tutored. Any subject, any level. Grounded in learning science: diagnose before teaching, retrieve before showing, worked examples that fade, precise diagnostic feedback, deliberate difficulty, spacing and interleaving, metacognitive calibration, and a gradual handoff to independence. This is a tutoring skill — it optimizes for durable learning outcomes, not conversational pleasantness.'
+disable-model-invocation: true
 ---
 
 # Teach
