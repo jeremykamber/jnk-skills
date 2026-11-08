@@ -8,6 +8,9 @@ Layout is how content relates across space. Strong layouts have a visible struct
 - Align edges, not centers. Elements that share a left edge read as one group, even when their widths differ.
 - Place content on the grid. Do not nudge elements between grid lines to make them "look right"; if they look wrong, the grid is wrong.
 - Use a few widths, not many. Pick a small set of spans (e.g. 1/3, 1/2, 2/3, full) and reuse them.
+- **Keylines** are the vertical lines things align to when they sit outside the column grid: card edges, icon rails, table start, the leading edge of an image. Choose two or three per screen, at multiples of the grid, and hold them across sections. Most "slightly off" layouts are missing a keyline, not a column.
+- **Component grid vs baseline grid.** An 8px square grid governs component sizes and padding; a 4px baseline governs icon and text placement. They coexist; the type scale does not need to land on the baseline in UI work (see `typography.md`, rhythm).
+- For a composed page rather than a grid, read `composition.md`.
 
 ### Proportion systems (optional, taste-driven)
 
@@ -43,6 +46,20 @@ Use these to show structure with less ink.
 - Start with more space than you think you need, then remove space where it is not grouping anything.
 - Group spacing as a relationship: inner padding < gap between siblings < gap between sections.
 
+### Measured density
+
+Use `scripts/audit-ui.js` and the method in `readability-density.md`. Measure
+rendered text coverage, visible character/control counts and per-region padding
+at the actual viewport and UI state. Review a collapsed scan row separately
+from an explicitly opened editor, and a data table under the `dense` profile
+separately from both. Do not declare a whole page comfortable because one large
+empty margin lowers its aggregate text percentage.
+
+These measurements are repeatable warning limits, not a validated human
+crampedness score. Cut/defer content before widening padding; never shrink type
+or hide necessary questions to pass. Screenshot judgment and user feedback
+remain the acceptance criteria for restraint and intuitive use.
+
 ## Clusters and micro-layouts
 
 A cluster is a small group with a single job: a status readout, a figure with a meter, a metadata row, a user chip. It fails in the opposite direction from a page — an under-designed page looks empty, an over-stuffed cluster looks cramped, because every part was added and none were removed.
@@ -69,7 +86,7 @@ A metadata row answers small questions about one thing: who, when, how many, wha
 
 ## Container and measure
 
-- Limit reading text to about 45–75 characters per line. Longer lines make reading tiring.
+- Limit reading text to about 45–75 characters per line. Longer lines make reading tiring. Mechanics, CSS and the rag/orphan rules: `typography.md`.
 - Constrain the content width (for example 64–80rem for a page, 40–60rem for prose). A full-bleed text column is a common AI mistake.
 - Use full-bleed only for media, dividers, and surfaces that should span the viewport.
 
@@ -78,6 +95,15 @@ A metadata row answers small questions about one thing: who, when, how many, wha
 - Empty space is a design element. It isolates the focal point and signals confidence.
 - Do not fill every gap with a card, icon, or stat. A sparse region next to a dense one creates contrast.
 - Check: if you remove an element, does the layout get worse? If not, the element is decoration.
+
+## Media and frames
+
+Pick two or three aspect ratios for the product and use only those: 16:9 for
+leads, 4:3 or 1:1 for cards, 3:2 for editorial, plus a portrait ratio if the
+content needs one. A container sets `aspect-ratio`, the image covers it, and the
+focal point is chosen with `object-position`, never by stretching. Full-bleed
+media owns its section; media inside a column shares the column's edges. Details
+in `imagery.md`.
 
 ## Responsive
 
