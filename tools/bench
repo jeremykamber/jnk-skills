@@ -1,0 +1,468 @@
+#!/usr/bin/env python3
+"""bench — does the workflow produce less slop than a plain agent?
+
+The workflow makes claims. This measures them. A *series* is a list of feature
+tasks applied one after another to the same growing repository, so what it
+measures is the thing that actually matters: whether the code gets worse as
+features accumulate, and how fast.
+
+Three arms, same tasks, same seed repo, fresh session per task:
+
+    bare       no instructions at all — the harness's default competence
+    baseline   a short AGENTS.md (bench/arms/baseline.md) — the real competition
+    workflow   the jnk skills + the repo's AGENTS.md
+
+Per-task measures, recorded for every task so the trajectory is visible:
+
+    pass       the task's verify.py, run from OUTSIDE the repo (the agent cannot
+               read it, and it is written from the requirement, not the code)
+    slop       three proportions, equal weight, summed and scaled by 100:
+                 functions that are over-complex (CCN>=15) or long (>=50 lines)
+                   as a share of all functions
+                 duplicated-line share of the source lines
+                 design findings (depth) per source file, capped at 1
+               Each term is a share, so a 200-line repo and a 20,000-line repo
+               are comparable. Equal weight because a weight would be a
+               preference dressed as a measurement. Lower is better.
+    tokens, cost, seconds, tool calls, turns   from the harness transcript
+
+A failed task's slop is recorded but excluded from the aggregate: slop in code
+that does not work measures nothing.
+
+Usage:
+    bench --list
+    bench --run series/ticket-desk --arm bare --arm baseline --arm workflow
+    bench --report
+    bench --self-test
+
+An arm that cannot run (no agent on PATH) says so and exits 2 — a missing
+measurement is never reported as a good one.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+BENCH = ROOT / "bench"
+RESULTS = BENCH / "results"
+SOURCE_EXT = {".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"}
+SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__", ".bench",
+             "coverage", "dist", "build", ".mypy_cache", ".pytest_cache", ".ruff_cache"}
+CCN_HOT = 15
+LONG_FUNCTION = 50
+DUP_WINDOW = 5
+
+PROMPT_PREFIX = {
+    "bare": "",
+    "baseline": "",
+    # The documented usage is a human typing the beat. A headless run has no
+    # human, so the prompt carries the invocation the user would have typed.
+    # What a person who has installed this workflow would type. Naming every
+    # beat would measure the heaviest path, not the workflow's judgement about
+    # which path to take — and judgement is the thing under test.
+    "workflow": (
+        "Use the jnk workflow in this repository: pick the lightest beat that "
+        "fits this change, and run it.\n\n"
+    ),
+}
+
+
+# --------------------------------------------------------------------------
+# metrics
+# --------------------------------------------------------------------------
+
+
+@dataclass
+class Metrics:
+    loc: int = 0
+    kloc: float = 0.0
+    files: int = 0
+    test_files: int = 0
+    functions: int = 0
+    high_ccn: int = 0
+    long_fn: int = 0
+    dup_lines: int = 0
+    findings: int = 0
+    slop: float = 0.0
+
+    def as_dict(self) -> dict:
+        return self.__dict__.copy()
+
+
+def source_files(repo: Path) -> tuple[list[Path], list[Path]]:
+    """Source and test files, split. Tests are counted, never scored: a test
+    suite is not slop, and a benchmark that punishes tests teaches the wrong
+    lesson."""
+    src: list[Path] = []
+    tests: list[Path] = []
+    for path in repo.rglob("*"):
+        if not path.is_file() or path.suffix not in SOURCE_EXT:
+            continue
+        if any(part in SKIP_DIRS for part in path.parts):
+            continue
+        rel = path.relative_to(repo).as_posix()
+        is_test = bool(re.search(r"(^|/)(tests?|__tests__|spec)/|(^|/)(test_|conftest)|(_test|\.test|\.spec)\.", rel))
+        (tests if is_test else src).append(path)
+    return src, tests
+
+
+def duplicated_lines(files: list[Path]) -> int:
+    """Lines that sit inside a 5-line window appearing more than once across the
+    tree. Whitespace- and blank-stripped, so reformatting is not duplication."""
+    windows: dict[tuple[str, ...], int] = {}
+    for path in files:
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        lines = [line.strip() for line in text.splitlines()]
+        lines = [line for line in lines if line and not line.startswith(("#", "//", "*", "/*"))]
+        for i in range(len(lines) - DUP_WINDOW + 1):
+            window = tuple(lines[i:i + DUP_WINDOW])
+            if len(set(window)) < 3:  # boilerplate, not duplication
+                continue
+            windows[window] = windows.get(window, 0) + 1
+    return sum(DUP_WINDOW * (count - 1) for count in windows.values() if count > 1)
+
+
+def measure(repo: Path, depth_bin: Path | None = None) -> Metrics:
+    import lizard  # a workflow dependency; install.sh checks it
+
+    src, tests = source_files(repo)
+    metrics = Metrics(files=len(src), test_files=len(tests))
+    for path in src:
+        try:
+            info = lizard.analyze_file(str(path))
+        except Exception:
+            continue
+        metrics.loc += info.nloc
+        for fn in info.function_list:
+            metrics.functions += 1
+            if fn.cyclomatic_complexity >= CCN_HOT:
+                metrics.high_ccn += 1
+            if fn.length >= LONG_FUNCTION:
+                metrics.long_fn += 1
+    if src:
+        metrics.dup_lines = duplicated_lines(src)
+    metrics.kloc = max(metrics.loc, 100) / 1000.0
+    functions = max(metrics.functions, 1)
+    bad = min(metrics.high_ccn + metrics.long_fn, functions) / functions
+    duplicated = min(metrics.dup_lines / max(metrics.loc, 1), 1.0)
+    flagged = min(metrics.findings / max(metrics.files, 1), 1.0)
+    depth = depth_bin or (ROOT / "tools" / "depth")
+    if depth.exists():
+        proc = subprocess.run([sys.executable, str(depth), "--json", str(repo)],
+                              capture_output=True, text=True)
+        try:
+            metrics.findings = len(json.loads(proc.stdout or "{}").get("findings", []))
+        except json.JSONDecodeError:
+            metrics.findings = 0
+    metrics.slop = round(100 * (bad + duplicated + flagged), 2)
+    return metrics
+
+
+# --------------------------------------------------------------------------
+# the run
+# --------------------------------------------------------------------------
+
+
+@dataclass
+class TaskRecord:
+    task: str
+    passed: bool
+    verify: str
+    seconds: float
+    tokens: int
+    cost: float
+    tool_calls: int
+    turns: int
+    metrics: dict = field(default_factory=dict)
+    error: str = ""
+
+    def as_dict(self) -> dict:
+        return {**self.__dict__, "metrics": self.metrics}
+
+
+def arm_flags(arm: str) -> list[str]:
+    base = ["--no-session", "--no-skills", "--no-context-files"]
+    if arm == "bare":
+        return base
+    if arm == "baseline":
+        return base + ["--append-system-prompt", str(BENCH / "arms" / "baseline.md")]
+    if arm == "workflow":
+        flags = ["--no-session", "--no-context-files", "--no-skills",
+                 "--append-system-prompt", str(ROOT / "AGENTS.md")]
+        for skill in sorted((ROOT / "skills").glob("*/SKILL.md")):
+            flags += ["--skill", str(skill.parent)]
+        return flags
+    raise SystemExit(f"bench: unknown arm '{arm}' (bare, baseline, workflow)")
+
+
+def usage_from_events(raw: str) -> tuple[int, float, int, int]:
+    """Total tokens, cost, tool calls, turns — from the harness's JSONL."""
+    tokens, cost, calls, turns = 0, 0.0, 0, 0
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        message = event.get("message") or {}
+        if event.get("type") != "message_end" or message.get("role") != "assistant":
+            continue
+        turns += 1
+        usage = message.get("usage") or {}
+        tokens += int(usage.get("totalTokens") or 0)
+        cost += float((usage.get("cost") or {}).get("total") or 0.0)
+        calls += json.dumps(message.get("content") or "").count('"toolCall"')
+    return tokens, cost, calls, turns
+
+
+def run_agent(agent: str, arm: str, repo: Path, prompt: str, timeout: int, log: Path) -> tuple[str, str, float]:
+    """Run one agent turn, and kill the whole process group on a timeout.
+
+    `shell=True` means the agent is a grandchild: killing the shell leaves it
+    running, still writing to the repo while the verifier reads it. That is how a
+    timed-out task scores a pass it did not earn, and why this starts a new
+    session and kills the group.
+    """
+    cmd = f"{agent} {shlex_join(arm_flags(arm))} {shlex_quote(prompt)}"
+    started = time.time()
+    proc = subprocess.Popen(cmd, shell=True, cwd=repo, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE, text=True, start_new_session=True)
+    timed_out = False
+    try:
+        out, err = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            proc.kill()
+        out, err = proc.communicate()
+    elapsed = time.time() - started
+    raw = out or ""
+    if timed_out:
+        raw += "\n" + json.dumps({"type": "error", "message": f"timed out after {timeout}s; the whole process group was killed"}) + "\n"
+    elif proc.returncode != 0 and not raw:
+        raw = json.dumps({"type": "error", "message": (err or "")[-4000:]}) + "\n"
+    log.write_text(raw, encoding="utf-8")
+    return raw, "", elapsed
+
+
+def shlex_quote(text: str) -> str:
+    import shlex
+    return shlex.quote(text)
+
+
+def shlex_join(argv: list[str]) -> str:
+    import shlex
+    return " ".join(shlex.quote(a) for a in argv)
+
+
+def git(repo: Path, *args: str) -> None:
+    subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True)
+
+
+def verify(repo: Path, script: Path) -> tuple[bool, str]:
+    """The acceptance check, run from a temp copy outside the repo so the agent
+    can neither read it nor edit it."""
+    proc = subprocess.run([sys.executable, str(script), str(repo)],
+                          capture_output=True, text=True, timeout=300)
+    tail = (proc.stdout + proc.stderr).strip().splitlines()
+    return proc.returncode == 0, "\n".join(tail[-12:])
+
+
+def load_series(name: str) -> list[Path]:
+    path = BENCH / "series" / f"{name}.txt"
+    if not path.exists():
+        raise SystemExit(f"bench: no series '{name}' (looked for {path})")
+    tasks = [line.strip() for line in path.read_text().splitlines()
+             if line.strip() and not line.startswith("#")]
+    return [BENCH / "tasks" / task for task in tasks]
+
+
+def run_series(series: str, arm: str, agent: str, timeout: int, out: Path, keep: bool) -> dict:
+    tasks = load_series(series)
+    work = Path(tempfile.mkdtemp(prefix=f"bench-{series}-{arm}-"))
+    seed = BENCH / "seed"
+    if seed.exists():
+        shutil.copytree(seed, work, dirs_exist_ok=True)
+    git(work, "init", "-q")
+    git(work, "add", "-A")
+    git(work, "-c", "user.email=bench@local", "-c", "user.name=bench", "commit", "-qm", "seed")
+
+    records: list[TaskRecord] = []
+    for task_dir in tasks:
+        prompt = (task_dir / "task.md").read_text()
+        masked = Path(tempfile.mkdtemp(prefix="bench-verify-")) / "verify.py"
+        shutil.copy(task_dir / "verify.py", masked)
+        log = out / f"{arm}-{task_dir.name}.jsonl"
+        raw, _, seconds = run_agent(agent, arm, work, PROMPT_PREFIX[arm] + prompt, timeout, log)
+        tokens, cost, calls, turns = usage_from_events(raw)
+        passed, detail = verify(work, masked)
+        metrics = measure(work)
+        records.append(TaskRecord(task=task_dir.name, passed=passed, verify=detail,
+                                  seconds=round(seconds, 1), tokens=tokens, cost=round(cost, 5),
+                                  tool_calls=calls, turns=turns, metrics=metrics.as_dict()))
+        git(work, "add", "-A")
+        git(work, "-c", "user.email=bench@local", "-c", "user.name=bench", "commit", "-qm", task_dir.name)
+        print(f"  {arm:9s} {task_dir.name:24s} {'pass' if passed else 'FAIL':4s} "
+              f"slop={metrics.slop:7.2f} loc={metrics.loc:5d} tok={tokens:6d} {seconds:5.0f}s")
+        sys.stdout.flush()
+
+    scored = [r for r in records if r.passed]
+    summary = {
+        "series": series, "arm": arm, "model": model_of(out),
+        "started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "tasks": [r.as_dict() for r in records],
+        "pass_rate": round(len(scored) / len(records), 3) if records else 0.0,
+        "slop": round(sum(r.metrics["slop"] for r in scored) / len(scored), 2) if scored else None,
+        "slop_trajectory": [r.metrics["slop"] for r in scored],
+        "tokens": sum(r.tokens for r in records),
+        "cost": round(sum(r.cost for r in records), 5),
+        "seconds": round(sum(r.seconds for r in records), 1),
+        "tool_calls": sum(r.tool_calls for r in records),
+    }
+    if not keep:
+        shutil.rmtree(work, ignore_errors=True)
+    else:
+        summary["kept"] = str(work)
+    return summary
+
+
+def model_of(out: Path) -> str:
+    for log in sorted(out.glob("*.jsonl")):
+        for line in log.read_text(errors="ignore").splitlines():
+            if '"model"' in line and "message_end" in line:
+                try:
+                    return json.loads(line)["message"].get("model", "unknown")
+                except (json.JSONDecodeError, KeyError):
+                    continue
+    return "unknown"
+
+
+# --------------------------------------------------------------------------
+# report
+# --------------------------------------------------------------------------
+
+
+def report(directory: Path) -> int:
+    runs = []
+    for path in sorted(directory.glob("*.json")):
+        try:
+            runs.append(json.loads(path.read_text()))
+        except json.JSONDecodeError:
+            continue
+    if not runs:
+        print(f"bench: no results in {directory} — run `bench --run <series> --arm <arm>`")
+        return 1
+
+    by_series: dict[str, dict[str, dict]] = {}
+    for run in runs:
+        by_series.setdefault(run["series"], {})[run["arm"]] = run
+
+    lines = ["# bench", "", "Slop = (design findings + CCN>=10 + >=40-statement functions "
+             "+ duplicated 5-line windows) per 1000 source lines. Lower is better.",
+             "A failed task is excluded from the aggregate.", ""]
+    worse = False
+    compared = False
+    for series, arms in sorted(by_series.items()):
+        lines += [f"## {series}", "",
+                  "| arm | pass | slop | trajectory | tokens | cost $ | minutes | tool calls |",
+                  "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+        for arm in ("bare", "baseline", "workflow"):
+            run = arms.get(arm)
+            if not run:
+                continue
+            slop = "n/a" if run["slop"] is None else f"{run['slop']:.2f}"
+            lines.append(
+                f"| {arm} | {run['pass_rate'] * 100:.0f}% | {slop} | "
+                f"{' → '.join(f'{s:.1f}' for s in run['slop_trajectory']) or '—'} | "
+                f"{run['tokens']} | {run['cost']:.4f} | {run['seconds'] / 60:.1f} | {run['tool_calls']} |")
+        base = arms.get("baseline", {}).get("slop")
+        work = arms.get("workflow", {}).get("slop")
+        if base and work:
+            delta = (base - work) / base * 100
+            lines += ["", f"workflow vs baseline: **{delta:+.0f}%** slop "
+                          f"({work:.2f} vs {base:.2f})"]
+            compared = True
+            worse = worse or delta < 0
+        lines.append("")
+    lines += ["Model: " + ", ".join(sorted({r["model"] for r in runs})),
+              "Fresh session per task, identical seed repo, identical task prompts.",
+              "The workflow arm carries an extra line naming the beats a human would type."]
+    text = "\n".join(lines)
+    (directory / "report.md").write_text(text + "\n")
+    print(text)
+    # Exit 1 only when there is a comparison and the workflow lost it. A run
+    # with one arm has nothing to compare, which is not a failure.
+    return 1 if compared and worse else 0
+
+
+# --------------------------------------------------------------------------
+# cli
+# --------------------------------------------------------------------------
+
+
+def main(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(add_help=True)
+    parser.add_argument("--list", action="store_true", help="show series and tasks")
+    parser.add_argument("--run", metavar="SERIES")
+    parser.add_argument("--arm", action="append", default=[])
+    parser.add_argument("--agent", default=os.environ.get("BENCH_AGENT", "pi -p --mode json"))
+    parser.add_argument("--timeout", type=int, default=900, help="per-task seconds (default 900)")
+    parser.add_argument("--out", default=str(RESULTS))
+    parser.add_argument("--keep", action="store_true", help="keep the scratch repo")
+    parser.add_argument("--report", action="store_true")
+    parser.add_argument("--self-test", action="store_true")
+    args = parser.parse_args(argv[1:])
+
+    if args.list:
+        for path in sorted((BENCH / "series").glob("*.txt")):
+            print(path.stem)
+            for task in load_series(path.stem):
+                print(f"  {task.name}")
+        return 0
+
+    if args.self_test:
+        checks = subprocess.run([sys.executable, str(ROOT / "checks" / "test_bench.py")])
+        return checks.returncode
+
+    if args.report:
+        return report(Path(args.out))
+
+    if not args.run:
+        parser.print_help()
+        return 2
+
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    arms = args.arm or ["baseline", "workflow"]
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    for arm in arms:
+        print(f"bench: {args.run} · {arm}")
+        summary = run_series(args.run, arm, args.agent, args.timeout, out, args.keep)
+        payload = json.dumps(summary, indent=2)
+        (out / f"{stamp}-{args.run}-{arm}.json").write_text(payload + "\n")
+        print(f"  -> slop {summary['slop']}  pass {summary['pass_rate'] * 100:.0f}%  "
+              f"{summary['tokens']} tokens  {summary['seconds'] / 60:.1f} min")
+    return report(out)
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
