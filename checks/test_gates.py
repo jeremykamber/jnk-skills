@@ -242,7 +242,7 @@ class GatesRunnerTest(unittest.TestCase):
 
     def test_init_writes_the_stack_and_its_companion_configs(self) -> None:
         (self.root / "package.json").write_text("{}")
-        proc = run_gates(self.root, "--init")
+        proc = run_gates(self.root, "--init", "--yes")
         self.assertEqual(proc.returncode, 0)
         self.assertTrue((self.root / "gates.json").is_file())
         # The dotfile name is the whole point: a plain copy gives depcruise a
@@ -252,10 +252,10 @@ class GatesRunnerTest(unittest.TestCase):
 
     def test_init_leaves_an_existing_stack_alone(self) -> None:
         (self.root / "package.json").write_text("{}")
-        run_gates(self.root, "--init")
+        run_gates(self.root, "--init", "--yes")
         mine = '{"gates": [{"name": "mine", "run": "true"}]}'
         (self.root / "gates.json").write_text(mine)
-        proc = run_gates(self.root, "--init")
+        proc = run_gates(self.root, "--init", "--yes")
         self.assertEqual(proc.returncode, 0)
         self.assertEqual((self.root / "gates.json").read_text(), mine)
         self.assertIn("kept", proc.stdout)
@@ -263,9 +263,30 @@ class GatesRunnerTest(unittest.TestCase):
     def test_init_force_overwrites(self) -> None:
         (self.root / "package.json").write_text("{}")
         (self.root / "gates.json").write_text('{"gates": [{"name": "mine", "run": "true"}]}')
-        proc = run_gates(self.root, "--init", "--force")
+        proc = run_gates(self.root, "--init", "--force", "--yes")
         self.assertEqual(proc.returncode, 0)
         self.assertNotIn("mine", (self.root / "gates.json").read_text())
+
+    def test_init_writes_nothing_without_a_yes_or_a_terminal(self) -> None:
+        # A beat may reach a repo with no stack and be told to stand one up.
+        # Writing a dozen files into someone else's tree is a decision, and an
+        # agent can make it only by saying so.
+        (self.root / "package.json").write_text("{}")
+        before = (self.root / "gates.json").read_text()
+        proc = run_gates(self.root, "--init")
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("--yes", proc.stdout)
+        self.assertEqual((self.root / "gates.json").read_text(), before, "the stack was not touched")
+        self.assertFalse((self.root / ".dependency-cruiser.cjs").exists(), "no config files were written")
+
+    def test_init_infers_python_from_python_markers(self) -> None:
+        # The first version only looked for package.json, so standing a stack up
+        # in a Python repo — which the beats are told to do — always failed.
+        (self.root / "ticket.py").write_text("print('hi')\n")
+        proc = run_gates(self.root, "--init", "--yes")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("python", proc.stdout)
+        self.assertTrue((self.root / "gates.json").is_file())
 
     def test_init_refuses_to_guess_without_a_project_to_read(self) -> None:
         proc = run_gates(self.root, "--init")
@@ -286,6 +307,37 @@ class GatesRunnerTest(unittest.TestCase):
         self.assertEqual(proc.returncode, 0)
         self.assertIn("missing", proc.stdout)
         self.assertIn(".dependency-cruiser.cjs", proc.stdout)
+
+
+
+class ShippedConfigsTest(unittest.TestCase):
+    """Every gate config this repository ships must load.
+
+    `cp templates/gates.json .` is an instruction in the README, and the file
+    was invalid JSON for months: a quoted tool name inside a `why` string closed
+    the value early, so the copy made `gates` exit 2 on a fresh project. Nothing
+    caught it because no gate reads the templates. This one does.
+    """
+
+    def test_every_shipped_config_parses_with_the_runner_s_own_loader(self) -> None:
+        import importlib.machinery
+        import importlib.util
+        import json
+        import sys as _sys
+
+        loader = importlib.machinery.SourceFileLoader("gates_module", str(TOOL))
+        spec = importlib.util.spec_from_loader("gates_module", loader)
+        assert spec and spec.loader
+        module = importlib.util.module_from_spec(spec)
+        _sys.modules["gates_module"] = module
+        spec.loader.exec_module(module)
+
+        configs = [ROOT / "gates.json", *sorted((ROOT / "templates").glob("*.json")),
+                   *sorted((ROOT / "tools" / "adapters").glob("*.json"))]
+        for path in configs:
+            with self.subTest(config=str(path)):
+                data = json.loads(module.strip_comments(path.read_text()))
+                self.assertTrue(data.get("gates"), f"{path} declares no gates")
 
 
 if __name__ == "__main__":
