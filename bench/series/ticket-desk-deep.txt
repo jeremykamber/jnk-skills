@@ -1,0 +1,7 @@
+# One repository, five features, in order. The fifth adds a second input path
+# and a second output format, which is where a growing CLI starts to sprawl.
+01-add-and-list
+02-done-and-filter
+03-priorities
+04-due-and-overdue
+05-import-and-report

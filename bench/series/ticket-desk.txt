@@ -1,0 +1,5 @@
+# One repository, four features, in order. Slop is measured after each.
+01-add-and-list
+02-done-and-filter
+03-priorities
+04-due-and-overdue

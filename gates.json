@@ -30,6 +30,11 @@
       "name": "depth",
       "run": "python3 checks/test_depth.py",
       "why": "the nine decidable red flags match the book they came from: 12 findings on its flawed examples, 6 in Python, 0 on its corrected ones, plus the five cross-module flags and the six readings, each with its negative beside it"
+    },
+    {
+      "name": "bench",
+      "run": "python3 checks/test_bench.py",
+      "why": "the benchmark measures what it claims: the slop score separates clean code from sloppy code, a series accumulates over one repository, the transcript numbers parse, and the verifier never lands where the agent can read it. A benchmark with no test is a report."
     }
   ]
 }
