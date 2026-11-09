@@ -726,7 +726,9 @@ def body_statements(lines: list[str], start: int, end: int) -> tuple[int, list[s
 # and record shapes), the import graph (which module knows about which), and git
 # (which files change together).
 
-LITERAL_MIN_INNER = 4
+LITERAL_MIN_INNER = 8
+HEX_COLOR = re.compile(r"^#[0-9a-fA-F]{3,8}$")
+DEFAULT_EXPORT = re.compile(r"^\s*export\s+default\b")
 SHAPE_MIN_FIELDS = 3
 SHAPE_OVERLAP = 0.7
 CO_CHANGE_MIN = 5
@@ -741,9 +743,9 @@ CALL_KEYWORDS = frozenset(
     println assert raise del lambda with as and or not""".split()
 )
 
-TS_IMPORT = re.compile(r"""import\s+(?:type\s+)?(.+?)\s+from\s+["']([^"']+)["']""")
+TS_IMPORT = re.compile(r"""import\s+(?:type\s+)?((?:[^;'"]|"[^"]*"|'[^']*')*?)\s+from\s+["']([^"']+)["']""", re.DOTALL)
 TS_SIDE_EFFECT_IMPORT = re.compile(r"""import\s+["']([^"']+)["']""")
-TS_REEXPORT = re.compile(r"""export\s+(?:\*(?:\s+as\s+\w+)?|\{[^}]*\})\s+from\s+["']([^"']+)["']""")
+TS_REEXPORT = re.compile(r"""export\s+(?:\*(?:\s+as\s+\w+)?|\{[^}]*\})\s+from\s+["']([^"']+)["']""", re.DOTALL)
 TS_REQUIRE = re.compile(r"""require\(\s*["']([^"']+)["']\s*\)""")
 PY_FROM = re.compile(r"^\s*from\s+([.\w]+)\s+import\s+([^\n#]+)", re.MULTILINE)
 PY_IMPORT = re.compile(r"^\s*import\s+(\.?[\w.]+)", re.MULTILINE)
@@ -795,6 +797,7 @@ class Symbol:
     statements: int
     params: list[str]
     body: str
+    nest: int = 0
 
 
 @dataclass
@@ -960,7 +963,11 @@ def literals_in(code: list[str], masked: list[str]) -> dict[str, list[int]]:
                 inner = match.group(0)[1:-1]
                 if inner in DIRECTIVES:
                     continue  # a file directive, not a value
-                if len(inner) < LITERAL_MIN_INNER or "${" in inner:
+                # A short string is a token — "button", "Done", a column name —
+                # and two modules writing it is a coincidence, not shared
+                # knowledge. A colour is the exception: six hex digits carry a
+                # real decision, so it is kept however short.
+                if (len(inner) < LITERAL_MIN_INNER and not HEX_COLOR.match(inner)) or "${" in inner:
                     continue
                 if match.start() > 0 and line[match.start() - 1] in "fF":
                     continue  # an f-string interpolates code, so it is not a value
@@ -1279,6 +1286,7 @@ def symbols_in(
                 statements=statements,
                 params=extract_params(declaration_text(lines, row["start"], row["name"]), row["name"]),
                 body="\n".join(code_lines[row["start"] : min(row["end"], len(code_lines))]),
+                nest=nest.get(row["start"], 0),
             )
         )
     return out
@@ -1306,6 +1314,35 @@ def build_index(modules: list[Module], root: Path) -> Index:
                 bucket.update(names)
     records = [record for module in modules for record in module.records]
     return Index(modules=modules, importers=importers, imported_names=imported_names, literals=literals, records=records, root=root)
+
+
+def add_test_imports(index: Index, paths: list[str]) -> None:
+    """Names taken by a test file count as taken.
+
+    Tests are not scanned as modules — their findings would bury the source's —
+    but a function only a test imports is *used*: it is the shape every TDD
+    module has. Ignoring them made `needless-export` call a tested module's whole
+    API dead code, which is the loudest way a design gate loses its audience.
+    """
+    known = {module.display for module in index.modules}
+    for path in iter_source_files(paths, include_tests=True):
+        text = path.as_posix()
+        if not TEST_FILES.search(text) or text in known:
+            continue
+        try:
+            lines = path.read_text().splitlines()
+        except (UnicodeDecodeError, OSError):
+            continue
+        language = language_of(path)
+        for target, names in imports_in(comment_stripped(lines, language), language).items():
+            resolved = resolve_import(text, target, language, known)
+            if resolved is None:
+                continue
+            bucket = index.imported_names.setdefault(resolved, set())
+            if "*" in names:
+                bucket.add("*")
+            else:
+                bucket.update(names)
 
 
 # --------------------------------------------------------------------------
@@ -1351,10 +1388,19 @@ def detect_implementation_narrative(comments: list[Comment], file: str) -> Itera
         )
 
 
-def detect_shallow(symbols: list[Symbol], file: str) -> Iterator[Finding]:
+def detect_shallow(symbols: list[Symbol], lines: list[str], file: str) -> Iterator[Finding]:
     for symbol in symbols:
         if symbol.statements > SHALLOW_STATEMENTS or symbol.ccn > 1:
             continue
+        _, body = body_statements(lines, symbol.start, symbol.end)
+        # A one-line `return` is an interface when it is a no-argument accessor
+        # (`isDone()`, `expiresAt`) or a named module-level function
+        # (`expiresAt(todo)`): the name is what the caller reads. The book's own
+        # shallow method takes a parameter and sits in a class, so it stays.
+        if body and body[0].lstrip().startswith("return ") and (not symbol.params or symbol.nest == 0):
+            continue
+        if symbol.statements == 0 and "return" in line_at(lines, symbol.line):
+            continue  # a one-line JSX/expression body the statement counter did not see
         yield Finding(
             flag="shallow-method",
             file=file,
@@ -1576,8 +1622,13 @@ def detect_needless_export(index: Index) -> Iterator[Finding]:
         taken = index.imported_names.get(module.display, set())
         if "*" in taken:
             continue
+        default_taken = "default" in taken
         for symbol in module.symbols:
             if not symbol.exported or symbol.name in taken:
+                continue
+            # `import App from './App'` records the name `default`, never `App`.
+            # Without this, every default-exported component reads as dead code.
+            if default_taken and DEFAULT_EXPORT.match(line_at(module.lines, symbol.line)):
                 continue
             yield Finding(
                 flag="needless-export",
@@ -1799,7 +1850,7 @@ def survey(args) -> Survey:
         )
         findings.extend(detect_comment_repeats(comments, display))
         findings.extend(detect_implementation_narrative(comments, display))
-        shallow = list(detect_shallow(symbols, display))
+        shallow = list(detect_shallow(symbols, lines, display))
         through = list(detect_pass_through(symbols, lines, display))
         shadowed = {(finding.symbol) for finding in through}
         # A one-statement forwarder is one finding, not two: the pass-through is
@@ -1808,6 +1859,7 @@ def survey(args) -> Survey:
         findings.extend(through)
 
     index = build_index(modules, root)
+    add_test_imports(index, paths)
     findings.extend(detect_leaked_literal(index))
     findings.extend(detect_leaked_shape(index))
     findings.extend(detect_co_change(index, root))
