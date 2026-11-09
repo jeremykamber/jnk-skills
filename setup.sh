@@ -91,6 +91,30 @@ if [ "$count" -eq 0 ]; then
   exit 1
 fi
 
+# A renamed skill leaves its old symlink behind, pointing at a directory that no
+# longer exists. Prune the ones this checkout owns — a dangling link loads as a
+# broken skill and two generations of the same beat is exactly the drift the
+# rename was for. Only links that point into $WF/skills are touched.
+for dir in "${SKILL_DIRS[@]}"; do
+  [ -d "$dir" ] || continue
+  for link in "$dir"/*; do
+    [ -L "$link" ] || continue
+    target="$(readlink "$link")"
+    case "$target" in
+      "$WF"/skills/*) ;;
+      *) continue ;;
+    esac
+    if [ ! -e "$link" ]; then
+      if [ "$DRY" -eq 1 ]; then
+        echo "  would  prune stale link $(basename "$link")"
+      else
+        rm -f "$link"
+        echo "  pruned stale link $(basename "$link")"
+      fi
+    fi
+  done
+done
+
 echo
 echo "global rules"
 for dir in "${RULE_DIRS[@]}"; do
@@ -158,15 +182,27 @@ if [ -n "$PROJECT" ]; then
   echo
   echo "project   $PROJECT"
   if [ "$DRY" -eq 1 ]; then
-    echo "  would  (cd $PROJECT && $WF/tools/gates --init)"
+    echo "  would  (cd $PROJECT && $WF/tools/gates --init --yes)"
     echo "  would  cp $WF/templates/gates.json $PROJECT/"
   else
-    (cd "$PROJECT" && "$WF/tools/gates" --init)
+    (cd "$PROJECT" && "$WF/tools/gates" --init --yes)
     if [ -f "$PROJECT/gates.json" ] && [ "$(cd "$PROJECT" && grep -c '"acceptance"' gates.json || true)" = "0" ]; then
       cp "$WF/templates/gates.json" "$PROJECT/gates.json"
       echo "  put    the workflow stack in place (acceptance, coverage, build, e2e)"
     fi
   fi
+  # Session state is memory, not documentation: make the ignore rule true in the
+  # project instead of relying on one machine's global gitignore.
+  if [ -f "$PROJECT/.gitignore" ]; then
+    if ! grep -qxF ".ai/" "$PROJECT/.gitignore"; then
+      run sh -c "printf '.ai/\n' >> '$PROJECT/.gitignore'"
+      [ "$DRY" -eq 1 ] || echo "  added  .ai/ to $PROJECT/.gitignore"
+    fi
+  else
+    run sh -c "printf '.ai/\n' > '$PROJECT/.gitignore'"
+    [ "$DRY" -eq 1 ] || echo "  wrote  $PROJECT/.gitignore"
+  fi
+
   # The project's own AGENTS.md: only the facts the global rules do not carry.
   if [ -f "$PROJECT/AGENTS.md" ]; then
     echo "  keep   $PROJECT/AGENTS.md (already there)"

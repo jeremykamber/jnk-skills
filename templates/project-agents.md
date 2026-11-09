@@ -1,24 +1,22 @@
 # EDIT ME — the project
 
 <!--
-The project's own agent instructions: the facts that are true only of this
-repository. The universal rules — the principles, how to work, how to
-communicate — live in the machine's global AGENTS.md and are not repeated here,
-so this file stays small and cannot drift from them.
+The facts that are true only of this repository. The universal rules live in the
+machine's global AGENTS.md; repeating them here makes two files that drift.
 
-Fill in the EDIT ME lines, delete anything the project does not have, and keep
-it to what an agent could not learn by reading the tree.
+Fill in the EDIT ME lines, delete what the project does not have, and keep only
+what an agent could not learn by reading the tree.
 -->
 
 **What it is:** EDIT ME — one sentence, and why it exists.
 
-**Stack:** EDIT ME — language, framework, package manager, versions.
+**Stack:** EDIT ME — language, framework, package manager.
 
 ## Commands
 
 ```sh
-gates            # the project's gate stack; the failing output is the instruction
-EDIT ME          # build, test, lint
+gates            # the gate stack; the failing output is the instruction
+EDIT ME          # the one command that runs a single test file
 ```
 
 ## Boundaries
@@ -26,27 +24,11 @@ EDIT ME          # build, test, lint
 - **Never** EDIT ME — secrets, `vendor/`, migrations, generated files.
 - **Ask first** EDIT ME — schema changes, new dependencies, CI config.
 
-## Tooling
-
-- **Editor:** EDIT ME — the URL template the arena review chips open, with `{abs}`, `{rel}` and
-  `{line}`: `nvim://file/{abs}:{line}` (terminal Neovim, and it needs an `nvim://` handler),
-  `mvim://open?url=file://{abs}&line={line}` (MacVim), `vscode://file/{abs}:{line}`. Omit it and the
-  chips copy the path instead.
-
 ## Rules
 
-<!--
-The rule-to-enforcement table. When a correction repeats, add its rule here paired
-with what enforces it, so the next agent meets the check, not the instruction. A rule
-with nothing enforcing it is prose, and prose decays. Drop a rule once its mistake
-cannot happen. jnk-correct maintains this table.
--->
+<!-- A rule with nothing enforcing it is prose, and prose decays. jnk-correct
+maintains this table: when a correction repeats, encode it, then pair it here. -->
 
 | Rule | Enforced by |
 | --- | --- |
 | EDIT ME | EDIT ME — a type, a lint whose error names the fix, a test, or a gate |
-
-<!--
-Where the architecture lives, if it is not obvious from the tree: a module map,
-an ADR folder, a design doc. Prefer a pointer to a copy.
--->

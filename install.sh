@@ -28,7 +28,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOOLS="$HERE/tools"
 BIN_DIR="${JNK_BIN_DIR:-$HOME/.local/bin}"
-TOOL_NAMES=(gates crap depth mutate-changed)
+TOOL_NAMES=(gates crap depth mutate-changed bench)
 
 DEPS=1
 DRY=0

@@ -21,6 +21,6 @@ description: "Use before shipping a change whose safety you are asserting, espec
 
 5. Prove the one fact by running real code, and paste what happened.
 
-**When it applies.** Before shipping, and as part of the `jnk-4-verify` blast-radius step.
+**When it applies.** Before shipping, and as part of the `jnk-verify` blast-radius step.
 
 **Cite it.** State the safety fact, the ladder step you reached, and the proof, or write `unproven`.
