@@ -1,120 +1,119 @@
 # jnk-skills
 
-**jnk-skills** is a beat-based development workflow, packaged as agent skills: pickup → explore →
-design → implement → verify → commit, plus the non-coding skills in `skills/misc/`
-(`teach`, `slides`, `create-exercise`).
+A beat-based development workflow for coding agents: **design → implement →
+verify → commit**, plus the modes beside them. Built and tested with the pi
+coding agent; the skills are plain [Agent Skills](https://agentskills.io) files
+and load anywhere that reads them.
 
-Works with any agent that loads [Agent Skills](https://agentskills.io) — built and tested
-with the pi coding agent.
+The claim this repository makes is small and testable: **deterministic gates make
+an agent's work verifiable, and a short instruction set beats a long one.**
+`tools/bench` measures both.
 
 ## What's inside
 
-- `skills/` — coding skills (one directory per skill: `SKILL.md` plus references and scripts)
-- `skills/misc/` — non-coding skills (`teach`, `slides`, `create-exercise`), same layout
-- `tools/` — the gate tooling (`gates`, `crap`, `depth`) and the adapters `gates --init` writes
-- `rules/` — the named engineering principles, installed as rulebook rules (`~/.agents/rules/`) the agent reads on demand at `rule://<name>` and steers by name
-- `scripts/` — the eval nightly runner and its launchd template
-- `checks/` — the tools' own test suite; `./tools/gates` runs it, and `gates.json` is that stack
-- `install.sh` — puts the tools on your PATH and checks what they need
-- `usage.md` — the practical guide: how to invoke the beats, answer gates, and manage context
-- `templates/gates.json` — the recommended gate stack, for a project's `gates.json`
-- `templates/` — the gate configs, the acceptance spec, and the agent-instruction starting shapes (`project-agents.md` for a new project; `constitution.md` as the generic law for a machine with no global rules file)
-- `templates/rules/` — opt-in TTSR rules that fire while the agent edits: an `as any` cast, a tautological assertion, a stub body, a swallowed error, a `gates.json` edit, and a judged "claim without evidence". Copy the ones you want into a project's `.agents/rules/`.
+- `skills/jnk-*` — one directory per beat. `jnk-design`, `jnk-implement`,
+  `jnk-verify`, `jnk-commit`, and the modes: `oneshot`, `debug`, `grill`,
+  `attack`, `refactor`, `handoff`, `pickup`, `worktree`, `correct`, `verify-app`,
+  `interrogate`, `eval`, `delegate`, `legacy`.
+- `skills/misc/` — non-coding skills (`teach`, `slides`, `create-exercise`,
+  `explain`).
+- `tools/` — the gate tooling: `gates`, `crap`, `depth`, `mutate-changed`, `bench`.
+- `bench/` — the benchmark: a four-feature series on one growing repository, three
+  arms, and a slop score. `--self-test` runs it with a stub agent in ten seconds.
+- `rules/` — named engineering principles, installed as rulebook rules the agent
+  reads on demand at `rule://<name>`.
+- `checks/` — the tools' own tests. `./tools/gates` runs them.
+- `AGENTS.md` — the machine's universal rules, linked to `~/.agents/AGENTS.md`.
+- `templates/` — a project's `AGENTS.md`, the recommended gate stack, and the gate
+  configs `gates --init` writes.
 
 ## Install
 
 ```sh
-./setup.sh              # tools + skills
-./setup.sh --dry-run    # show what would change, change nothing
+./setup.sh              # tools + skills + the global rules file
+./setup.sh --dry-run    # show what would change
+./setup.sh --project <dir>   # a new project: gate stack + its AGENTS.md
 ```
 
-It checks what the tools need (one Python package, `lizard`), puts `gates`, `crap` and `depth` on your PATH from `./tools`, and symlinks each skill flat into your agent's skill directory — one or two levels deep, so `skills/misc/` works without exposing a `misc` skill. Safe to re-run; existing symlinks are replaced and nothing is deleted. `./install.sh` alone does the tools and their dependencies, without the skills.
+## The three artifacts
 
-Skills register as `/skill:jnk-*` (and `/skill:teach`, `/skill:slides`, `/skill:create-exercise`).
+Everything else this workflow used to write is gone. A change produces:
 
-`setup.sh` also links the checkout's `AGENTS.md` — the universal rules — to `~/.agents/AGENTS.md`, so every agent session, in every repo, loads it. If `~/.agents` is not writable by you (a root-owned setup), that step is skipped with a note rather than failing setup; link it once by hand: `sudo ln -sfn <checkout>/AGENTS.md ~/.agents/AGENTS.md`.
-
-The beats verify by running `gates`, which lives in `./tools` with the rest of the gate tooling — vendored from the `uncle-bob-workflow` kit so this checkout stands alone: clone it, run `./setup.sh`, and every beat works with no second repository to find. `tools/VENDORED.md` records where each file came from and `tools/sync-from-kit.sh` moves the copy forward; the `vendored` gate in `gates.json` fails the moment the copy drifts, so the one thing a copy must not do — drift silently — is the one thing it cannot do.
-
-## Stand up a project
-
-```sh
-./setup.sh --project <dir>   # gates --init, the jnk-skills stack, and the project's AGENTS.md
-```
-
-Or by hand, if the tools are already on your PATH:
-
-```sh
-cd <dir>
-gates --init                            # gates.json + the configs the stack declares
-cp <jnk-skills>/templates/gates.json .    # the fuller stack (acceptance, coverage, build, e2e)
-```
-
-`gates --init` copies the adapter for the project's language, along with every config file that adapter declares it needs. Use it rather than copying by hand: one of those files is a dotfile, and the wrong name makes the arch gate cruise nothing at all — an easy mistake to make, and the reason the command exists.
-
-`templates/` carries the three configs the `arch` and `mutation` gates read — `.dependency-cruiser.cjs`, `stryker.conf.cjs`, and `stryker-vitest-runner.mjs`, the plugin that fixes Stryker's broken vitest runner and makes `coverageAnalysis: "perTest"` work — it is what `stryker.conf.cjs` ships (measured 3m39s -> 22-40s on a real project through `mutate-changed`, same verdicts) — so `gates --init` can write them into a project with no other checkout on the machine. They are vendored from the kit and tracked by `tools/vendored.sha256` like the rest of the tooling: a copy of a gate config is a risk, and an unrecorded copy is a silent one.
-
-Then edit the lines marked `EDIT ME`: the layers in `.dependency-cruiser.cjs`, and the test command in `stryker.conf.cjs`. Delete any gate the project has no tooling for, and bring gates back one at a time.
-
-`gates --list` shows the stack and warns about any config it cannot find. `gates` runs it.
-
-**A repo with no stack gets one, it does not get a note saying there isn't one.** Any beat that reaches for the gates — verify, a checkpoint, pickup — and finds no `gates.json` stands the stack up first:
-
-```sh
-gates --init              # infers the adapter from the project; --adapter <name> when it cannot
-depth --update-baseline   # accept today's design findings, so the ratchet has something to ratchet against
-gates --list              # the stack, and any config file it cannot find
-```
-
-The third line is the cheap one: it names the config files that are missing. `gates` itself is what shows the gates whose tooling is absent — a young project cannot run everything the adapter lists, so delete those gates, bring them back as the tooling lands, and name what was dropped. `depth --update-baseline` is day-one debt accepted, not triage done — the baseline is a ratchet, and the findings in it are still there to read. A missing `AGENTS.md` is the same kind of gap, in two layers. The project's own file holds only the facts — what it is, its stack, its commands, its boundaries — and `setup.sh --project` writes it from `templates/project-agents.md` before any diff is audited against it. The universal rules live once, in the machine's global `~/.agents/AGENTS.md`, and are not restated in each repo. A machine with no global rules file can carry the generic law in the project instead, from `templates/constitution.md`.
+1. **`.ai/threads/<slug>.md`** — gitignored session state: the model and its
+   IOUs, the route and its ledger, squawks, decisions, and where the last session
+   stopped. One file, because five files that describe one thread drift apart.
+2. **`docs/designs/<slug>.md`** — committed, when the design will be re-read:
+   contracts, failure paths, the trade-off that was chosen.
+3. **A failing test** — the spec. Written from the requirement, seen red before
+   the code, run by the `acceptance` gate. Not a Gherkin file: step definitions
+   are a second implementation of the thing under test.
 
 ## The beats
 
-- `pickup` — resume work from the notebook
-- `1-explore` — walk the code, think first, explore candidate directions
-- `2-design` — choose direction with lenses, shape and route
-- `3-implement` — checkpoints; each slice taught in layers, subagent validation
-- `4-verify` / `debug` / `eval` — prove and review, AGENTS.md enforcement
-- `commit` — write the history
-- `oneshot` / `attack` / `grill` / `interrogate` / `refactor` / `handoff` / `worktree` — the modes and the session tooling
-- `correct` / `verify-app` / `decisions` — the environment passes: make the repeat impossible, script the app drive, keep the trail
+| Beat | What it does |
+| --- | --- |
+| `jnk-design` | Understand, decide, shape slice one, route the rest. Stops at the first gate. |
+| `jnk-implement` | One vertical slice at a time, a checkpoint before the next, a ledger that never loses a slice. |
+| `jnk-verify` | The gate stack, the real path exercised, the blast radius proved, the diff audited against `AGENTS.md`. |
+| `jnk-commit` | Checkpoints become a story of one-line conventional commits. |
 
-See `usage.md` for the full modes and day-to-day mechanics.
+Beats are invocable by you or by the agent. With `JNK_STRICT=1` exported, only
+you start one.
 
-## Key features
+## The gates
 
-- **Deterministic gates**: the beats verify by running a command, not by reaching a judgment. `gates` runs the project's stack, stops at the first failure, and prints the failing output — the output *is* the instruction. A gate that cannot fail is treated as worse than no gate. Mutation is differential by default — `mutate-changed` scopes the run to the changed files and the tests that import them — because the whole-tree audit is the run people stop doing.
-- **The design debt is measured, not debated**: `depth` decides nine of Ousterhout's red flags from the source text — shallow methods, pass-throughs, leaked literals and shapes, co-change without a dependency, needless exports, forwarded parameters, the two comment defects — and ratchets them against a committed baseline. So the claim a change makes is "no *new* finding", and the ledger to read is its own: what it introduced, and what it retired. Design reads the readings before choosing a direction, verify reads the ledger before reporting, and a refactor is measured by the debt it pays off. What the flags cannot decide — leakage, conjoining, vague names — belongs to a reviewer that reads, and the two meet in one findings format.
-- **Evidence is a run, not a suite**: a green suite written beside the code proves the implementation matches itself, bugs included — the failure mode most likely to fool an agent and its reviewer. A beat that changes behavior exercises the real path and shows what came back; a path it could not reach is named as unverified rather than assumed.
-- **The acceptance spec is executable**: design writes `features/<feature>.feature` in the language of the problem, implementation makes it run and turns the scenarios green. The `acceptance` gate parses the file rather than trusting a transcription of it, so the spec and the tests cannot drift apart.
-- **Write-in-the-moment persistence**: IOUs and squawks written to disk at every gate, not at debrief
-- **Subagent architecture**: Slice validator, parallel execution with dependency graph, and the review panel — seven seats over one diff (logic and APIs; leakage and obscurity; module shape; generality and repetition; simplification; a primed bug hunt; the algorithm, which questions the requirement and deletes before anything else), read in parallel, repaired by one writer
-- **Adversarial review is a panel, not a generalist**: one reviewer reads everything the same way and misses what a seat with a single question catches. Three of the seats own a group of Ousterhout's red flags; one is the simplification seat, which asks the question nobody else does — why is this so complicated?; one hunts correctness and dead code; one is primed that the bugs are there; one questions the requirement itself and deletes before the rest. Each seat is briefed on why its group costs maintainability and which moves retire it, and returns a finding with the move already chosen — `depth --explain`'s menu for the nine flags the tool decides, the seat brief's for the rest.
-- **AGENTS.md enforcement**: a subagent audits the diff against the effective `AGENTS.md` — the machine's global rules and the project's own, handed as files, never a restatement of them, because a copied principle list drifts silently
-- **Anti-rationalization tables**: Intercept model rationalizations for skipping gates
-- **Principles you steer by name**: `rules/` holds one file per engineering principle. The harness lists each by name and description in the prompt and reads the body on demand (`rule://<name>`), so a principle costs nothing until the situation matches, and one word redirects a run. The agent names the decision a principle changed; a name with no decision is a name-drop. On a harness without a rules primitive, the same files are plain markdown the agent reads.
-- **Verification is a project capability, not a conversation**: `jnk-verify-app` generates a project-local `verify-<app>` skill that launches the app, checks it is worth driving, drives a feature the way a user does, captures evidence, and cleans up, plus a feature map of what to drive. It is proven once end to end, and a periodic pass keeps the map honest without ever editing product code.
-- **The decision trail**: `jnk-decisions` owns one TSV, one row per decision, evidence as a pointer, append-only. It is what lets a reviewer sample a long or unattended run instead of re-reading it, and it is audited against the transcript before it is handed back.
-- **Make the repeat impossible**: `jnk-correct` turns a mistake the agent keeps making into something the repo will not allow, fixing at the highest level that works — architecture, then types, then a lint whose error names the fix, then a test, docs last — and pairing each rule with what enforces it in the project's `AGENTS.md`.
-- **Delegation with the review kept**: `jnk-delegate` runs a decided body of work through agents on another machine over `herdr` — one brief, a fan-out by area with exclusive files, evidence per item, a ledger in the PR body. The delegate keeps the two things that cannot be delegated: the standard the work is held to, and verification of every claim it makes. An absence claim is re-checked against the live tree before it is forwarded, because three agents can agree on a stale one — and taste, and a tradeoff with a real cost either way, go back to the user rather than being decided in a commit.
-- **The workflow improves itself on a schedule**: `scripts/eval-nightly.sh` runs `jnk-eval` over recent sessions, applies the safe edits on its own, and queues the foundational ones for a human.
-- **Design it twice, when it is expensive to be wrong**: for a one-way door, `jnk-2-design` runs an arena (`references/arena.md`) — two or three structurally distinct designs for one brief, judged in a fresh context on the design lenses, with a recommended base and the others' best ideas grafted in. Designs, not features, and the user still chooses — on a visual review: the shapes drawn, the rubric in one matrix, every file a click from its code, and notes that copy back as a prompt (`references/arena-review.md`).
-- **Gates that target attention**: the teach leads with what the gates flagged — CRAP hotspots, coverage gaps, mutation survivors, arch violations, new design findings — so review attention goes where the risk actually is
+`gates` runs a project's stack in order, stops at the first failure, and prints
+the failing output — that output is the instruction.
 
-## The workflow
+```sh
+gates --init --yes    # write the stack (asks first; --yes for scripts)
+gates --list          # the stack, and any config it cannot find
+gates                 # run it
+```
 
-1. **Explore** (`/skill:jnk-1-explore`): Build shared mental model, think first, explore candidate directions
-2. **Design** (`/skill:jnk-2-design`): Read the design the code already has (`depth report`), choose direction with lenses, write ADR, shape (ASCII, contracts, failure paths, the acceptance spec), route (vertical slices with dependencies) — as far as the first gate
-3. **Implement** (`/skill:jnk-3-implement`): Follow route, red-green-refactor, gates at each checkpoint, subagent validation, the review panel on risky slices, parallel execution. Slice one wires the acceptance spec so it runs; every later slice turns more of it green
-4. **Verify** (`/skill:jnk-4-verify`): Run the gate stack, read the change's own design ledger, exercise the real path, AGENTS.md enforcement, reconcile IOUs
-5. **Commit** (`/skill:jnk-commit`): Write the history
+Two things make it more than a task runner.
+
+**Output assertions.** A gate can require a regex in the tool's output and reject
+another. That catches the worst failure: a tool that exits 0 without doing its
+job — dependency-cruiser cruising zero modules, Stryker reporting `Ran 0.00 tests
+per mutant`.
+
+**A ratchet.** `depth` decides nine of Ousterhout's fourteen red flags from the
+source text and fails only on a finding that is not in the committed baseline.
+Day one on an old tree is free; the gate means "never worse than yesterday".
+
+`mutate-changed` scopes Stryker to the changed files and the tests that import
+them, with a cache key per scope and a refusal to start when a killed run left
+files instrumented. `bench` measures whether any of this makes the code better.
+
+## The benchmark
+
+```sh
+./tools/bench --run ticket-desk --arm baseline --arm workflow
+./tools/bench --report
+```
+
+Four features, applied in order to one repository, so what it measures is what
+matters: whether the code gets worse as features accumulate. Per task it records
+pass/fail (a verifier the agent cannot read), **slop** — the share of functions
+that are over-complex or long, the duplicated-line share, and design findings per
+file — plus tokens, cost and wall time. Three arms: no instructions, a short
+`AGENTS.md`, and this workflow.
+
+A failed task is excluded from the aggregate: slop in code that does not work
+measures nothing.
 
 ## Philosophy
 
-- **You pilot, agent copilots**: You invoke each step, approve results
-- **Gates make you think**: "Which option would you defend?" not just "approve?"
-- **Write for the next engineer**: Obviousness over cleverness
-- **Smallest coherent change**: Minimum viable change that fully solves the problem
-- **Mechanical enforcement**: Tools enforce principles, not aspirational text. The beats verify by running `gates` and reading an exit code; a subagent audits the diff against `AGENTS.md` itself. Prompt text decays in a long context and copied lists drift silently — a command that fails does neither.
-- **Plan to the first gate**: Design as far as the next thing that can prove you wrong, then build slice 1 and let the code and the gates correct the rest. Ceremony is what you pay when you cannot verify cheaply; gates buy it back.
-- **Gates target attention, they do not replace it**: the CRAP hotspots, coverage gaps, survivors and arch violations are a reading list — they say where the risk is, and the layered teach walks you through it. You stay close to the code by knowing where to look, not by reading all of it.
+- **You pilot, the agent drives.** Beats end by naming the next one and what it
+  would do.
+- **Mechanical enforcement over aspirational text.** A command that fails does not
+  decay; a paragraph does.
+- **Plan to the first gate.** Design as far as the next thing that can prove you
+  wrong, then build slice one.
+- **Gates target attention, not replace it.** The findings are a reading list, not
+  a verdict.
+- **Fewer words, more teeth.** Every instruction here earns its place by changing
+  a decision, and the benchmark is how that is checked.
+
+See `usage.md` for the day-to-day mechanics.
