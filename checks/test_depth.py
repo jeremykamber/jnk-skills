@@ -522,5 +522,91 @@ class DriftTest(unittest.TestCase):
         self.assertIn("(+0)", rows["stable.ts"]["measure"], "a file nobody edited did not drift")
 
 
+
+class NoiseTest(unittest.TestCase):
+    """The four false positives that made the gate untrustworthy on real trees.
+
+    Each is pinned with its negative beside it: the shape that must stay silent,
+    and the shape one step away that must still fire. A detector tuned only
+    against its positives grows until nobody reads it.
+    """
+
+    def findings(self, files: dict[str, str]) -> list[dict]:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for name, body in files.items():
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(body)
+            code, payload = run_json(".", cwd=root)
+            self.assertEqual(code, 0)
+            return payload["findings"]
+
+    def test_a_default_export_taken_by_a_default_import_is_used(self) -> None:
+        found = self.findings({
+            "main.tsx": "import App from './App'\n",
+            "App.tsx": "export default function App() {\n  return <div />;\n}\n",
+        })
+        self.assertEqual([f for f in found if f["flag"] == "needless-export"], [])
+
+    def test_an_export_nobody_takes_is_still_reported(self) -> None:
+        found = self.findings({
+            "main.ts": "import { used } from './lib'\nused();\n",
+            "lib.ts": "export function used() {\n  return 1;\n}\nexport function orphan() {\n  return 2;\n}\n",
+        })
+        orphans = [f["symbol"] for f in found if f["flag"] == "needless-export"]
+        self.assertEqual(orphans, ["orphan"])
+
+    def test_a_name_taken_by_a_test_on_several_lines_is_used(self) -> None:
+        # Formatters wrap a long import; the clause spans lines. A one-line-only
+        # reader calls the whole tested API dead, which is the shape every TDD
+        # module has.
+        found = self.findings({
+            "src/lib.ts": "export function create() {\n  return 1;\n}\n",
+            "src/app.ts": "import { create } from './lib'\ncreate();\n",
+            "tests/lib.test.ts": "import {\n  create,\n  unusedByAll,\n} from '../src/lib';\ncreate();\n",
+            "src/other.ts": "export function unusedByAll() {\n  return 2;\n}\nimport { create } from './lib'\ncreate();\n",
+        })
+        reported = [f["symbol"] for f in found if f["flag"] == "needless-export"]
+        self.assertNotIn("create", reported)
+
+    def test_a_named_accessor_is_not_a_shallow_method(self) -> None:
+        found = self.findings({
+            "todo.ts": (
+                "export class Todo {\n"
+                "  state = 'open';\n"
+                "  isDone() {\n    return this.state === 'done';\n  }\n"
+                "}\n"
+                "export function expiresAt(todo: { due: string }) {\n  return todo.due;\n}\n"
+            ),
+        })
+        self.assertEqual([f["symbol"] for f in found if f["flag"] == "shallow-method"], [])
+
+    def test_a_shallow_method_that_takes_an_argument_is_still_reported(self) -> None:
+        found = self.findings({
+            "empty.ts": (
+                "export class EmptyIsland {\n"
+                "  isEmpty(value: string): boolean {\n    return value.length === 0;\n  }\n"
+                "}\n"
+            ),
+        })
+        self.assertEqual([f["symbol"] for f in found if f["flag"] == "shallow-method"], ["isEmpty"])
+
+    def test_a_word_written_in_two_modules_is_not_shared_knowledge(self) -> None:
+        found = self.findings({
+            "a.ts": "export const label = 'button';\n",
+            "b.ts": "export const tag = 'button';\n",
+        })
+        self.assertEqual([f for f in found if f["flag"] == "leaked-literal"], [])
+
+    def test_a_real_shared_value_and_a_colour_still_fire(self) -> None:
+        found = self.findings({
+            "a.ts": "export const path = '/api/v2/orders';\nexport const shade = '#223355';\n",
+            "b.ts": "export const also = '/api/v2/orders';\nexport const tint = '#223355';\n",
+        })
+        symbols = {f["symbol"] for f in found if f["flag"] == "leaked-literal"}
+        self.assertEqual(symbols, {"string:/api/v2/orders", "string:#223355"})
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
