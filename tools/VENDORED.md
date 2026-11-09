@@ -12,7 +12,6 @@ it, run `./install.sh`, and the beats work. The copy is:
 | `tools/adapters/` | the per-language adapter files `gates --init` writes |
 | `checks/` | the tools' own test suite, fixtures included |
 | `templates/dependency-cruiser.cjs`, `templates/stryker.conf.cjs`, `templates/stryker-vitest-runner.mjs` | the configs the `arch` and `mutation` gates read, and the plugin that fixes Stryker's broken vitest runner |
-| `templates/constitution.md`, `templates/feature.feature` | the shape a project's principles and acceptance spec start from |
 
 Two files under the same names are **not** vendored, because both are this
 workflow's own: `gates.json` at the root is the stack that verifies these tools,
@@ -51,3 +50,22 @@ a copied principle list does — which is exactly what this manifest, the check,
 and the gate exist to prevent. Portability is what the copy buys: a checkout of
 this repository alone can run every beat, verify itself, and stand up a
 project's stack, with no second repository to find and no path to guess.
+
+## Local fixes, not yet upstream
+
+`depth`, `gates`, and their tests currently carry four changes made here that the
+kit has not taken. They are recorded in the manifest with `--record` so the check
+stays honest about them, and they still belong upstream:
+
+- `depth` resolved a default import as the name `default` and never matched it to
+  the symbol, so **every default-exported component read as dead code**.
+- A test file's imports were not counted, so a module imported by app code and
+  tested by a test file reported its whole tested API as needless exports.
+- A no-argument accessor and a one-line named function were reported as shallow
+  methods, which is most of a real codebase's small functions.
+- `needless-export` read only one-line import clauses, so a formatter-wrapped
+  import counted as no import at all.
+
+`gates --init` now asks before writing, and `--yes` is required when stdin is not
+a terminal. The vendored `templates/gates.json` was invalid JSON — an unescaped
+quote in a `why` string — so the README's `cp` produced a stack that exited 2.
