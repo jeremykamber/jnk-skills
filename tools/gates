@@ -139,6 +139,7 @@ def load_gates(path: Path) -> list[Gate]:
             "Write a stack into this project:\n"
             "  gates --init                    infers the adapter from the project\n"
             "  gates --init --adapter python   picks one explicitly\n"
+            "  gates --init --yes              write without asking (scripts, agents)\n"
             "or write gates.json by hand."
         )
 
@@ -323,7 +324,49 @@ def companion_files(config: Path) -> list[str]:
     return [e["to"] for e in entries if isinstance(e, dict) and "to" in e]
 
 
-def init_stack(root: Path, adapter: str | None, force: bool) -> int:
+def confirm_init(root: Path, targets: list[tuple[Path, Path]], force: bool, assume_yes: bool) -> bool:
+    """Ask before writing into a repository this run does not own.
+
+    A beat may reach a repo with no stack and be told to stand one up. That is
+    a reasonable thing for a person to choose and a bad thing for an agent to do
+    unasked: it writes config files, a baseline and a dozen gate definitions into
+    someone else's tree. `--yes` is the caller taking that decision; a bare
+    `--init` on a non-interactive stdin refuses rather than assumes.
+    """
+    fresh = [dst.name for _, dst in targets if force or not dst.exists()]
+    if not fresh:
+        return True
+    print("gates --init would write:")
+    for name in fresh:
+        print(f"  {name}")
+    if assume_yes:
+        return True
+    if not sys.stdin.isatty():
+        print("\nnothing written: --init needs --yes when there is no terminal to ask.")
+        print("           Re-run with `gates --init --yes` once you mean it.")
+        return False
+    answer = input("\nwrite these files? [y/N] ").strip().lower()
+    return answer in {"y", "yes"}
+
+
+def infer_adapter(root: Path) -> str | None:
+    """Guess the adapter from what the project is made of.
+
+    A package.json means TypeScript. A Python project has no such single marker,
+    and the first version of this only looked for package.json — so the workflow's
+    own instruction to stand up a stack failed on every Python repository.
+    """
+    if (root / "package.json").is_file():
+        return "typescript"
+    python_markers = ("pyproject.toml", "setup.py", "setup.cfg", "requirements.txt", "Pipfile")
+    if any((root / marker).is_file() for marker in python_markers):
+        return "python"
+    if any(path.suffix == ".py" for path in root.glob("*.py")):
+        return "python"
+    return None
+
+
+def init_stack(root: Path, adapter: str | None, force: bool, assume_yes: bool = False) -> int:
     """Write the stack and its companion configs into a project.
 
     The adapter names its own files and where each one lands. Doing this here,
@@ -335,9 +378,8 @@ def init_stack(root: Path, adapter: str | None, force: bool) -> int:
     """
     name = adapter
     if name is None:
-        if (root / "package.json").is_file():
-            name = "typescript"
-        else:
+        name = infer_adapter(root)
+        if name is None:
             die(
                 "cannot infer an adapter: there is no package.json here\n"
                 f"adapters available: {', '.join(adapter_names())}\n"
@@ -349,6 +391,9 @@ def init_stack(root: Path, adapter: str | None, force: bool) -> int:
     targets = [(ADAPTERS / f"{name}.json", root / DEFAULT_CONFIG)]
     for entry in spec.get("files", []):
         targets.append((TEMPLATES / entry["from"], root / entry["to"]))
+
+    if not confirm_init(root, targets, force, assume_yes):
+        return 1
 
     wrote: list[str] = []
     kept: list[str] = []
@@ -390,12 +435,13 @@ def main() -> int:
     parser.add_argument("--init", action="store_true", help="write the stack and its config files into this project")
     parser.add_argument("--adapter", help="adapter for --init (default: inferred from the project)")
     parser.add_argument("--force", action="store_true", help="with --init, overwrite files that already exist")
+    parser.add_argument("--yes", action="store_true", help="with --init, write without asking (required when stdin is not a terminal)")
     args = parser.parse_args()
 
     root = Path.cwd()
 
     if args.init:
-        return init_stack(root, args.adapter, args.force)
+        return init_stack(root, args.adapter, args.force, args.yes)
 
     gates = load_gates(root / args.config)
 

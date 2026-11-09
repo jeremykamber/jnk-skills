@@ -1,7 +1,8 @@
 {
   // The recommended stack for a project using this workflow: the kit's
   // TypeScript adapter plus the four gates this workflow leans on —
-  // acceptance (the Gherkin feature file), coverage, build, and e2e.
+  // acceptance (the spec tests written from the requirement), coverage, build,
+  // and e2e.
   //
   // Set a project up:
   //
@@ -10,7 +11,7 @@
   //
   // The `arch` and `mutation` gates read `.dependency-cruiser.cjs` and
   // `stryker.conf.cjs`; `stryker-vitest-runner.mjs` is the plugin that fixes
-  // Stryker's broken vitest runner and makes `coverageAnalysis: "perTest"` work
+  // Stryker's broken vitest runner and makes `coverageAnalysis: 'perTest'` work
   // (10x the wall clock on a real project, same verdicts). All three live in the
   // workflow's `templates/`, vendored from the kit and tracked by
   // `tools/vendored.sha256`, so `gates --init` can write them into a project with
@@ -62,7 +63,7 @@
     {
       "name": "acceptance",
       "run": "npx vitest run tests/acceptance",
-      "why": "the scenarios in features/*.feature hold. The feature file is parsed and executed, not transcribed — a scenario that cannot run is a scenario that is not a spec.",
+      "why": "the behaviour the change was asked for holds. These tests are written from the requirement, not from the implementation, and each was seen red before the code existed — that is what makes them a spec rather than a second copy of the code.",
       "timeout": 600
     },
     {
@@ -108,7 +109,7 @@
       "run": "mutate-changed --full",
       "changed_run": "mutate-changed",
       "reject": "Ran (0\\.00|NaN) tests per mutant",
-      "why": "the assertions detect changed behavior. `--full` is the deliberate audit — every mutant, the whole suite, no cache — so run it when you mean it. `gates --changed` scopes the run to what changed and to the tests that cover it, which is the difference between minutes and seconds: measured on a fixture with one unrelated 1.6s suite, 15.5s whole tree against 3.4s scoped, the same result either way. Two ways this gate lies, both with a signature the `reject` names. One: Stryker's vitest integration reports every mutant as survived — verified again on Stryker 10 with vitest 5, 12 of 12 survivors on a fixture whose killing assertions are in the test file. The runner selects the right test and sends the right request, then builds its name filter by joining the suite chain with a space, while vitest 5 matches the `>`-joined full name: nothing matches, zero tests execute, and a mutant nothing runs against cannot be killed. Reproduce it with `npx vitest run <file> -t \"a b\"` (skips) against `-t \"a > b\"` (runs); it is unfixed in the latest runner, and `stryker-vitest-runner.mjs` in this stack's files is the fix for it — `stryker.conf.cjs` as shipped already sets `plugins`, `testRunner: "vitest-fixed"` and `coverageAnalysis: "perTest"` for per-test filtering and 3m39s -> 22-40s on a real project, identical verdicts, so all a project needs is `npm i -D @stryker-mutator/vitest-runner`. Two: a command runner left at Stryker's default concurrency times every mutant out and prints a 100% score made of nothing. Read templates/stryker.conf.cjs before you trust a score of 100.",
+      "why": "the assertions detect changed behavior. `--full` is the deliberate audit — every mutant, the whole suite, no cache — so run it when you mean it. `gates --changed` scopes the run to what changed and to the tests that cover it, which is the difference between minutes and seconds: measured on a fixture with one unrelated 1.6s suite, 15.5s whole tree against 3.4s scoped, the same result either way. Two ways this gate lies, both with a signature the `reject` names. One: Stryker's vitest integration reports every mutant as survived — verified again on Stryker 10 with vitest 5, 12 of 12 survivors on a fixture whose killing assertions are in the test file. The runner selects the right test and sends the right request, then builds its name filter by joining the suite chain with a space, while vitest 5 matches the `>`-joined full name: nothing matches, zero tests execute, and a mutant nothing runs against cannot be killed. Reproduce it with `npx vitest run <file> -t \"a b\"` (skips) against `-t \"a > b\"` (runs); it is unfixed in the latest runner, and `stryker-vitest-runner.mjs` in this stack's files is the fix for it — `stryker.conf.cjs` as shipped already sets `plugins`, `testRunner: 'vitest-fixed'` and `coverageAnalysis: 'perTest'` for per-test filtering and 3m39s -> 22-40s on a real project, identical verdicts, so all a project needs is `npm i -D @stryker-mutator/vitest-runner`. Two: a command runner left at Stryker's default concurrency times every mutant out and prints a 100% score made of nothing. Read templates/stryker.conf.cjs before you trust a score of 100.",
       "timeout": 3600
     }
   ]
