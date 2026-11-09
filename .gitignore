@@ -3,3 +3,5 @@
 __pycache__/
 .sisyphus/
 thoughts/
+.ai/
+bench/results/
