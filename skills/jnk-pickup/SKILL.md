@@ -1,6 +1,7 @@
 ---
 name: jnk-pickup
 description: Resume work from the thread file. Use at the start of a session that continues earlier work, or after a context reset.
+disable-model-invocation: true
 ---
 
 # Pickup

@@ -1,6 +1,7 @@
 ---
 name: jnk-ui-design
 description: Design and critique user interfaces at the level of an expert designer — frame the brief, choose a mode and stance, pick between directions, delete before styling, carry hierarchy with type and space, spend color at glyph scale, design every state and motion, then verify in a real browser with a deterministic readability/density audit. Use when building, restyling or critiquing a page, component, screen or app shell; when output looks generic, flat or AI-default; when auditing hierarchy, spacing, type, color, motion or states. Branches to brief, craft, typography, composition, layout, hierarchy, components, interaction, motion, color-system, type-color-space, imagery, accessibility, critique, evaluation, exemplars, inspiration and sources references.
+disable-model-invocation: true
 ---
 
 # UI design

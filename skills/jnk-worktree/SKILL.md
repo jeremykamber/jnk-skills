@@ -1,6 +1,7 @@
 ---
 name: jnk-worktree
 description: Give a session its own git worktree before the beats begin, so concurrent agents never collide. Use at the start of fresh work in a repo you share.
+disable-model-invocation: true
 ---
 
 # Worktree

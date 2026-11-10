@@ -1,6 +1,7 @@
 ---
 name: jnk-correct
 description: Turn a mistake the agent keeps making into something the repo will not allow. Use after the same correction happens twice, or when a rule exists only as prose.
+disable-model-invocation: true
 ---
 
 # Correct

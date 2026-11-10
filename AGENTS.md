@@ -67,8 +67,12 @@ same breath as the decision.
 ## Beats
 
 The beats are `jnk-design`, `jnk-implement`, `jnk-verify`, `jnk-commit`, and the
-modes beside them. You or the user may start one. With `JNK_STRICT=1` set, only
-the user starts a beat: you recommend it and stop.
+modes beside them. The user starts a beat; you never do. Their files are on disk
+under the installed skills directory — read the one the user names, or the one
+the work needs, and follow it.
+
+Two modes you may reach for on your own: `jnk-grill` when a decision is the
+user's, and `jnk-legacy` when someone types an old beat name.
 
 **Size the ceremony to the change.** One file with an obvious approach is
 `jnk-oneshot`. Two or more files, a decision worth writing down, or behaviour

@@ -1,6 +1,7 @@
 ---
 name: jnk-handoff
 description: Carry the live thread across a session boundary. Use when the context is heavy mid-beat, at the end of an unfinished day, or before another agent takes over.
+disable-model-invocation: true
 ---
 
 # Handoff

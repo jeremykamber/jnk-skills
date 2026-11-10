@@ -1,6 +1,7 @@
 ---
 name: jnk-refactor
 description: Change structure without changing behaviour, and prove the design debt went down. Use when the code works and getting it cleaner is the job.
+disable-model-invocation: true
 ---
 
 # Refactor

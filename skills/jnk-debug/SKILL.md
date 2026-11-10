@@ -1,6 +1,7 @@
 ---
 name: jnk-debug
 description: Find and fix the root cause of broken behaviour. Use when something that should work does not. Reproduces first, gates the diagnosis, fixes the cause, and re-proves on the original failure.
+disable-model-invocation: true
 ---
 
 # Debug

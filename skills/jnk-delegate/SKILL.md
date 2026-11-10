@@ -1,6 +1,7 @@
 ---
 name: jnk-delegate
 description: Hand a decided body of work to agents on another machine, and keep the review yourself. Use when the work is bigger than one context, or needs a machine you are not on (the browser, production data, a GPU box).
+disable-model-invocation: true
 ---
 
 # Delegate

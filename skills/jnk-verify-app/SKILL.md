@@ -1,6 +1,7 @@
 ---
 name: jnk-verify-app
 description: Build or run the scripted way to drive an app the way a user does, so behaviour can be exercised the same way every session. Use when a change is user-facing and "I ran the tests" is not evidence.
+disable-model-invocation: true
 ---
 
 # Verify app

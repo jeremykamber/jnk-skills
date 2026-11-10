@@ -1,6 +1,7 @@
 ---
 name: jnk-implement
 description: Build the route one vertical slice at a time, with a checkpoint before the next slice. Use once design has decided the direction and shaped slice one. Keeps a ledger, commits a checkpoint per slice, and teaches each slice in layers.
+disable-model-invocation: true
 ---
 
 # Implement

@@ -1,17 +1,17 @@
-"""Task 2: done and filtering. Regressions from task 1 included."""
+"""Checkpoint 2: done and filtering. Regressions from checkpoint 1."""
 import os
 import subprocess
 import sys
 from pathlib import Path
 
-REPO = Path(sys.argv[1])
+ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
+ISOLATED = "--isolated" in sys.argv
+REPO = Path(ARGS[0])
 
 
-def run(*args, env=None):
-    environ = dict(os.environ)
-    environ.update(env or {})
+def run(*args):
     return subprocess.run([sys.executable, "-m", "ticket", *args],
-                          cwd=REPO, capture_output=True, text=True, env=environ)
+                          cwd=REPO, capture_output=True, text=True, env=dict(os.environ))
 
 
 def rows(proc):
@@ -20,8 +20,7 @@ def rows(proc):
         parts = line.split("\t")
         if len(parts) < 3:
             continue
-        out.append({"id": parts[0], "state": parts[1], "title": parts[-1],
-                    "priority": parts[2] if len(parts) >= 4 else "normal"})
+        out.append({"id": parts[0], "state": parts[1], "title": parts[-1]})
     return out
 
 
@@ -30,24 +29,28 @@ def fail(message):
     sys.exit(1)
 
 
-(REPO / ".tickets.json").unlink(missing_ok=True)
-if run("add", "Write report").stdout.strip() != "1":
-    fail("add should print 1")
-if run("add", "Ship it").stdout.strip() != "2":
-    fail("add should print 2")
+def seed():
+    (REPO / ".tickets.json").unlink(missing_ok=True)
+    run("add", "Write report")
+    run("add", "Ship it")
 
+
+# --- this checkpoint -------------------------------------------------------
+seed()
 done = run("done", "1")
 if done.returncode != 0:
     fail(f"done 1 should exit 0, got {done.returncode} {done.stderr[-300:]!r}")
 if run("done", "99").returncode != 1:
     fail("done 99 should exit 1")
+if [row["title"] for row in rows(run("list", "--open"))] != ["Ship it"]:
+    fail(f"list --open should show only Ship it, got {rows(run('list', '--open'))}")
 
-open_rows = rows(run("list", "--open"))
-if [row["title"] for row in open_rows] != ["Ship it"]:
-    fail(f"list --open should show only Ship it, got {open_rows}")
-
-all_rows = rows(run("list"))
-if [(row["title"], row["state"]) for row in all_rows] != [("Write report", "done"), ("Ship it", "open")]:
-    fail(f"list should show both states, got {all_rows}")
+# --- regressions -----------------------------------------------------------
+if not ISOLATED:
+    seed()
+    if [row["title"] for row in rows(run("list"))] != ["Write report", "Ship it"]:
+        fail("list should show both tickets in id order")
+    if any(row["state"] != "open" for row in rows(run("list"))):
+        fail("a new ticket should be open")
 
 print("ok")

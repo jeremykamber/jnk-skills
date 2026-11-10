@@ -57,8 +57,10 @@ Everything else this workflow used to write is gone. A change produces:
 | `jnk-verify` | The gate stack, the real path exercised, the blast radius proved, the diff audited against `AGENTS.md`. |
 | `jnk-commit` | Checkpoints become a story of one-line conventional commits. |
 
-Beats are invocable by you or by the agent. With `JNK_STRICT=1` exported, only
-you start one.
+You start a beat; the agent follows it and stops at the next gate. Only
+`jnk-grill` and `jnk-legacy` are model-invocable — every other beat's description
+would otherwise cost prompt tokens on every turn, for a decision the user is
+making anyway.
 
 ## The gates
 
@@ -89,19 +91,32 @@ files instrumented. `bench` measures whether any of this makes the code better.
 ## The benchmark
 
 ```sh
-./tools/bench --run ticket-desk --arm baseline --arm workflow
+./tools/bench --run ticket-desk-deep --arm baseline --arm workflow
 ./tools/bench --report
 ```
 
-Four features, applied in order to one repository, so what it measures is what
-matters: whether the code gets worse as features accumulate. Per task it records
-pass/fail (a verifier the agent cannot read), **slop** — the share of functions
-that are over-complex or long, the duplicated-line share, and design findings per
-file — plus tokens, cost and wall time. Three arms: no instructions, a short
-`AGENTS.md`, and this workflow.
+Five features applied in order to one repository, so what it measures is what
+matters: whether the code survives being extended by whoever wrote it. The
+instrument follows [SlopCodeBench](https://arxiv.org/abs/2603.24755):
 
-A failed task is excluded from the aggregate: slop in code that does not work
-measures nothing.
+- **strict** — every test passes, earlier checkpoints' regressions included. The
+  code still works.
+- **isolated** — this checkpoint alone passes. The work landed even though
+  something earlier broke.
+- **erosion** — the share of complexity mass held by functions with cyclomatic
+  complexity above 10, where `mass = CC × √SLOC`. A function that quietly grows
+  branches accumulates mass; a function that is merely long does not.
+- **verbosity** — the share of lines that are structurally duplicated or flagged
+  redundant (stub bodies, TODO markers, imports nothing uses). A documented
+  subset of the paper's pattern set.
+
+Arms are compared **lexicographically: correctness → erosion → verbosity →
+tokens**. A cheaper arm that is less correct has not won, and `bench` exits 1
+when the workflow loses on the first axis that differs.
+
+A verifier runs from outside the repository, so the agent can never read it or
+edit it. A checkpoint the agent never produced code for counts as unsolved;
+quality is averaged only over checkpoints that produced code, never imputed.
 
 ## Philosophy
 

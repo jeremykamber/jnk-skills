@@ -1,6 +1,7 @@
 ---
 name: jnk-design
 description: Understand a change, choose its direction, and shape the first slice before building. Use before touching code when the request needs more than one file, when the approach is not obvious, or when a decision is expensive to reverse. Produces a thread file, a committed design doc when it earns one, and a route to the first gate.
+disable-model-invocation: true
 ---
 
 # Design
