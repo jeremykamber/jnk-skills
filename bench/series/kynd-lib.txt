@@ -1,0 +1,4 @@
+# seed: kynd-lib
+
+kynd-01-summarize-many
+kynd-02-error-badge

@@ -1,0 +1,2 @@
+# seed: kynd-lib
+kynd-01-summarize-many

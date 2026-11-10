@@ -91,6 +91,31 @@ Two caveats, both of which the numbers cannot settle:
   everywhere has not been tried. The fixture tests prove it can move; the series
   does not yet make it move.
 
+## A real repository: kynd
+
+`kynd-lib` seeds the benchmark from a real Next.js application at HEAD — 456
+tracked files, 108 test files — and asks for one small feature in a module that
+already has tests. `node_modules` and `.env` are hard-linked in (not symlinked:
+a symlink prints its target, and an agent that reads it can walk out of the
+workspace — one did, once, before this was fixed).
+
+| arm | strict | erosion | lines added | tokens | minutes |
+| --- | --- | --- | --- | --- | --- |
+| baseline | pass | 0.000 | 55 | 1,015,040 | 2.6 |
+| workflow | pass `*` | 0.000 | 21 | 200,919 | 15.0 |
+
+`*` marks the timeout: the checkpoint was graded after 900s and passed, so the
+work was complete, but the agent had not exited.
+
+On real code the ordering reverses from the toy series: the workflow produced
+**fewer than half the lines** and used **5× fewer tokens**, because the baseline
+flails in a 456-file repository while the beat asks for the module and its test
+before editing. Its cost moved to wall time — 15 minutes against 2.6 — which is
+the trade this workflow actually makes, and the one a user feels.
+
+Erosion and verbosity cannot separate them here: one small module added to a
+mature file is below the resolution of both.
+
 ## Reproducing
 
 ```sh

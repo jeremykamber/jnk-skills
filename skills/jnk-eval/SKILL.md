@@ -10,9 +10,12 @@ disable-model-invocation: true
 
 ## Steps
 
-1. **Extract.** `python3 scripts/extract.py <transcript> [outdir]` writes
-   `transcript.txt`, `thinking.txt` and `stats.json`. No export: read the
-   harness's own session history.
+1. **Extract.** Start from whatever your harness keeps: its session history, or
+   an exported transcript. `python3 scripts/extract.py <transcript> [outdir]`
+   is one converter — it writes `transcript.txt`, `thinking.txt` and
+   `stats.json` for the two export formats it knows, and it is replaceable. What
+   the rest of this beat needs is only a transcript and a count of skill
+   invocations, gate runs and file writes.
 
 2. **Stats first.** Read `stats.json` — skill invocations, gate lines, artifact
    writes, squawks, slices. It says where to read; do not open the transcript
@@ -35,7 +38,7 @@ disable-model-invocation: true
 
 ## Across sessions
 
-Fan out read-only subagents over a window of sessions (default 7 days, this
+Fan out read-only fresh contexts (subagents where the harness has one) over a window of sessions (default 7 days, this
 workspace only). Each returns the goal, the user's corrections, and the skill that
 owned each failure. A pattern counts at two occurrences. Turn each into the
 strongest mechanism that works — a rule, a type, a gate, a skill edit — never

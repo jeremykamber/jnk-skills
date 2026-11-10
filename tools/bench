@@ -80,6 +80,7 @@ PROMPT_PREFIX = {
     # headless run has no user — so the benchmark carries the choice a competent
     # user would have made for a one-file change and measures what follows.
     "workflow": (
+        "Work only inside the current directory; never write outside it.\n"
         "Run the jnk-oneshot beat for this change: read {skills}/jnk-oneshot/"
         "SKILL.md and follow it. Stop at its gate.\n\n"
     ),
@@ -175,10 +176,19 @@ def flagged_lines(files: list[Path]) -> int:
     return flagged
 
 
-def measure(repo: Path) -> Quality:
+def measure(repo: Path, only: list[Path] | None = None) -> Quality:
+    """Quality of the workspace, or of `only` when the workspace came seeded.
+
+    A seeded real repository carries code nobody touched this checkpoint, and its
+    erosion is a constant: measuring the whole tree would drown the delta in it.
+    The paper can measure the workspace because its workspaces start empty.
+    """
     import lizard  # a workflow dependency; install.sh checks it
 
     src, tests = source_files(repo)
+    if only is not None:
+        keep = {p.resolve() for p in only}
+        src = [p for p in src if p.resolve() in keep]
     quality = Quality(files=len(src), test_files=len(tests))
     for path in src:
         try:
@@ -214,6 +224,7 @@ class Checkpoint:
     detail: str
     produced: bool
     seconds: float
+    timed_out: bool
     tokens: int
     cost: float
     tool_calls: int
@@ -260,7 +271,7 @@ def usage_from_events(raw: str) -> tuple[int, float, int, int]:
     return tokens, cost, calls, turns
 
 
-def run_agent(agent: str, arm: str, repo: Path, prompt: str, timeout: int, log: Path) -> tuple[str, float]:
+def run_agent(agent: str, arm: str, repo: Path, prompt: str, timeout: int, log: Path) -> tuple[str, float, bool]:
     """Run one agent turn, killing the whole process group on a timeout.
 
     `shell=True` makes the agent a grandchild: killing the shell leaves it
@@ -269,7 +280,18 @@ def run_agent(agent: str, arm: str, repo: Path, prompt: str, timeout: int, log: 
     """
     import shlex
 
-    cmd = f"{agent} {' '.join(shlex.quote(a) for a in arm_flags(arm))} {shlex.quote(prompt)}"
+    flags = arm_flags(arm)
+    # A real repository ships its own AGENTS.md. Both arms get it: the project's
+    # rules are part of the environment, not part of either instruction set.
+    project_rules = repo / "AGENTS.md"
+    if project_rules.is_file():
+        text = project_rules.read_text(errors="ignore")
+        if "/Developer/repos/" in text or "/Users/" in text:
+            print(f"  note: {project_rules.name} names absolute paths; not passing it in",
+                  file=sys.stderr)
+        else:
+            flags += ["--append-system-prompt", str(project_rules)]
+    cmd = f"{agent} {' '.join(shlex.quote(a) for a in flags)} {shlex.quote(prompt)}"
     started = time.time()
     proc = subprocess.Popen(cmd, shell=True, cwd=repo, stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE, text=True, start_new_session=True)
@@ -289,7 +311,7 @@ def run_agent(agent: str, arm: str, repo: Path, prompt: str, timeout: int, log: 
     elif proc.returncode != 0 and not raw:
         raw = json.dumps({"type": "error", "message": (err or "")[-4000:]}) + "\n"
     log.write_text(raw, encoding="utf-8")
-    return raw, time.time() - started
+    return raw, time.time() - started, timed_out
 
 
 def git(repo: Path, *args: str) -> None:
@@ -305,21 +327,82 @@ def verify(repo: Path, script: Path, level: str) -> tuple[bool, str]:
     return proc.returncode == 0, "\n".join(tail[-10:])
 
 
-def load_series(name: str) -> list[Path]:
+def load_series(name: str) -> tuple[list[Path], str | None]:
+    """The checkpoints, and the seed the series names for itself.
+
+    A `# seed: <name>` line is the only place the seed is declared. Inferring it
+    from the filename meant that renaming a series quietly handed the agent the
+    toy repository instead of the real one, and the run then measured nothing.
+    """
     path = BENCH / "series" / f"{name}.txt"
     if not path.exists():
         raise SystemExit(f"bench: no series '{name}' (looked for {path})")
-    tasks = [line.strip() for line in path.read_text().splitlines()
-             if line.strip() and not line.startswith("#")]
-    return [BENCH / "tasks" / task for task in tasks]
+    tasks: list[Path] = []
+    seed = None
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith("#"):
+            if line.lower().startswith("# seed:"):
+                seed = line.split(":", 1)[1].strip()
+            continue
+        tasks.append(BENCH / "tasks" / line)
+    return tasks, seed
+
+
+def workspace_digest(path: Path) -> str:
+    """A cheap fingerprint of a repository's working tree, for the guard below."""
+    proc = subprocess.run(["git", "-C", str(path), "status", "--porcelain"],
+                          capture_output=True, text=True)
+    return proc.stdout
+
+
+def seed_spec(seed: str | None) -> dict | None:
+    """A series may start from a real repository instead of the toy seed."""
+    if not seed:
+        return None
+    path = BENCH / "series" / f"{seed}.seed"
+    if not path.exists():
+        raise SystemExit(f"bench: series names seed '{seed}', but {path} does not exist")
+    return json.loads(path.read_text())
+
+
+def seed_workspace(spec: dict, work: Path) -> None:
+    """Copy the tracked files of a real repository, and link what git does not
+    carry. `git archive` is the copy: it takes the files that are actually in the
+    repository and none of the 745 MB of dependencies beside them."""
+    source = Path(spec["from"]).expanduser()
+    if not source.is_dir():
+        raise SystemExit(f"bench: seed '{source}' is not a directory")
+    tar = subprocess.run(["git", "-C", str(source), "archive", "HEAD"], capture_output=True, check=True)
+    extract = subprocess.run(["tar", "-x", "-C", str(work)], input=tar.stdout, check=True)
+    del extract
+    for name in spec.get("link", []):
+        target = source / name
+        if not target.exists():
+            continue
+        if target.is_dir():
+            # Hard links: same bytes, no pointer back to the source tree.
+            subprocess.run(["cp", "-al", str(target), str(work / name)], check=True)
+        else:
+            shutil.copy2(target, work / name)
 
 
 def run_series(series: str, arm: str, agent: str, timeout: int, out: Path, keep: bool) -> dict:
-    tasks = load_series(series)
+    tasks, seed_name = load_series(series)
     work = Path(tempfile.mkdtemp(prefix=f"bench-{series}-{arm}-"))
-    seed = BENCH / "seed"
-    if seed.exists():
-        shutil.copytree(seed, work, dirs_exist_ok=True)
+    spec = seed_spec(seed_name)
+    source = None
+    before = ""
+    if spec:
+        source = Path(spec["from"]).expanduser()
+        before = workspace_digest(source)
+        seed_workspace(spec, work)
+    else:
+        seed = BENCH / "seed"
+        if seed.exists():
+            shutil.copytree(seed, work, dirs_exist_ok=True)
     git(work, "init", "-q")
     git(work, "add", "-A")
     git(work, "-c", "user.email=bench@local", "-c", "user.name=bench", "commit", "-qm", "seed")
@@ -331,20 +414,27 @@ def run_series(series: str, arm: str, agent: str, timeout: int, out: Path, keep:
         masked = Path(tempfile.mkdtemp(prefix="bench-verify-")) / "verify.py"
         shutil.copy(task_dir / "verify.py", masked)
         log = out / f"{arm}-{task_dir.name}.jsonl"
-        raw, seconds = run_agent(agent, arm, work, prompt, timeout, log)
+        raw, seconds, timed_out = run_agent(agent, arm, work, prompt, timeout, log)
         tokens, cost, calls, turns = usage_from_events(raw)
         strict, strict_detail = verify(work, masked, "strict")
         isolated, isolated_detail = verify(work, masked, "isolated")
         produced = any(True for _ in source_files(work)[0])
-        quality = measure(work) if produced else Quality()
+        touched: list[Path] | None = None
+        if spec:
+            changed = subprocess.run(["git", "status", "--porcelain"], cwd=work,
+                                     capture_output=True, text=True).stdout
+            touched = [work / line[3:].strip() for line in changed.splitlines()
+                       if line[3:].strip() and (work / line[3:].strip()).suffix in SOURCE_EXT]
+        quality = measure(work, touched) if produced else Quality()
         checkpoints.append(Checkpoint(
             task=task_dir.name, strict=strict, isolated=isolated,
             detail="" if strict else strict_detail, produced=produced,
-            seconds=round(seconds, 1), tokens=tokens, cost=round(cost, 5),
+            seconds=round(seconds, 1), timed_out=timed_out, tokens=tokens, cost=round(cost, 5),
             tool_calls=calls, turns=turns, quality=quality.as_dict()))
         git(work, "add", "-A")
         git(work, "-c", "user.email=bench@local", "-c", "user.name=bench", "commit", "-qm", task_dir.name)
-        mark = "strict" if strict else ("isolated" if isolated else "FAIL")
+        mark = ("strict" if strict else ("isolated" if isolated else "FAIL"))
+        mark += " *" if timed_out else ""
         print(f"  {arm:9s} {task_dir.name:24s} {mark:8s} "
               f"erosion={quality.erosion:.2f} verbosity={quality.verbosity:.2f} "
               f"loc={quality.loc:4d} tok={tokens:6d} {seconds:5.0f}s")
@@ -365,7 +455,12 @@ def run_series(series: str, arm: str, agent: str, timeout: int, out: Path, keep:
         "cost": round(sum(c.cost for c in checkpoints), 5),
         "seconds": round(sum(c.seconds for c in checkpoints), 1),
         "tool_calls": sum(c.tool_calls for c in checkpoints),
+        "timed_out": sum(c.timed_out for c in checkpoints),
     }
+    if source is not None and workspace_digest(source) != before:
+        summary["escaped"] = True
+        print(f"  !! the agent wrote to the seed repository at {source}", file=sys.stderr)
+        print("     restore it with `git -C <seed> status` and `git checkout -- <paths>`", file=sys.stderr)
     if keep:
         summary["kept"] = str(work)
     else:
@@ -457,7 +552,9 @@ def report(directory: Path) -> int:
     lines += ["", "Model: " + ", ".join(sorted({r["model"] for r in runs})),
               "Fresh session per checkpoint, identical seed repository, identical prompts.",
               "Solve rates use a fixed denominator; quality is averaged over checkpoints that",
-              "produced code, never imputed for a run that crashed."]
+              "produced code, never imputed for a run that crashed.",
+              "`*` marks a checkpoint killed at the timeout: it may have been mid-edit, so its",
+              "grader ran on a codebase the agent had not finished with."]
     text = "\n".join(lines)
     (directory / "report.md").write_text(text + "\n")
     print(text)
@@ -485,7 +582,7 @@ def main(argv: list[str]) -> int:
     if args.list:
         for path in sorted((BENCH / "series").glob("*.txt")):
             print(path.stem)
-            for task in load_series(path.stem):
+            for task in load_series(path.stem)[0]:
                 print(f"  {task.name}")
         return 0
 

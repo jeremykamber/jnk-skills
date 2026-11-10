@@ -1,0 +1,5 @@
+{
+  "from": "~/Developer/repos/kynd",
+  "link": ["node_modules", ".env"],
+  "note": "A real repository at HEAD: a Next.js app with 108 test files. node_modules and .env are symlinked so a checkpoint costs seconds, not an install."
+}
