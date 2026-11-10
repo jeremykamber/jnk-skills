@@ -28,8 +28,10 @@ silently, and nothing is reordered without saying so.
 1. **Announce** — the files, the checkpoint, what it will not touch. Wait for go.
 2. **Red first** — write the failing test against the unfixed code and watch it
    fail for the right reason. Then the smallest change that passes. Then tidy.
-3. **Checkpoint** — run the slice's gates: `gates types lint unit` at minimum,
-   the whole stack when the slice touched something shared. Show the output.
+3. **Checkpoint, scoped** — the slice's tests: the files it touched and the files
+   that import them, `gates --changed` where the stack supports it. The full stack
+   is `jnk-verify`'s job; `mutate-changed --full` is an audit, never a checkpoint.
+   Show the output.
 4. **Exercise it** — run the real entry point and show what came back. Unit tests
    are the weakest evidence; a path you could not reach is named unverified.
 5. **Review the risky slices** — when the route marked one, run the two seats in

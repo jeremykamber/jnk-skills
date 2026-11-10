@@ -116,6 +116,27 @@ the trade this workflow actually makes, and the one a user feels.
 Erosion and verbosity cannot separate them here: one small module added to a
 mature file is below the resolution of both.
 
+## From an empty repository (SlopCodeBench's own setting)
+
+`scratch-csvq` starts with nothing and gives a CLI contract: build `./csvq`, then
+extend it with filtering. This is the paper's shape — the agent implements the
+first checkpoint from scratch and then extends its own code.
+
+| arm | strict | isolated | erosion | verbosity | tokens | minutes |
+| --- | --- | --- | --- | --- | --- | --- |
+| baseline | 100% | 100% | 0.262 | 0.000 | 232,523 | 2.2 |
+| workflow | 100% | 100% | 0.301 | 0.000 | 385,454 | 4.8 |
+
+**The workflow is worse here**: erosion 0.301 against 0.262, and 66% more tokens.
+Both arms pass both checkpoints; both keep the second edit in one function
+(0.52 and 0.60 at checkpoint 2). On a two-checkpoint from-scratch build, the
+beat's reading and thread-file overhead buys nothing and costs tokens.
+
+This is the first series where the baseline wins, and it is the most useful
+result of the round: the workflow pays when a repository is big enough that
+finding the seam is the work (kynd: 5× fewer tokens), and it loses when the
+whole program is eighty lines and the seam is the only file.
+
 ## Reproducing
 
 ```sh
