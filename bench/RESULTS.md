@@ -69,7 +69,7 @@ than a fixture.
 The means tie on correctness and nearly tie on erosion, and the workflow used
 **34% fewer tokens**. The trajectories are where the difference is:
 
-```
+```text
 baseline  erosion  0.00 → 0.00 → 0.00 → 0.41 → 0.75
 workflow  erosion  0.00 → 0.00 → 0.37 → 0.32 → 0.44
 ```
