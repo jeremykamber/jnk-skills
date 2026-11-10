@@ -8,7 +8,7 @@ Used by `jnk-implement` on a risky slice, `jnk-verify` on a risky change, and
 
 ## Running it
 
-- **One seat per subagent, its brief quoted verbatim** — a seat that has read the
+- **One seat per fresh context — a subagent where the harness has one, otherwise a second session — its brief quoted verbatim** — a seat that has read the
   other is a generalist again.
 - **The same context for both:** the diff, the tests it touches, the `AGENTS.md`
   files themselves (never a restatement), and `depth --changed --base <ref>

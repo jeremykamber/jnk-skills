@@ -60,9 +60,10 @@ neither fix nor answer is one you decided to keep — say so.
 
 ## 5. Audit against the rules
 
-Hand a subagent the diff and the `AGENTS.md` files themselves — the machine's and
-the project's, never a summary of them — and ask which principles the diff
-breaks, with `file:line` for each. Report every finding, including the ones you
+Hand the diff and the `AGENTS.md` files themselves — the machine's and the
+project's, never a summary of them — to a fresh context: your harness's subagent
+if it has one, otherwise a second session. Ask which principles the diff breaks,
+with `file:line` for each. Report every finding, including the ones you
 judge wrong, with your reason.
 
 ## 6. Reconcile and report

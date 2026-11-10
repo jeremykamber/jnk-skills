@@ -25,13 +25,13 @@ direction.
    arena worth its cost. A brief the candidates can read twice and still disagree about is
    underspecified: fix it here, rather than paying for the ambiguity three times.
 
-2. **Fan out two or three candidates, one subagent each, isolated.** Each candidate gets the same
+2. **Fan out two or three candidates, one fresh context each, isolated** (a subagent where the harness has one, otherwise a second session). Each candidate gets the same
    brief and the package shape below, and writes its own file. Three is the ceiling: a fourth
    rarely changes the choice and always costs a comparison. Require structural distinctness —
    whole-shape alternatives, not point fixes inside one shape. When you can see a candidate
    converging on another, say so and replace it.
 
-3. **Judge in a fresh context.** A subagent that produced none of the candidates reads every one
+3. **Judge in a fresh context.** A reader that produced none of the candidates reads every one
    start to finish and scores them against a rubric written **after** the candidates exist, so the
    rubric cannot be gamed. The rubric is the lenses above — deep module, inversion (the failure you
    would lose sleep over), smallest coherent change, wrong abstraction, the next engineer — plus
@@ -78,7 +78,7 @@ say why:
 
 Rules: zero production code (`not implemented` bodies and pseudocode are expected); structurally
 distinct from every sibling, and never read a sibling; as short as it can be. Each candidate's
-subagent owns its file and may not write to the repo.
+candidate owns its file and may not write to the repo.
 
 ## Do not
 
