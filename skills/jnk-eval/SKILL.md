@@ -1,6 +1,7 @@
 ---
 name: jnk-eval
 description: Judge how well the workflow worked, from session traces, and propose the smallest evidence-based edits. Use after a session goes sideways, or on a schedule to mine repeated corrections.
+disable-model-invocation: true
 ---
 
 # Eval

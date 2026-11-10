@@ -1,6 +1,7 @@
 ---
 name: jnk-commit
 description: Write a session's work as a story of conventional commits, splitting it into coherent chapters. Use when a unit of change is finished and its history should read well.
+disable-model-invocation: true
 ---
 
 # Commit

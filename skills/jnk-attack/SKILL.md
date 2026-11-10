@@ -1,6 +1,7 @@
 ---
 name: jnk-attack
 description: Write adversarial tests that try to break a feature — boundaries, invalid input, properties, state, time — and prove each one can fail. Use before shipping something risky.
+disable-model-invocation: true
 ---
 
 # Attack

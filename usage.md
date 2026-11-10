@@ -5,9 +5,10 @@ time. This is the day-to-day.
 
 ## The short version
 
-- **You invoke a beat, it works, it stops.** The agent never silently starts the
-  next one — it names it and says what it would do. `JNK_STRICT=1` makes that
-  rule absolute; without it the agent may start a beat the work plainly needs.
+- **You invoke a beat, it works, it stops.** The agent never starts the next one
+  silently — it names it and says what it would do. Beats are user-invoked by
+  design: a model-invocable skill costs its description in the prompt on every
+  turn, and choosing the beat is your call.
 - **Every beat ends with a question you can answer in a word.** "Which slice
   scares you?", "Does this model surprise you?", "Approve the route?"
 - **Small fix → `jnk-oneshot`. Anything else → `jnk-design` first.**
@@ -111,10 +112,12 @@ with the reason. An absent stack is not a threshold.
 ## Debugging the workflow itself
 
 ```sh
-./tools/gates                    # the tools' own tests
-./tools/bench --self-test        # the benchmark, with a stub agent
-./tools/bench --run ticket-desk --arm baseline --arm workflow
+./tools/gates                        # the tools' own tests
+./tools/bench --self-test            # the benchmark, with a stub agent
+./tools/bench --run ticket-desk-deep --arm baseline --arm workflow
 ```
 
-If the workflow does not beat a 15-line `AGENTS.md` on the benchmark, cut beats
-until it does. That is the only argument that settles it.
+The arms are compared correctness first, then erosion, then verbosity, then
+tokens — in that order and no other. If the workflow is less correct or dirtier
+than a 15-line `AGENTS.md`, cut beats until it is not. That is the only argument
+that settles it.

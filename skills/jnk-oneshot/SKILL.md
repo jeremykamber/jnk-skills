@@ -1,6 +1,7 @@
 ---
 name: jnk-oneshot
 description: Make a small, well-understood change end to end in one pass, without the design beat. Use when the behaviour and the approach are both clear. Escalates to jnk-design the moment either stops being clear.
+disable-model-invocation: true
 ---
 
 # One shot

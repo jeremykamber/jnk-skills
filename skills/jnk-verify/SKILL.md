@@ -1,6 +1,7 @@
 ---
 name: jnk-verify
 description: Prove a finished change with evidence, and say plainly what remains unverified. Use when implementation is done and before handing work on. Runs the gate stack, exercises the real path, audits the diff against AGENTS.md, reconciles squawks, and reports the design ledger.
+disable-model-invocation: true
 ---
 
 # Verify

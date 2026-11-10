@@ -1,17 +1,17 @@
-"""Task 3: priorities. Regressions from tasks 1-2 included."""
+"""Checkpoint 3: priorities. Regressions from checkpoints 1-2."""
 import os
 import subprocess
 import sys
 from pathlib import Path
 
-REPO = Path(sys.argv[1])
+ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
+ISOLATED = "--isolated" in sys.argv
+REPO = Path(ARGS[0])
 
 
-def run(*args, env=None):
-    environ = dict(os.environ)
-    environ.update(env or {})
+def run(*args):
     return subprocess.run([sys.executable, "-m", "ticket", *args],
-                          cwd=REPO, capture_output=True, text=True, env=environ)
+                          cwd=REPO, capture_output=True, text=True, env=dict(os.environ))
 
 
 def rows(proc):
@@ -30,23 +30,31 @@ def fail(message):
     sys.exit(1)
 
 
-(REPO / ".tickets.json").unlink(missing_ok=True)
-if run("add", "Low one", "--priority", "low").stdout.strip() != "1":
-    fail("add --priority low should print 1")
-if run("add", "Urgent one", "--priority", "high").stdout.strip() != "2":
-    fail("add --priority high should print 2")
-if run("add", "Plain one").stdout.strip() != "3":
-    fail("plain add should print 3")
+def seed():
+    (REPO / ".tickets.json").unlink(missing_ok=True)
+    run("add", "Low one", "--priority", "low")
+    run("add", "Urgent one", "--priority", "high")
+    run("add", "Plain one")
 
+
+# --- this checkpoint -------------------------------------------------------
+seed()
 if [row["priority"] for row in rows(run("list"))] != ["low", "high", "normal"]:
-    fail(f"priority column should read low,high,normal, got {rows(run('list'))}")
-
-sorted_rows = rows(run("list", "--sort", "priority"))
-if [row["title"] for row in sorted_rows] != ["Urgent one", "Plain one", "Low one"]:
-    fail(f"--sort priority should be high,normal,low, got {sorted_rows}")
-
+    fail(f"the priority column should read low,high,normal, got {rows(run('list'))}")
+if [row["title"] for row in rows(run("list", "--sort", "priority"))] != ["Urgent one", "Plain one", "Low one"]:
+    fail("--sort priority should be high, normal, low")
 run("done", "2")
 if [row["title"] for row in rows(run("list", "--open", "--sort", "priority"))] != ["Plain one", "Low one"]:
-    fail(f"--open and --sort should combine, got {rows(run('list', '--open', '--sort', 'priority'))}")
+    fail("--open and --sort should combine")
+
+# --- regressions -----------------------------------------------------------
+if not ISOLATED:
+    seed()
+    if run("done", "1").returncode != 0:
+        fail("done should still exit 0")
+    if [row["title"] for row in rows(run("list", "--open"))] != ["Urgent one", "Plain one"]:
+        fail("--open should still filter to open tickets")
+    if run("done", "99").returncode != 1:
+        fail("done 99 should still exit 1")
 
 print("ok")

@@ -1,6 +1,7 @@
 ---
 name: jnk-interrogate
 description: Interrogate the user on a repo or feature until their understanding is real. Use when they want to own the code, not just ship it.
+disable-model-invocation: true
 ---
 
 # Interrogate
