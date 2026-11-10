@@ -83,6 +83,22 @@ class Quality(unittest.TestCase):
         self.assertEqual(quality.verbosity,
                          round(min((quality.dup_lines + quality.flagged_lines) / quality.loc, 1.0), 4))
 
+    def test_a_shebang_script_with_no_extension_is_measured(self) -> None:
+        # A from-scratch task that asks for `./csvq` produces a real program with
+        # no extension. The first version of this returned loc 0 for it, because
+        # the parser was called through an API that did not exist and the error
+        # was swallowed — a metric reporting zero because the tool failed.
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            script = repo / "csvq"
+            script.write_text("#!/usr/bin/env python3\nimport sys\n\n\ndef main(argv):\n    return 1\n")
+            script.chmod(0o755)
+            quality = bench.measure(repo)
+        self.assertEqual(quality.files, 1)
+        self.assertGreater(quality.loc, 0, quality.as_dict())
+        self.assertGreater(quality.functions, 0, quality.as_dict())
+        self.assertEqual(quality.unmeasured, [], "a parser failure must be reported, not read as zero")
+
     def test_tests_are_counted_but_never_scored(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo = write(Path(tmp), {

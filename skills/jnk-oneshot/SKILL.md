@@ -26,9 +26,16 @@ costs a rewrite.
 2. **Slice** — one vertical change, or two or three that each work end to end.
    Write the failing test first, watch it fail, make it pass.
 
-3. **Checkpoint** — `gates types lint unit`, or the whole stack when the change
-   touches something shared. Stand a stack up only with the user's say-so
-   (`gates --init --yes`).
+3. **Checkpoint, scoped** — the tests for the files you touched and the files that
+   import them: one test file, `gates --changed` where the stack supports it,
+   `mutate-changed --files <path>` when mutation is on. The whole suite, the whole
+   tree and `mutate-changed --full` are the audit's job (`jnk-verify`, or a
+   release), not a checkpoint's. Measured: an unscoped `npx vitest run` on a
+   108-file repository cost **11 of the 15 minutes** a checkpoint took, for the
+   same verdict as the one file that covered the change.
+
+   A project with no stack is run by its own test command, scoped the same way.
+   Stand a stack up only with the user's say-so (`gates --init --yes`).
 
 4. **Exercise it** — run the real entry point and show the output.
 

@@ -63,6 +63,11 @@ same breath as the decision.
   decision, in its own commit, with the reason stated.
 - **A behaviour change is verified by running the real path** and showing the
   output — never by a green suite alone.
+- **A checkpoint is scoped; the audit is not.** At a checkpoint run the tests for
+  what changed and what imports it (`gates --changed`, one test file,
+  `mutate-changed --files`). The whole suite and `mutate-changed --full` belong to
+  verification and release. An unscoped suite run is the single largest cost in
+  the benchmark, and it buys nothing a scoped run did not.
 
 ## Beats
 
