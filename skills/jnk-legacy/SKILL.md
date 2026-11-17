@@ -14,4 +14,4 @@ description: The old beat names. Use when someone types jnk-1-explore, jnk-2-des
 | `/skill:jnk-plan` | `jnk-design` |
 | `/skill:jnk-decisions` | the `## Decisions` section of `.ai/threads/<slug>.md` |
 
-Say which beat replaced it and why in one line, then run that beat.
+Say which beat replaced it and why, in one line. Then run that beat.

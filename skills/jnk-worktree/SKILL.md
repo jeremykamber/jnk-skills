@@ -10,7 +10,7 @@ disable-model-invocation: true
 
 ## Steps
 
-1. **Already isolated?** `git rev-parse --git-dir` against
+1. **Already isolated?** Compare `git rev-parse --git-dir` with
    `git rev-parse --git-common-dir`. Different means you are in a worktree:
    confirm the branch and skip to the baseline.
 
@@ -22,7 +22,7 @@ disable-model-invocation: true
    honest baseline for the beats ahead. If the stack fails before you change
    anything, say so and stop.
 
-4. **Report** — path, branch, baseline result — and ask whether to start.
+4. **Report** — path, branch, baseline result — then ask whether to start.
 
 ## Next
 

@@ -14,9 +14,9 @@ disable-model-invocation: true
    not cover what you are about to move, add the test first and see it green
    before you touch the structure.
 
-2. **Read the debt.** `depth report <area>` — shallow modules, deletion
-   candidates, single-implementation abstractions, drift. Name the two or three
-   moves worth making, and the one you are choosing not to.
+2. **Read the debt.** `depth report <area>` shows shallow modules, deletion
+   candidates, single-implementation abstractions and drift. Name the two or
+   three moves worth making, and the one you are choosing not to.
 
 3. **Baseline the ledger** so the change can be scored:
 
@@ -26,8 +26,13 @@ disable-model-invocation: true
    ```
 
 4. **Move in small steps.** One structural change per commit, tests green after
-   each. `gates` at every checkpoint. No behaviour change smuggled in: if a test
-   has to change, the refactor became a feature — say so and stop.
+   each. Run `gates` at every checkpoint. No behaviour change smuggled in: if a
+   test has to change, the refactor became a feature. Say so and stop.
+
+   Bad: rename, extract, move and change the sort order in one commit.
+
+   Good: `refactor(store): extract matchesDone and matchesText` — behaviour
+   unchanged, the gate green, one idea to review.
 
 5. **Score it.** `depth --changed --base <ref> --baseline /tmp/base.json --json`.
    `paid` is the debt retired; `new` is debt added. Report both. A refactor that

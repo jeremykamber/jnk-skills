@@ -13,8 +13,8 @@ disable-model-invocation: true
 1. **Pick the ground.** One area, named: a module, a flow, a decision. Ask which,
    or propose the one the work depends on most.
 
-2. **Start easy, then climb.** Five rungs, one question each, waiting for the
-   answer before the next:
+2. **Start easy, then climb.** Five rungs, one question each. Wait for the answer
+   before you ask the next:
 
    1. what it does, in your words;
    2. how a request or datum moves through it;
@@ -23,11 +23,16 @@ disable-model-invocation: true
    5. what you would change, and what that would cost.
 
 3. **Follow the gap.** A hesitant answer is the next question. Ask for the
-   mechanism, not the label: "what actually calls that?" Never accept a name as
-   an explanation.
+   mechanism, not the label.
+
+   Bad: "So the store handles persistence, right?" — answerable with "yes" and
+   teaching nothing.
+
+   Good: "What calls `save()` after the user taps Done?" Then: "and what happens
+   to the old row?"
 
 4. **Teach the gap, then re-ask** a different version of the same question. Two
-   clean answers and the rung is closed.
+   clean answers close the rung.
 
 5. **Stop on signal.** "Two areas left" tells them where the end is. Close with
    the two things they understand best and the one they should read next, with

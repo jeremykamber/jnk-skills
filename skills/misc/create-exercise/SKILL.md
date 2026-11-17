@@ -47,6 +47,13 @@ Fade the scaffolding. Then write steps, distractors-first: the wrong
 answer is where the misconception is, so write its feedback before the
 question's phrasing.
 
+Bad: a wrong option whose feedback reads "Not quite — try again." It
+names no misconception, so the learner retries blind.
+
+Good: "A phrase loses its last word when the cell wraps. That is a
+rendering limit, not the data: check the stored value before you edit
+the text."
+
 Done when you can name the misconception each distractor catches and
 the skill each step exercises.
 

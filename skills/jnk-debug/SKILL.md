@@ -10,36 +10,44 @@ disable-model-invocation: true
 
 ## Steps
 
-1. **Reproduce.** Make it fail in front of you. No hypothesis, no patch until it
-   does. Intermittent: characterise the frequency and conditions, and say what
-   you cannot verify. A bug you cannot reproduce is a bug you cannot diagnose.
+1. **Reproduce.** Make it fail in front of you. No hypothesis and no patch until
+   it does. For an intermittent bug, characterise the frequency and the
+   conditions, and say what you cannot verify. A bug you cannot reproduce is a
+   bug you cannot diagnose.
 
 2. **Read the evidence.** The first line of the stack, the log message, the
    failing assertion. Follow the call path. State what the code does against what
-   it should. For tactics — bisection, minimisation, archaeology — see
+   it should. For tactics — bisection, minimisation, archaeology — read
    `references/playbook.md`.
 
-3. **What changed?** Most bugs are regressions: `git log -p` over the area,
-   blame, diff from last-known-good. Name the commit or say the bug is old.
+3. **What changed?** Most bugs are regressions. Run `git log -p` over the area,
+   `git blame`, and diff from last-known-good. Name the commit, or say the bug is
+   old.
 
-4. **One hypothesis at a time.** Falsifiable, one variable per test, result
-   recorded. A failed hypothesis is evidence. Two identical attempts means stop
-   and re-read the evidence.
+4. **One hypothesis at a time.** Make it falsifiable. Change one variable per
+   test and record the result. A failed hypothesis is evidence. Two identical
+   attempts means stop and re-read the evidence.
 
-5. **Gate the diagnosis.** State what fails, where, why, since when — then stop
+5. **Gate the diagnosis.** State what fails, where, why and since when. Then stop
    and ask: "Does this match what you know of the system? Any hunch I should
    check?" If the fix is wide, say so here; that is the escalate signal.
 
 6. **Smallest fix, proven.** Regression test first, seen red. Then the fix. Then
-   prove: the original reproduction is gone, the new test passes, nothing
-   adjacent broke.
+   prove three things: the original reproduction is gone, the new test passes,
+   nothing adjacent broke.
 
-7. **Report.** Cause, fix, evidence, squawks. Commit; propose `jnk-commit` to
-   shape the history.
+   Bad: "Changed the null check and the tests pass now."
+
+   Good: "`parse()` returned `null` for an empty cell, and `render()` called
+   `.trim()` on it. Guard added at the boundary, in `parse()`. Reproduction from
+   step 1 now prints `1. [empty]`, and `parse.spec.ts` fails without the guard."
+
+7. **Report.** Cause, fix, evidence, squawks. Commit, then propose `jnk-commit`
+   to shape the history.
 
 ## Context hygiene
 
-Summarise logs and traces; never dump them raw. Long trail goes in a scratch
+Summarise logs and traces; never dump them raw. A long trail goes in a scratch
 file, not the conversation.
 
 ## Next
