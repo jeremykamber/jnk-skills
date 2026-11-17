@@ -16,6 +16,6 @@ description: "Use before reporting any change done, and whenever a claim rests o
 
 **Pattern.** Show the command and its output, not a summary of them. When the change is risky, have a fresh context write the failing case from the requirement, never from the diff, and watch it fail before it passes. If a check could not run, the answer is "inconclusive", and a confident reply with no evidence is a red flag.
 
-**When it applies.** Before declaring anything done. This is the execution of `AGENTS.md` principle 7.
+**When it applies.** Before declaring anything done. This is the execution of `AGENTS.md` principle 5.
 
 **Cite it.** Give the evidence pointer: the command, the run, the artifact.

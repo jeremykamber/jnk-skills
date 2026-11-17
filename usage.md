@@ -19,6 +19,8 @@ time. This is the day-to-day.
 - **Context at ~60% → finish the beat or `jnk-handoff`, then `jnk-pickup`.**
 - **A beat proves it worked by running `gates`.** Verification is a command, not
   a judgment.
+- **Everything you read follows the `writing` skill.** Answer first, next action
+  last, plain English. `AGENTS.md` points at it rather than repeating it.
 
 ## Where state lives
 

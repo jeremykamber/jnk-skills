@@ -17,12 +17,18 @@ an agent's work verifiable, and a short instruction set beats a long one.**
   `interrogate`, `eval`, `delegate`, `legacy`.
 - `skills/misc/` — non-coding skills (`teach`, `slides`, `create-exercise`,
   `explain`).
+- `skills/writing/` — the voice for everything a person reads: answers, docs,
+  commit messages. Orwell's six rules, ASD-STE100 in short, and the shape of an
+  answer. `AGENTS.md` points at it instead of repeating it.
 - `tools/` — the gate tooling: `gates`, `crap`, `depth`, `mutate-changed`, `bench`.
 - `bench/` — the benchmark: a four-feature series on one growing repository, three
   arms, and a slop score. `--self-test` runs it with a stub agent in ten seconds.
 - `rules/` — named engineering principles, installed as rulebook rules the agent
   reads on demand at `rule://<name>`.
 - `checks/` — the tools' own tests. `./tools/gates` runs them.
+- `scripts/test_docs.py` — the `voice` gate: it holds `AGENTS.md` to its line
+  budget and bans filler across every skill. Its own file, because `checks/` is
+  vendored with the tools and a sync would delete anything the kit lacks.
 - `AGENTS.md` — the machine's universal rules, linked to `~/.agents/AGENTS.md`.
 - `templates/` — a project's `AGENTS.md`, the recommended gate stack, and the gate
   configs `gates --init` writes.
