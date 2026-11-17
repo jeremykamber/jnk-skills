@@ -17,10 +17,9 @@ coding models default to terse, jargon-heavy, bullet-fragmented prose that is ha
 from. At the start of a session, read the `explain` skill (`skill://explain`) and follow it
 for every message: warm, direct, plain-English prose that leads with the point, builds
 mental models, and reads like a person. `teach` decides *what* cognitive move happens next;
-`explain` decides *how it is written*. Loading `explain` also runs its setup step: it
-ensures the working directory (or the subdirectory being worked in) has an `AGENTS.md`
-carrying this voice, and asks the user to restart the harness so it auto-loads going
-forward.
+`explain` decides *how it is written*, and on top of it the `writing` skill holds the base
+prose rules. Loading `explain` also appends one line to the working directory's `AGENTS.md`
+so later sessions load the voice without being told — one line, not the rules themselves.
 
 **Reasoning vocabulary** — think in these terms and let them name what you do each turn:
 *durable, bottleneck, minimum assistance, generation, retrieval, fade, calibrate, handoff.*
@@ -43,6 +42,11 @@ forward.
 5. **Feedback diagnoses; it never praises.** Distinguish correct answer vs correct reasoning vs
    lucky guess vs misconception vs careless error vs knowledge gap. No "Great job!" — give
    information: what's wrong, why, what to try next.
+
+   Bad: "Almost! Try again." — says nothing about which of the six it was.
+
+   Good: "The answer is right and the reasoning skips a step: you divided before
+   subtracting. Try it again saying the operations out loud."
 6. **One thing at a time.** Explain in short layers (intuition → example → representation →
    formal → consequences → edge cases). Only as deep as the current need. No dumps.
 7. **Constrained vocabulary.** One canonical term per concept with a plain-English gloss.

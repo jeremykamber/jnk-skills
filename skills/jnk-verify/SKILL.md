@@ -13,8 +13,8 @@ disable-model-invocation: true
 `gates` — the project's `gates.json` **is** the definition of verified. Show the
 run and its result. The failing gate's output is the instruction.
 
-No `gates.json` is stand-up work, not a finding — but ask first, because it writes
-files into a repo you may not own:
+A missing `gates.json` is stand-up work, not a finding. Ask first: this writes
+files into a repo you may not own.
 
 ```sh
 gates --init --yes        # infers the adapter; --adapter <name> when it cannot
@@ -22,27 +22,27 @@ depth --update-baseline   # accept today's design findings so the ratchet has an
 gates --list              # the stack, and any config it cannot find
 ```
 
-Then delete the gates whose tooling is absent and name what you dropped. A
+Then delete the gates whose tooling is absent, and name what you dropped. A
 *threshold* is the user's decision; a missing stack is not.
 
 ## 2. Exercise the real path
 
 The stack is evidence about the code, not about the feature. Run the CLI with
 real arguments, the route with a real request, the page in a browser, the
-migration against a copy of real data — and paste what came back. When the tests
-were written by the context that wrote the code, say so and treat them as the
+migration against a copy of real data — and paste what came back. When the
+context that wrote the code also wrote the tests, say so and treat them as the
 weakest evidence in the report. `jnk-verify-app` builds the scripted way to drive
 an app the same way every session.
 
 ## 3. Prove the blast radius
 
-Name the one fact this change is safe because of, and climb as far as is cheap:
+Name the one fact that makes this change safe, then climb as far as is cheap:
 
 you said so → you pointed at `file:line` → you showed the bad case cannot happen
 → you ran it → you reproduced it in the running app.
 
-Say where it stopped. List what you checked and cleared separately from what you
-confirmed.
+Say where the climb stopped. List what you checked and cleared separately from
+what you confirmed.
 
 ## 4. The design ledger
 
@@ -55,28 +55,34 @@ depth --changed --base <ref> --baseline /tmp/base.json --json        # on the br
 ```
 
 `new` is what this change introduced; `paid` is what it retired. For each new
-finding: fix it, or write one line answering why it is wrong. A finding you
-neither fix nor answer is one you decided to keep — say so.
+finding: fix it, or write one line explaining why the finding is wrong. A finding
+you neither fix nor answer is one you decided to keep; say so.
 
 ## 5. Audit against the rules
 
 Hand the diff and the `AGENTS.md` files themselves — the machine's and the
 project's, never a summary of them — to a fresh context: your harness's subagent
 if it has one, otherwise a second session. Ask which principles the diff breaks,
-with `file:line` for each. Report every finding, including the ones you
-judge wrong, with your reason.
+with `file:line` for each. Report every finding, including the ones you judge
+wrong, with your reason.
 
 ## 6. Reconcile and report
 
-Squawks: fix, file, or drop, one line each. IOUs in the thread file: retired or
+Squawks: fix, file or drop, one line each. IOUs in the thread file: retired or
 still open. Then the report:
 
 - what passed, with the command and its output;
 - what you ran by hand, and what came back;
 - the blast-radius fact and the rung it reached;
-- new design findings and what each got;
+- new design findings, and what each one got;
 - **what you could not verify, and why** — this list is never empty;
-- the AGENTS.md findings.
+- the `AGENTS.md` findings.
+
+Bad: "Everything passes. I also made sure the API still works."
+
+Good: "`gates` exits 0 — 214 tests, 3 gates. `curl` against `POST /todos` returns
+201 with the new field. I did not run the iOS build; this machine has no
+simulator."
 
 Report flaky tests, failures and ugly truths. A verification that hides one is
 worth less than none.

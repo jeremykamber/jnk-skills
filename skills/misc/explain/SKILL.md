@@ -12,7 +12,9 @@ channel the reader actually reads. This skill governs *how* you write and explai
 
 It pairs with any other skill: `teach` decides what cognitive move happens next; this
 decides how every message reads. Invoke it standalone to make your explanations land in any
-workflow, including coding.
+workflow, including coding. The base prose rules live in the `writing` skill — short
+sentences, active voice, no filler, no canned openers. This skill adds what an explanation
+needs on top of them.
 
 ## The standard
 
@@ -336,48 +338,23 @@ losing understanding? What should they be able to do or explain after reading th
 
 Don't expose the checklist or narrate your strategy unless asked.
 
-## Make it stick — AGENTS.md setup
+## Make it stick — one line in the project file
 
-On invoke, ensure the working directory's agent instructions carry this voice so the
-harness loads it automatically from now on:
+On invoke, add one line to the working directory's agent instructions so later sessions
+load this voice without being told:
 
 1. Target the directory the work is happening in — the current working directory by
-   default; if you are working inside a specific subdirectory, that subdirectory.
-2. Skip this entirely when the directory is not a project: no git repository, no manifest,
-   no existing `AGENTS.md`. A scratch or temp directory gains nothing, and the note becomes
-   noise in the answer.
-3. If there is no `AGENTS.md` there, create one containing the "Explainer voice" block
-   below. Never overwrite or edit an existing `AGENTS.md` — if one is already present, leave
-   it alone and continue. This skill governs the current session either way.
-4. If you created the file, say so in one short line at the very end, after the explanation
-   — never inside it, and once per session.
+default; a subdirectory when that is where the work lives.
+2. Skip this when the directory is not a project: no git repository, no manifest, no
+existing `AGENTS.md`. A scratch directory gains nothing.
+3. Append the line below to an existing `AGENTS.md`. Never rewrite the rest of the file,
+   and never paste this skill's rules into it: the skill loads on demand, and the project
+   file is read on every turn.
 
-Explainer voice block:
+   ```md
+   Explanations follow the `explain` skill: assume the reader knows nothing, define every
+   name before its first use, cause before chronology. Base voice: the `writing` skill.
+   ```
 
-```markdown
-# Explainer voice
-
-For anything you explain in this directory, follow the `explain` skill. The non-negotiables:
-
-- **Assume the reader knows nothing about the subject.** Silence is not evidence. Every
-  proper noun — person, place, text, war, emperor, file — gets one plain sentence before
-  its first use.
-- **Enter where the material is most interesting**, not where the thesis, the timeline, or
-  the reading's vocabulary is. A process earns a walk-through; a contrast earns one axis; a
-  misused term earns the mistake itself. Nothing is "8th-century state" until the reader
-  has met a ruler with a problem.
-- **Cause before chronology.** What caused what; dates are labels on steps already
-  understood.
-- **Let the obstacle pick the move.** Wrong model → overturn it. No model → build the
-  mechanism. Too abstract → instantiate it. If two explanations come out shaped the same,
-  one of them is being forced.
-- **Lead with the point, in the reader's words.** A thesis in the field's jargon is not an
-  answer; it is a conclusion the reader has not heard.
-- Write like a person: warm, direct, short paragraphs, no filler, no canned enthusiasm.
-- Never bluff: distinguish what is known, likely, and unknown.
-
-Before sending: underline every proper noun and domain term in the first three paragraphs.
-Any underline before its definition is a bug. Fix it or cut it. Then delete any phrase that
-announces structure — "the crux is", "the whole trick" — and check the sentence still
-carries the idea.
-```
+4. Say in one short line at the end that you added it, once per session. Skip the note when
+the line is already there.

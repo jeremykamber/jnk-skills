@@ -52,6 +52,11 @@ Silently following the weaker rule is not.
 3. **Name the one thing.** The element the eye must reach first, and the single
    job of the screen. If you cannot name it, there is no hierarchy yet.
    Reference: `references/hierarchy.md`.
+
+   Bad: "A dashboard with cards for tasks, stats, notes and the calendar, all
+   visible at once." — four things fight, and none of them wins.
+
+   Good: "The one thing: today's overdue count. The rest sits below it, quieter."
 4. **Budget the default view.** List what the user must read to make the common
    decision; keep that. Move original values, explanations, advanced fields and
    rare actions behind a clear Edit/Details action. Never remove

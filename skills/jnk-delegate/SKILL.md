@@ -11,9 +11,9 @@ disable-model-invocation: true
 ## What cannot be delegated
 
 Two things, always: the standard the work is held to, and verification of every
-claim that comes back. An absence claim ("there is no caller of this") is
-re-checked against the live tree before it is forwarded — three agents can agree
-on a stale one.
+claim that comes back. Re-check an absence claim ("there is no caller of this")
+against the live tree before you forward it: three agents can agree on a stale
+one.
 
 Taste, and a trade-off with a real cost either way, come back to the user. They
 are not decided in a commit on another machine.
@@ -34,7 +34,7 @@ One page, written before anything leaves:
 ## Steps
 
 1. **Decide the work first.** Delegation carries decided work; it does not decide.
-   Anything unresolved goes to `jnk-grill` before the brief.
+   Send anything unresolved to `jnk-grill` before the brief.
 
 2. **Fan out by area**, one agent per exclusive set of files, all from the same
    brief. Overlapping ownership is how two agents produce one conflict.
@@ -46,12 +46,17 @@ One page, written before anything leaves:
 4. **Read every diff yourself.** Not the summary. The diff.
 
 5. **Verify every claim** against the live tree, and run the gate command on the
-   target. A claim you did not check is unverified, and the ledger says so.
+   target.
+
+   Bad: "The remote agent says all 40 tests pass, so I marked it done."
+
+   Good: "Ran `gates` here: 38 pass, 2 fail on the new field. Marked unverified
+   until the diff lands."
 
 6. **Ledger in the PR body** — item, what changed, the evidence, and what remains
    unverified.
 
 ## Output
 
-The brief / the fan-out and who owned what / every claim and how it was checked
-/ the unverified list / the ledger.
+The brief / the fan-out and who owned what / every claim and how it was checked /
+the unverified list / the ledger.

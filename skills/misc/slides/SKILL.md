@@ -58,6 +58,12 @@ headline test: **read the titles in order and you have read the
 argument.** A spine that reads like a table of contents is labels where
 claims belong.
 
+Bad: "Introduction / Background / Method / Results / Conclusion" — five
+labels, no argument.
+
+Good: "Manual QA costs six hours a week / The scripted drive cuts it to
+thirty minutes / Here is the drive we build today."
+
 Done when the titles alone carry the argument, every slide serves the
 objective, and you can name the slides you would cut if you lost a
 third of the deck.

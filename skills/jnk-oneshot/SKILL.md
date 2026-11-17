@@ -6,31 +6,41 @@ disable-model-invocation: true
 
 # One shot
 
-Small change, done properly, one pass.
+> Small change, done properly, one pass.
 
 ## Escalate instead
 
-Stop and recommend `jnk-design` when you hit: a decision the repo does not
-answer, behaviour nobody has specified, an architectural change, or a slice
-resting on an assumption you cannot check. Escalating costs one beat; guessing
-costs a rewrite.
+Stop and recommend `jnk-design` when you hit any of these:
+
+- a decision the repo does not answer;
+- behaviour nobody has specified;
+- an architectural change;
+- a slice resting on an assumption you cannot check.
+
+Escalating costs one beat; guessing costs a rewrite.
 
 ## Steps
 
 1. **Restate** — what changes, what must not, the main risk. Read
    `.ai/threads/*.md` first when one covers this area: the previous session wrote
    down what it learned, and re-deriving it is the most expensive way to spend a
-   context. Then the code under change, its tests, and one caller. If that read
+   context. Then the code under change, its tests and one caller. If that read
    turns up a real unknown, escalate.
 
 2. **Slice** — one vertical change, or two or three that each work end to end.
-   Write the failing test first, watch it fail, make it pass.
+   Write the failing test first, watch it fail, make it pass. Then shape it: one
+   function, one job. Reading input, deciding what it means and rendering the
+   answer are three functions, not a helper with three phases; a body whose
+   middle needs a comment to explain is two functions. A branch chain that picks
+   a command, a state or a format is a table and a one-line lookup, not a longer
+   `if`. The next checkpoint inherits whatever you leave, and the function that
+   already does everything is the one that rots.
 
-3. **Checkpoint, scoped** — the tests for the files you touched and the files that
-   import them: one test file, `gates --changed` where the stack supports it,
-   `mutate-changed --files <path>` when mutation is on. The whole suite, the whole
-   tree and `mutate-changed --full` are the audit's job (`jnk-verify`, or a
-   release), not a checkpoint's. Measured: an unscoped `npx vitest run` on a
+3. **Checkpoint, scoped** — the tests for the files you touched and the files
+   that import them: one test file, `gates --changed` where the stack supports
+   it, `mutate-changed --files <path>` when mutation is on. The whole suite, the
+   whole tree and `mutate-changed --full` are the audit's job (`jnk-verify`, or
+   a release), not a checkpoint's. Measured: an unscoped `npx vitest run` on a
    108-file repository cost **11 of the 15 minutes** a checkpoint took, for the
    same verdict as the one file that covered the change.
 
@@ -38,6 +48,11 @@ costs a rewrite.
    Stand a stack up only with the user's say-so (`gates --init --yes`).
 
 4. **Exercise it** — run the real entry point and show the output.
+
+   Bad: "Tests pass, so the CLI works."
+
+   Good: "`todo add 'buy milk'` prints `added 1`; `todo list` prints
+   `1. buy milk [open]`."
 
 5. **Review** — for a substantial or risky change, run the two seats in
    `jnk-implement/references/review-panel.md` over the diff, and answer every

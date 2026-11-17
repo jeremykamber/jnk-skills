@@ -11,7 +11,7 @@ disable-model-invocation: true
 ## Steps
 
 1. **Name the mistake and its cost**, in one line, with the diff or the moment it
-   happened. Two occurrences make a pattern; one is an incident, and an incident
+   happened. Two occurrences make a pattern. One is an incident, and an incident
    gets fixed, not encoded.
 
 2. **Pick the highest rung that works**, in this order:
@@ -22,9 +22,9 @@ disable-model-invocation: true
    - **Test** — a fixture that fails on the mistake.
    - **Docs** — last, because nothing enforces it.
 
-3. **Encode it** at that rung. Prove the gate fires: make the mistake on purpose
-   in a scratch file and watch the check reject it. A guard nobody has seen fail
-   is a guard you do not know works.
+3. **Encode it** at that rung. Then prove the gate fires: make the mistake on
+   purpose in a scratch file and watch the check reject it. A guard nobody has
+   seen fail is a guard you do not know works.
 
 4. **Pair it with its enforcement** in the project's `AGENTS.md` rule table:
 
@@ -36,7 +36,15 @@ disable-model-invocation: true
    happen.
 
 5. **Report** the rung chosen, why the rungs above it did not work, and the proof
-   the check fires.
+   that the check fires.
+
+## Examples
+
+Bad: adding "always scope test runs" to `AGENTS.md` a third time — the sentence
+was already there for the first two corrections.
+
+Good: a `--scoped` default in the test runner, plus one check that fails when a
+test command runs the full tree at a checkpoint.
 
 ## Next
 
