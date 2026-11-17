@@ -8,8 +8,13 @@
     },
     {
       "name": "syntax",
-      "run": "python3 -m py_compile tools/crap tools/depth tools/gates tools/mutate-changed checks/test_crap.py checks/test_depth.py checks/test_gates.py checks/test_mutate_changed.py && bash -n install.sh && bash -n setup.sh && bash -n tools/sync-from-kit.sh",
+      "run": "python3 -m py_compile tools/crap tools/depth tools/gates tools/mutate-changed checks/test_crap.py checks/test_depth.py scripts/test_docs.py checks/test_gates.py checks/test_mutate_changed.py && bash -n install.sh && bash -n setup.sh && bash -n tools/sync-from-kit.sh",
       "why": "the tools and the scripts parse"
+    },
+    {
+      "name": "voice",
+      "run": "python3 scripts/test_docs.py",
+      "why": "AGENTS.md is read on every turn, so it stays short and the detail lives in the skill that needs it; a filler phrase hides a sentence that does no work (skills/writing/SKILL.md)"
     },
     {
       "name": "crap",
