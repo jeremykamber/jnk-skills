@@ -1,14 +1,13 @@
 ---
 name: jnk-commit
 description: Write a session's work as a story of conventional commits, split into coherent chapters. Use when a unit of change is finished and its history should read well.
-disable-model-invocation: true
 ---
 
 # Commit
 
 > One chapter per commit, in the order the work happened.
 
-You commit checkpoints while you build, so nothing is ever unrecorded. This beat
+You commit checkpoints while you build, so nothing is ever unrecorded. This skill
 turns those checkpoints into the history a reviewer wants.
 
 ## Steps
