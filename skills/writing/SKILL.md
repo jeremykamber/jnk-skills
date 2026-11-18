@@ -1,6 +1,6 @@
 ---
 name: writing
-description: Write and edit anything a person reads — answers, docs, commit messages, design notes, error text — in plain English that leads with the answer and ends with the next action. Use for any reply longer than a sentence, and before writing or editing documentation.
+description: Write and edit anything a person reads (answers, docs, product copy, commit messages, design notes, error text) in plain English that leads with the answer and ends with the next action. Use for any reply to the user longer than a sentence, and before writing or editing documentation.
 ---
 
 # Writing
@@ -62,7 +62,31 @@ same discipline, tightened:
 - Code, identifiers, commands, paths and quoted text stay verbatim.
 
 Do not claim STE conformance. It needs the controlled dictionary; use the
-discipline and say that is what you did.
+discipline and say that is what you did in your response.
+
+## Stylistic Notes
+
+**Avoid unclear references**
+
+- Do not overuse pronouns or indirect references.
+- Repeat the noun when the reference is not clear or when the noun appears several sentences earlier.
+- Prefer clarity over avoiding repetition.
+
+**Example**
+
+Avoid: "Everything the team needs to redesign Kynd's interface: a screenshot of every visual surface, an inventory sheet that describes each one, a product brief and a real example of the product's output."
+
+Write: "Everything the team needs to redesign Kynd's interface: a screenshot of every visual surface, an inventory sheet that describes each visual surface, a product brief and a real example of the product's output."
+
+**Always use the oxford comma**
+
+Without the Oxford comma:
+
+> Each entry shows the current state, the components in play and the issues worth solving.
+
+With the Oxford comma:
+
+> Each entry shows the current state, the components in play, and the issues worth solving.
 
 ## Instructions a machine follows
 
@@ -113,4 +137,4 @@ breath as what you did.
 Delete the first sentence if it announces what you are about to do, the last if
 it asks whether anything else is wanted, and every "by the way", empty hedge and
 idiom. Then check: do the first and last lines alone tell the reader what
-happened and what to do next?
+happened and what to do next? Any em-dashes in your writing? If so, remove them and rewrite.
