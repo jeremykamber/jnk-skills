@@ -1,0 +1,242 @@
+#!/usr/bin/env python3
+"""matrix — judge a benchmark matrix when repeats must not overwrite each other.
+
+`tools/bench --repeat 3` runs the repeats inside one invocation, which has two
+consequences this driver exists to remove:
+
+    transcripts are named `{arm}-{task}.jsonl`, so each repeat overwrites the
+    last and a contamination check can only ever see the final one;
+
+    a provider failure is scored identically to the model failing, because the
+    fixed denominator counts a checkpoint the agent never worked on as unsolved.
+
+So each repeat runs in its own invocation and its own directory, its transcripts
+are kept, and a repeat in which a checkpoint got no model response is archived
+as invalid and run again. A provider error the harness retried, where the
+checkpoint still produced work, is a recovered error: the sample is kept and
+counted. Medians are taken over the surviving repeats only, using the same
+lexicographic order the instrument defines: correctness, erosion, verbosity,
+cost.
+
+No measurement lives here: every number comes from the summary JSON that
+`tools/bench` wrote. This is orchestration and arithmetic.
+
+Usage:
+    bench/matrix --out bench/results/matrix-baseline \\
+        --series ticket-desk-deep --series kynd-lib --series scratch-csvq
+    bench/matrix --out bench/results/matrix-baseline --report \\
+        --series ticket-desk-deep --series kynd-lib --series scratch-csvq
+
+Exit: 0 every cell clean and the workflow not worse; 1 the workflow is worse on
+the first axis that differs; 2 the matrix is incomplete (a cell never produced a
+clean repeat) or a cell crashed.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import shutil
+import statistics
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+ARMS = ("baseline", "workflow")
+PROVIDER_ERRORS = ('"errorMessage"', '"type": "error"', '"type":"error"')
+KEYS = ("strict_rate", "isolated_rate", "erosion", "verbosity", "tokens", "seconds")
+
+
+def error_transcripts(directory: Path) -> list[str]:
+    """Transcripts that carry a provider error, whether or not it recovered."""
+    hits = []
+    for log in sorted(directory.glob("*.jsonl")):
+        text = log.read_text(errors="ignore")
+        if any(marker in text for marker in PROVIDER_ERRORS):
+            hits.append(log.name)
+    return hits
+
+
+def invalid_reason(result: dict | None) -> str:
+    """Why a repeat cannot be used, or "" when it can.
+
+    Only a checkpoint that got no model response poisons a repeat: the agent
+    never ran, the fixed denominator scores it unsolved, and that is missing data
+    wearing a failure's clothes. A transient provider error the harness retried,
+    where the checkpoint still produced work, is a recovered error — the
+    measurement is intact, and discarding it throws away a clean sample. Both
+    kynd runs first thrown away by the stricter rule had produced 3/3 strict.
+    """
+    if result is None:
+        return "crashed"
+    empty = [checkpoint["task"] for checkpoint in result.get("checkpoints", [])
+             if not checkpoint.get("tokens")]
+    if empty:
+        return "no model response at " + ", ".join(empty)
+    return ""
+
+
+def summary(directory: Path) -> dict | None:
+    for path in sorted(directory.glob("*.json")):
+        try:
+            return json.loads(path.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+    return None
+
+
+def median(values: list) -> float | None:
+    present = [value for value in values if value is not None]
+    return round(statistics.median(present), 4) if present else None
+
+
+def run_once(bench: str, series: str, arm: str, out: Path, log) -> dict | None:
+    """One repeat, one invocation. Returns its summary, or None if it crashed."""
+    out.parent.mkdir(parents=True, exist_ok=True)
+    command = [bench, "--run", series, "--arm", arm, "--repeat", "1", "--out", str(out)]
+    log.write(f"{' '.join(command)}\n")
+    log.flush()
+    proc = subprocess.run(command, cwd=ROOT)
+    if proc.returncode not in (0, 1):  # 1 is the instrument's "worse" verdict
+        print(f"  !! {series} {arm} {out.name}: bench exited {proc.returncode}", file=sys.stderr)
+        return None
+    return summary(out)
+
+
+def run_cells(args: argparse.Namespace, out: Path) -> tuple[bool, dict[str, int]]:
+    """Fill the matrix directories, discarding repeats that never got a response."""
+    incomplete = False
+    recovered: dict[str, int] = {}
+    with (out / "commands.log").open("a") as log:
+        log.write(f"# started {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}\n")
+        log.flush()
+        for series in args.series:
+            for arm in ARMS:
+                for repeat in range(1, args.repeats + 1):
+                    for attempt in range(1, args.attempts + 1):
+                        name = f"{arm}-r{repeat}" + ("" if attempt == 1 else f"-attempt{attempt}")
+                        directory = out / series / name
+                        print(f"matrix: {series} · {arm} · repeat {repeat}/{args.repeats}"
+                              + ("" if attempt == 1 else f" · attempt {attempt}"), flush=True)
+                        result = run_once(args.bench, series, arm, directory, log)
+                        reason = invalid_reason(result)
+                        if not reason:
+                            if directory.exists() and error_transcripts(directory):
+                                recovered[f"{series} {arm}"] = recovered.get(f"{series} {arm}", 0) + 1
+                            break
+                        print(f"  !! {series} {arm} repeat {repeat}: {reason}; discarding",
+                              file=sys.stderr, flush=True)
+                        if directory.exists():
+                            shutil.move(str(directory), str(directory) + "-invalid")
+                    else:
+                        incomplete = True
+                        print(f"  !! {series} {arm} repeat {repeat}: no clean run after "
+                              f"{args.attempts} attempts", file=sys.stderr, flush=True)
+    return incomplete, recovered
+
+
+def judge(base: dict, work: dict) -> tuple[str, str]:
+    """The instrument's lexicographic comparison, over medians."""
+    if work["strict_rate"] != base["strict_rate"]:
+        return "correctness", "better" if work["strict_rate"] > base["strict_rate"] else "worse"
+    if work["erosion"] != base["erosion"]:
+        return "erosion", "better" if work["erosion"] < base["erosion"] else "worse"
+    if work["verbosity"] != base["verbosity"]:
+        return "verbosity", "better" if work["verbosity"] < base["verbosity"] else "worse"
+    if work["tokens"] != base["tokens"]:
+        return "cost", "better" if work["tokens"] < base["tokens"] else "worse"
+    return "nothing", "tied"
+
+
+def main(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--series", action="append", required=True)
+    parser.add_argument("--out", required=True)
+    parser.add_argument("--repeats", type=int, default=3)
+    parser.add_argument("--attempts", type=int, default=3,
+                        help="invocations per repeat before the repeat is abandoned")
+    parser.add_argument("--bench", default=str(ROOT / "tools" / "bench"))
+    parser.add_argument("--report", action="store_true",
+                        help="run nothing; write matrix.md from the directories already on disk")
+    args = parser.parse_args(argv[1:])
+
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    incomplete, recovered = (False, {}) if args.report else run_cells(args, out)
+
+    medians: dict[str, dict[str, dict]] = {}
+    for series in args.series:
+        medians[series] = {}
+        for arm in ARMS:
+            samples = [summary(path) for path in sorted((out / series).glob(f"{arm}-r*"))
+                       if path.is_dir() and "-invalid" not in path.name]
+            samples = [sample for sample in samples if sample]
+            if len(samples) < args.repeats:
+                incomplete = True
+            merged = {key: median([sample.get(key) for sample in samples]) for key in KEYS}
+            merged["repeats"] = len(samples)
+            merged["spread"] = {
+                key: [min(float(sample[key]) for sample in samples),
+                      max(float(sample[key]) for sample in samples)]
+                for key in ("strict_rate", "erosion", "verbosity", "tokens")
+                if samples and all(sample.get(key) is not None for sample in samples)
+            }
+            medians[series][arm] = merged
+
+    lines = ["# Matrix", "",
+             f"Repeats: {args.repeats} · each one its own invocation · a repeat with a "
+             "checkpoint that got no model response is discarded and re-run.", "",
+             "| series | arm | repeats | strict | isolated | erosion ↓ | verbosity ↓ | tokens | minutes |",
+             "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+    worse: list[str] = []
+    for series in args.series:
+        for arm in ARMS:
+            cell = medians[series][arm]
+
+            def pct(value) -> str:
+                return "n/a" if value is None else f"{value * 100:.0f}%"
+
+            def num(value, spec: str) -> str:
+                return "n/a" if value is None else format(value, spec)
+
+            minutes = None if cell["seconds"] is None else cell["seconds"] / 60
+            lines.append(
+                f"| {series} | {arm} | {cell['repeats']} | "
+                f"{pct(cell['strict_rate'])} | {pct(cell['isolated_rate'])} | "
+                f"{num(cell['erosion'], '.3f')} | {num(cell['verbosity'], '.4f')} | "
+                f"{num(cell['tokens'], '.0f')} | {num(minutes, '.1f')} |")
+        base, work = medians[series]["baseline"], medians[series]["workflow"]
+        if all(base.get(key) is not None and work.get(key) is not None
+               for key in ("strict_rate", "erosion", "verbosity", "tokens")):
+            axis, verdict = judge(base, work)
+            spread = base["spread"]
+            lines += ["", f"{series}: workflow **{verdict}** on {axis}.",
+                      f"  baseline spread — erosion {spread.get('erosion')}, tokens {spread.get('tokens')}"]
+            if verdict == "worse":
+                worse.append(f"{series} on {axis}")
+        else:
+            lines += ["", f"{series}: **not judged** — a cell has no clean repeats."]
+
+    if recovered:
+        lines += ["", "Recovered provider errors (retried; the checkpoint still produced work): "
+                  + ", ".join(f"{cell} ×{count}" for cell, count in sorted(recovered.items()))]
+    lines += ["", "Model: " + ", ".join(sorted({
+        str(sample.get("model"))
+        for series in args.series for arm in ARMS
+        for sample in [summary(path) for path in sorted((out / series).glob(f"{arm}-r*"))
+                       if path.is_dir() and "-invalid" not in path.name]
+        if sample}))]
+
+    text = "\n".join(lines) + "\n"
+    (out / "matrix.md").write_text(text)
+    print(text)
+
+    if incomplete:
+        return 2
+    return 1 if worse else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

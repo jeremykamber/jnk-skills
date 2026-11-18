@@ -2,3 +2,4 @@
 
 kynd-01-summarize-many
 kynd-02-error-badge
+kynd-03-compact-title
