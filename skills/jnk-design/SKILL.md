@@ -11,7 +11,7 @@ disable-model-invocation: true
 Four moves. Stop as soon as the next slice would only answer a question you are
 about to guess at. That is the first gate, and it arrives in one command.
 
-**Not every change earns this beat.** One file, an obvious approach, no decision
+**Not every change needs this skill.** One file, an obvious approach, no decision
 a reader would want recorded: that is `jnk-oneshot`. Say so and switch.
 
 ## 1. Understand — 70% of the flow
@@ -98,7 +98,7 @@ Designing slices three and four is speculation the first checkpoint will correct
 
 Thread file written / the decision and its trade-off / the first-slice contract
 and failure paths / the acceptance test that fails / the numbered route / what
-this does not touch / the next beat to run.
+this does not touch / the next skill to run.
 
 ## Next
 

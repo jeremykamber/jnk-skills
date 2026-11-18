@@ -31,4 +31,4 @@ disable-model-invocation: true
    by running the open slices' checkpoints. The file is memory; the tests are
    evidence.
 
-Then name the beat the work needs next. Recommend it and stop.
+Then name the skill the work needs next. Recommend it and stop.

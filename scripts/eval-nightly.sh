@@ -6,7 +6,7 @@
 #   scripts/eval-nightly.sh --dry-run  print the command, run nothing
 #
 # Meant to be run by cron or launchd a few times a week. It invokes the coding
-# agent headless and asks it to run the jnk-eval beat in nightly mode: apply the
+# agent headless and asks it to run the jnk-eval skill in nightly mode: apply the
 # safe edits itself, and write a report of the foundational changes for a
 # human to approve (see skills/eval/SKILL.md, "The nightly pass").
 #
@@ -37,7 +37,7 @@ stamp="$(date -u +%Y%m%d-%H%M%S)"
 log="$STATE/eval-nightly-$stamp.log"
 report="$STATE/eval-nightly-$stamp.md"
 
-prompt="Run the jnk-eval beat, nightly pass. Mine the last $DAYS days of my sessions, across every \
+prompt="Run the jnk-eval skill, nightly pass. Mine the last $DAYS days of my sessions, across every \
 recent project, for corrections I keep making (use your own session history; do not read other \
 people's data). Apply the safe edits yourself: a typo, a wording fix, a missing example, a broken \
 link, a clearer name, each held to the rubric's four tests. Do NOT apply anything foundational: a \

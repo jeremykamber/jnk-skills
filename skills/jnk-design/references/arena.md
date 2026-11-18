@@ -14,7 +14,7 @@ allowed to settle one decision a candidate cannot claim on paper, and it is disc
 candidate.
 
 Candidates are throwaway evidence, so they go in the notebook, not the repo:
-`.ai/threads/<slug>/arena/`. This beat owns the committed record (`docs/designs/`);
+`.ai/threads/<slug>/arena/`. This skill owns the committed record (`docs/designs/`);
 the arena owns the comparison, and the winner is folded into the record like any other chosen
 direction.
 
@@ -65,7 +65,7 @@ say why:
 2. **The shape.** The data and state, the module map, what each module owns, and where the
    complexity lives. Name the seam that carries the hard part.
 3. **Contracts.** Per component: what goes in, what comes out, and the step-by-step in between, in
-   the compact block this beat uses.
+   the compact block this skill uses.
 4. **Flow.** How a request or a datum moves through it, top to bottom.
 5. **Failure paths.** What happens when the provider is down, the input is bad, the call is slow,
    the second call arrives. Not a token list — the failures you would actually worry about.

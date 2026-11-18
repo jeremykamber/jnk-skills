@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 > Assume it is broken. Then prove it is not, or find the crack.
 
-The first five tests anyone writes are the same five. This beat goes where nobody
+The first five tests anyone writes are the same five. This skill goes where nobody
 looks.
 
 ## Steps

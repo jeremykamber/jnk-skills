@@ -11,7 +11,7 @@
 # The gate tooling — the `gates` runner, the `crap` metric, `depth`, and the
 # configs the arch and mutation gates read — is vendored in ./tools and
 # ./templates, so this checkout stands alone: clone it, run this script, and the
-# beats work. The uncle-bob-workflow kit is where those files are developed;
+# skills work. The uncle-bob-workflow kit is where those files are developed;
 # ./tools/VENDORED.md records the version this copy came from, and
 # ./tools/sync-from-kit.sh moves the copy forward when the kit is present.
 
@@ -93,7 +93,7 @@ fi
 
 # A renamed skill leaves its old symlink behind, pointing at a directory that no
 # longer exists. Prune the ones this checkout owns — a dangling link loads as a
-# broken skill and two generations of the same beat is exactly the drift the
+# broken skill and two generations of the same skill is exactly the drift the
 # rename was for. Only links that point into $WF/skills are touched.
 for dir in "${SKILL_DIRS[@]}"; do
   [ -d "$dir" ] || continue
@@ -161,7 +161,7 @@ else
     if command -v "$tool" >/dev/null 2>&1; then
       echo "  ok     $tool -> $(command -v "$tool")"
     else
-      echo "  MISSING  $tool — the beats cannot verify without it" >&2
+      echo "  MISSING  $tool — the skills cannot verify without it" >&2
       exit 1
     fi
   done

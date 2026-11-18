@@ -5,19 +5,19 @@ time. This is the day-to-day.
 
 ## The short version
 
-- **You invoke a beat, it works, it stops.** The agent never starts the next one
-  silently — it names it and says what it would do. Beats are user-invoked by
+- **You invoke a skill, it works, it stops.** The agent never starts the next one
+  silently — it names it and says what it would do. Skills are user-invoked by
   design: a model-invocable skill costs its description in the prompt on every
-  turn, and choosing the beat is your call.
-- **Every beat ends with a question you can answer in a word.** "Which slice
+  turn, and choosing the skill is your call.
+- **Every skill ends with a question you can answer in a word.** "Which slice
   scares you?", "Does this model surprise you?", "Approve the route?"
 - **Small fix → `jnk-oneshot`. Anything else → `jnk-design` first.**
 - **Broken behaviour → `jnk-debug`.** Reproduce, gate the diagnosis, prove the
   fix on the original failure.
 - **A decision only you can make → `jnk-grill`.** One question at a time, with a
   recommendation attached.
-- **Context at ~60% → finish the beat or `jnk-handoff`, then `jnk-pickup`.**
-- **A beat proves it worked by running `gates`.** Verification is a command, not
+- **Context at ~60% → finish the skill or `jnk-handoff`, then `jnk-pickup`.**
+- **A skill proves it worked by running `gates`.** Verification is a command, not
   a judgment.
 - **Everything you read follows the `writing` skill.** Answer first, next action
   last, plain English. `AGENTS.md` points at it rather than repeating it.
@@ -91,7 +91,7 @@ If the agent cannot point at the line, that is a finding, not a shrug.
 
 `gates` runs the stack, stops at the first failure, prints the output.
 
-| Beat | Runs |
+| Skill | Runs |
 | --- | --- |
 | `jnk-implement` | `gates types lint unit` at each checkpoint; `gates acceptance` when a spec test should move |
 | `jnk-implement` (risky slice) | `mutate-changed --files <path>` and the two review seats |
@@ -121,5 +121,5 @@ with the reason. An absent stack is not a threshold.
 
 The arms are compared correctness first, then erosion, then verbosity, then
 tokens — in that order and no other. If the workflow is less correct or dirtier
-than a 15-line `AGENTS.md`, cut beats until it is not. That is the only argument
+than a 15-line `AGENTS.md`, cut skills until it is not. That is the only argument
 that settles it.

@@ -9,7 +9,7 @@
 # Safe to re-run. Existing symlinks are replaced; nothing is deleted.
 #
 # The tools live in ./tools and are vendored from the uncle-bob-workflow kit, so
-# this checkout stands alone: clone it and the beats work. tools/VENDORED.md
+# this checkout stands alone: clone it and the skills work. tools/VENDORED.md
 # records where each file came from and tools/sync-from-kit.sh re-copies them
 # when the kit is present and you want its newer versions.
 #
@@ -116,7 +116,7 @@ else
     if command -v "$tool" >/dev/null 2>&1; then
       echo "  ok       $tool -> $(command -v "$tool")"
     else
-      echo "  MISSING  $tool — the beats cannot verify without it" >&2
+      echo "  MISSING  $tool — the skills cannot verify without it" >&2
       exit 1
     fi
   done

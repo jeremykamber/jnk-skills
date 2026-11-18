@@ -1,6 +1,6 @@
 ---
 name: jnk-worktree
-description: Give a session its own git worktree before the beats begin, so concurrent agents never collide. Use at the start of fresh work in a repo you share.
+description: Give a session its own git worktree before the skills begin, so concurrent agents never collide. Use at the start of fresh work in a repo you share.
 disable-model-invocation: true
 ---
 
@@ -19,7 +19,7 @@ disable-model-invocation: true
    main checkout; copy it across when continuing work there, or start fresh.
 
 3. **Baseline** — install dependencies and run `gates`. A green start is the only
-   honest baseline for the beats ahead. If the stack fails before you change
+   honest baseline for the skills ahead. If the stack fails before you change
    anything, say so and stop.
 
 4. **Report** — path, branch, baseline result — then ask whether to start.

@@ -13,7 +13,7 @@ disable-model-invocation: true
 1. **Extract.** Start from whatever your harness keeps: its session history, or an
    exported transcript. `python3 scripts/extract.py <transcript> [outdir]` is one
    converter, replaceable: it writes `transcript.txt`, `thinking.txt` and
-   `stats.json` for the two export formats it knows. The rest of this beat needs
+   `stats.json` for the two export formats it knows. The rest of this skill needs
    only a transcript, plus counts of skill invocations, gate runs and file writes.
 
 2. **Stats first.** Read `stats.json` — skill invocations, gate lines, artifact
@@ -21,7 +21,7 @@ disable-model-invocation: true
    until it does.
 
 3. **Read the signal moments** the stats point at: each invocation, each gate,
-   each scope change, the end of each beat. Read the reasoning where behaviour
+   each scope change, the end of each skill. Read the reasoning where behaviour
    bent.
 
 4. **Score the lenses** in `references/rubric.md`: the arc, gate discipline,
@@ -53,4 +53,4 @@ contract, a gate, anything under `tools/` — in a report for the human.
 
 Quarterly: does the workflow still pay for itself? `bench` is the instrument:
 `tools/bench --run ticket-desk --arm baseline --arm workflow`. If the workflow
-does not score better than a short `AGENTS.md`, cut beats until it does.
+does not score better than a short `AGENTS.md`, cut skills until it does.

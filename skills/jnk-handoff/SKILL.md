@@ -1,6 +1,6 @@
 ---
 name: jnk-handoff
-description: Carry the live thread across a session boundary. Use when the context is heavy mid-beat, at the end of an unfinished day, or before another agent takes over.
+description: Carry the live thread across a session boundary. Use when the context is heavy in the middle of a skill, at the end of an unfinished day, or before another agent takes over.
 disable-model-invocation: true
 ---
 
@@ -8,13 +8,13 @@ disable-model-invocation: true
 
 > Carry the conversation. Leave the knowledge in the repo.
 
-A beat boundary and a context boundary are different things. You can split
+A skill boundary and a context boundary are different things. You can split
 anywhere; nothing is remembered unless it is written.
 
 ## Steps
 
 1. **Capture the thread** — the bullet list a fresh session cannot reconstruct:
-   where we are (beat, step), what was decided and why (including what was
+   where we are (skill, step), what was decided and why (including what was
    rejected), what is in flight, the exact next action, and the open questions.
 
 2. **Write it** into `.ai/threads/<slug>.md` under `## Now`, replacing the
@@ -33,5 +33,5 @@ anywhere; nothing is remembered unless it is written.
 4. **Stop.** "Handoff written. Resume with `jnk-pickup`." No summary essay; the
    file is the record.
 
-Do not hand off at every beat. When a beat ends, its artifacts already carry the
-state and the next beat can start.
+Do not hand off after every skill. When a skill ends, its artifacts already
+carry the state and the next one can start.

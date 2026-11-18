@@ -1,7 +1,7 @@
 # The vendored gate tooling
 
 This checkout carries its own copy of the gate tooling, so it stands alone: clone
-it, run `./install.sh`, and the beats work. The copy is:
+it, run `./install.sh`, and the skills work. The copy is:
 
 | Here | What it is |
 |---|---|
@@ -48,7 +48,7 @@ the manifest, which is what a fresh clone can prove on its own.
 The workflow's own rule is that two copies of a gate drift silently, the same way
 a copied principle list does — which is exactly what this manifest, the check,
 and the gate exist to prevent. Portability is what the copy buys: a checkout of
-this repository alone can run every beat, verify itself, and stand up a
+this repository alone can run every skill, verify itself, and stand up a
 project's stack, with no second repository to find and no path to guess.
 
 ## Local fixes, not yet upstream

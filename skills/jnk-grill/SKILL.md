@@ -7,7 +7,7 @@ description: Walk an unresolved decision one question at a time until every bran
 
 > One question. The one that unblocks the next one.
 
-Use this beat when a decision is genuinely the user's: a product trade-off, a
+Use this skill when a decision is genuinely the user's: a product trade-off, a
 boundary, a cost they will pay. Not for a question the codebase can answer, and
 not for a choice where either answer works.
 
@@ -34,9 +34,9 @@ not for a choice where either answer works.
 
 5. **Stop when the tree is walked.** Write the decisions and their reasons into
    `.ai/threads/<slug>.md` under `## Decisions`. Then hand back to the blocked
-   beat, with the decision named.
+   skill, with the decision named.
 
 ## Output
 
-The decision, the reason, the branches closed, and what the blocked beat should
+The decision, the reason, the branches closed, and what the blocked skill should
 do next.

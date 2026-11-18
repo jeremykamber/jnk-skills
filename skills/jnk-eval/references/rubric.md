@@ -1,6 +1,6 @@
 # The rubric — how to judge a session against the workflow
 
-The workflow's contract: beats with gates, artifacts in the engineering notebook,
+The workflow's contract: skills with gates, artifacts in the engineering notebook,
 engineering leading words, vertical slices, and data over opinion. The trace is
 the evidence. Score five lenses; cite a line number or a count for every claim —
 an impression with no line number is not a finding.
@@ -15,15 +15,15 @@ Which skills were invoked, in what order (stats.json → skillInvocations)?
 - `jnk-design` skipped: acceptable, but then a thread file with a decision in it
   must exist somewhere — `jnk-design` step 1 backfills it (verify, don't assume).
 - `jnk-commit` skipped: the work is unrecorded; check for checkpoint commits.
-- `jnk-oneshot` invoked: a legitimate compression of the arc, not skipped beats — but verify it stayed small and escalated when the change grew.
+- `jnk-oneshot` invoked: a legitimate compression of the arc, not skipped skills — but verify it stayed small and escalated when the change grew.
 - `jnk-debug` invoked: a legitimate mode — verify it reproduced before diagnosing, gated the diagnosis before fixing, and re-verified the original failure before declaring fixed.
-- `jnk-grill` fired mid-beat: legal — it is a primitive, not a phase, and the one model-invoked skill in the set (the agent fires it itself at a decision tree). Verify it asked one question at a time, proposed answers, and handed back to the calling beat with the decisions applied. A grill that wandered into planning is beat bleeding in disguise.
-- A beat's output handed to the next beat without a gate? A skill invoked
-  mid-beat?
+- `jnk-grill` fired in the middle of another skill: legal — it is a primitive, not a phase, and one of the few model-invoked skills in the set (the agent fires it itself at a decision tree). Verify it asked one question at a time, proposed answers, and handed back to the calling skill with the decisions applied. A grill that wandered into planning is the next skill's work in disguise.
+- A skill's output handed to the next one without a gate? A skill started
+  before the current one ended?
 
 ## Lens 2 — Gate discipline
 
-Every beat and every slice ends with a clearance question, and the agent waits.
+Every skill and every slice ends with a clearance question, and the agent waits.
 
 - Find the gates (stats.json → gates). For each, did the next work start before
   the user replied? Look at the block *after* the gate line.
@@ -51,12 +51,12 @@ The notebook is the loop's memory; resume reads it. Check *writes*, not mentions
   other mention is not.
 - Durability: `docs/designs/` and `tests/acceptance/` are committed; `.ai/` is
   not. Zero durability = the loop has no backup.
-- Zero writes = memory dead, even if every beat went well. (One caveat under
-  the persistence simplification: a small beat may legally skip its file when
+- Zero writes = memory dead, even if every skill went well. (One caveat under
+  the persistence simplification: a small skill may legally skip its file when
   the conversation holds the state — the failure is a full arc that leaves
-  nothing readable, or a mid-beat split with no handoff. The next session's
-  pickup is the test.) This is the biggest
-  failure mode in real sessions.
+  nothing readable, or a split in the middle of a skill with no handoff. The
+  next session's pickup is the test.) This is the biggest failure mode in real
+  sessions.
 
 ## Lens 4 — Leading-word adoption
 
@@ -108,9 +108,9 @@ Check each; cite the moment if it fired.
 10. **Scenery replacing engineering.** A leading word in a step is pure scenery
     and the behavior it names has a plain engineering word available. Flag it —
     it fails the training-data test.
-11. **Beat bleeding.** A skill produces the next beat's artifact — understand's
-    output contains a plan, implement runs the full verification sweep. A beat
-    ends with a handoff that names the next beat; it never starts it.
+11. **Skill bleeding.** A skill produces the next skill's artifact — understand's
+    output contains a plan, implement runs the full verification sweep. A skill
+    ends with a handoff that names the next one; it never starts it.
     Detection: the skill's output section vs its "Do not" list.
 12. **Teach-back skipped or contaminated.** The debrief's arc was narrated by
     the agent, or the agent answered its own teach-back question before the
@@ -123,7 +123,7 @@ Check each; cite the moment if it fired.
     agent without the user — the grill signal was there and skipped. Detection:
     a choice appears in the agent's narration with no preceding user decision,
     no grill, and no named delegation ("I'll pick X unless you object"). The
-    fix lives in grill + the calling beat's grill line.
+    fix lives in grill + the calling skill's grill line.
 
 ## Lens 6 — The Pocock sweep
 
@@ -166,7 +166,7 @@ fix, 2026-08-06):
 - Discipline adoption high: IOU 75, checkpoint 31, blast radius 15, squawk 15 —
   all in reasoning traces.
 - Artifact words near zero (thread name 0, notebook 0) and zero notebook writes:
-  that is the *unhealthy* pattern — the beats worked, the memory was still lost.
+  that is the *unhealthy* pattern — the skills worked, the memory was still lost.
 - Scenery near zero (2): the aviation frame shaped the conversation, not the
   behavior — the engineering words did the steering.
 

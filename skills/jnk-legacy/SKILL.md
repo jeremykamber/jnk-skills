@@ -1,6 +1,6 @@
 ---
 name: jnk-legacy
-description: The old beat names. Use when someone types jnk-1-explore, jnk-2-design, jnk-3-implement, jnk-4-verify, jnk-plan or jnk-decisions, which no longer exist.
+description: The older skill names. Use when someone types jnk-1-explore, jnk-2-design, jnk-3-implement, jnk-4-verify, jnk-plan or jnk-decisions, which no longer exist.
 ---
 
 # Old names
@@ -14,4 +14,4 @@ description: The old beat names. Use when someone types jnk-1-explore, jnk-2-des
 | `/skill:jnk-plan` | `jnk-design` |
 | `/skill:jnk-decisions` | the `## Decisions` section of `.ai/threads/<slug>.md` |
 
-Say which beat replaced it and why, in one line. Then run that beat.
+Say which skill replaced it and why, in one line. Then run that skill.

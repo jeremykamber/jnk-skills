@@ -1,6 +1,6 @@
 ---
 name: jnk-oneshot
-description: Make a small, well-understood change end to end in one pass, without the design beat. Use when the behaviour and the approach are both clear. Escalates to jnk-design the moment either stops being clear.
+description: Make a small, well-understood change end to end in one pass, without the design skill. Use when the behaviour and the approach are both clear. Escalates to jnk-design the moment either stops being clear.
 disable-model-invocation: true
 ---
 
@@ -17,7 +17,7 @@ Stop and recommend `jnk-design` when you hit any of these:
 - an architectural change;
 - a slice resting on an assumption you cannot check.
 
-Escalating costs one beat; guessing costs a rewrite.
+Escalating costs one skill run; guessing costs a rewrite.
 
 ## Steps
 
