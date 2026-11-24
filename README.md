@@ -21,13 +21,49 @@ cd jnk-skills
 ```
 
 `setup.sh` links the tools onto `PATH`, links every skill and principle into your
-agent's directories, and links `AGENTS.md` to `~/.agents/AGENTS.md`. It is safe
-to run again.
+agent's directories, and links `AGENTS.md` into every agent harness you run:
+`~/.agents`, `~/.pi/agent`, `~/.omp/agent` and `~/.config/opencode`. It checks
+those links resolve and fails if one does not. It is safe to run again.
 
 ```sh
 ./setup.sh --dry-run            # print what would change
 ./setup.sh --project <dir>      # also give a project a gate stack and an AGENTS.md
 ```
+
+## Skills are symlinks
+
+This checkout is the source of truth. Your agent's skill directories hold only
+symlinks into `skills/`, so an edit here is live in the next session and nothing
+is copied.
+
+| Where | Holds |
+| --- | --- |
+| `~/.agents/skills/` | A link per skill, plus `rules/` from `rules/`. |
+| `~/.pi/agent/skills/` | A link per skill. |
+| `~/.pi/agent/AGENTS.md` | A link to this repo's `AGENTS.md`. |
+| `~/.omp/agent/AGENTS.md`, `~/.config/opencode/AGENTS.md` | The same link, for those harnesses. |
+
+Each link points at one skill directory, for example
+`~/.pi/agent/skills/jnk-design -> <repo>/skills/jnk-design`. A skill present in
+two agent directories is one directory with two links.
+
+**Re-run `./setup.sh` (or `./setup.sh --dry-run` to look first) when you:**
+
+- add a new skill directory under `skills/` or `skills/misc/`;
+- rename or delete a skill, so the stale link is pruned;
+- move or clone the checkout, which leaves every link dangling;
+- see a missing skill or an old version in an agent session.
+
+A dangling link loads as no skill and says nothing about it. Check the links
+with:
+
+```sh
+ls -l ~/.pi/agent/skills            # every target should exist
+readlink ~/.pi/agent/skills/jnk-design
+```
+
+`setup.sh` prunes any link in those directories that points into this repo but no
+longer resolves. It touches nothing else.
 
 ## What is inside
 
@@ -41,7 +77,7 @@ to run again.
 | `bench/` | The benchmark: seeds, series, tasks, arms, the matrix driver, and the results. |
 | `rules/` | Named engineering principles, read on demand at `rule://<name>`. |
 | `templates/` | A project `AGENTS.md`, gate stacks for TypeScript and Python, and opt-in stream rules. |
-| `scripts/` | `test_docs.py` is the `voice` gate: a cap on `AGENTS.md` and a ban on filler words. `eval-nightly.sh` runs `jnk-eval` on a schedule. |
+| `scripts/` | `test_docs.py` is the `voice` gate: a cap on `AGENTS.md` and a ban on filler words. `jnk-schedule.sh` runs one scheduled pass; `jnk-scheduler.sh` installs the launchd jobs. |
 | `AGENTS.md` | The rules the agent loads on every turn. |
 | `usage.md` | The day-to-day: how a session runs, and how to answer a gate. |
 
@@ -62,7 +98,7 @@ The other skills cover the work beside those four:
 
 - `jnk-oneshot` for a small, understood change in one pass.
 - `jnk-debug` for broken behaviour. It reproduces first.
-- `jnk-refactor` for structure without a behaviour change, with one reference per red flag.
+- `jnk-refactor` for structure without a behaviour change: a smell map, the named moves, and a ledger of debt paid and added.
 - `jnk-attack` for adversarial tests.
 - `jnk-grill` for a decision only you can make.
 - `jnk-handoff` and `jnk-pickup` to cross a session boundary.
@@ -129,6 +165,49 @@ them. It keeps a cache key per scope, and it refuses to start when a killed run
 left files instrumented.
 
 `bench` measures whether any of this makes the code better.
+
+## Scheduled passes
+
+Two skills earn a schedule because their input is history: `jnk-eval` reads how a
+week of sessions went, and `jnk-correct` finds a correction that repeated. Both
+can run unattended, scoped to one project, report-only.
+
+```sh
+scripts/jnk-scheduler.sh install eval    --project ~/Developer/repos/kynd --every week
+scripts/jnk-scheduler.sh install correct --project ~/Developer/repos/kynd --every 2d
+scripts/jnk-scheduler.sh list
+scripts/jnk-scheduler.sh run-now correct --project ~/Developer/repos/kynd
+scripts/jnk-scheduler.sh uninstall eval  --project ~/Developer/repos/kynd
+```
+
+A scheduled pass writes one report to `<project>/.ai/reports/` and changes
+nothing else. Applying a proposed gate is a decision, so it stays interactive:
+read the report, run the skill, approve the edit. Reports older than the last
+interactive run are the queue.
+
+`jnk-scheduler.sh` writes a LaunchAgent under `~/Library/LaunchAgents` and
+bootstraps it. Each job logs to `~/.local/state/jnk-skills/<project>/`, takes a
+lock so two passes cannot overlap, and posts a macOS notification with the report
+name. `--every` takes `week`, `daily`, `2d`, or `3d`; `--at` sets the time for
+calendar schedules. Defaults: eval on Mondays at 09:10 over 7 days, correct every
+48 hours over 2 days.
+
+Two details matter on a laptop. launchd runs a calendar job that was missed
+while the machine slept, and cron does not. launchd also starts with a minimal
+`PATH`, so the generated plist records the installer's `PATH` (including the
+directory holding `omp`). Reinstall after moving the agent binary.
+
+If you want cron anyway, these two lines do the same work, with the caveat that
+a closed lid skips the run:
+
+```cron
+10 9 * * 1 /Users/jeremykamber/Developer/workflows/workflow/scripts/jnk-schedule.sh run --mode eval --project /Users/jeremykamber/Developer/repos/kynd --days 7
+30 9 */2 * * /Users/jeremykamber/Developer/workflows/workflow/scripts/jnk-schedule.sh run --mode correct --project /Users/jeremykamber/Developer/repos/kynd --days 2
+```
+
+Set `JNK_AGENT`, `JNK_MODEL`, `JNK_MAX_TIME`, or `JNK_MAX_COST` in the job's
+environment to change the runner or cap the spend. A run that finds nothing
+writes one line, not a padded report.
 
 ## The benchmark
 
