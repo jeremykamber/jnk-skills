@@ -26,7 +26,8 @@ slide and the delivery in its notes.
 Infer it from the request; ask once if it is genuinely ambiguous
 ("should this teach them to do it, or brief them on it?"). Both modes
 obey [references/slide-craft.md](references/slide-craft.md) — read that
-before authoring anything.
+before authoring anything. Read the `writing` skill before you write the
+headlines and the notes.
 
 ## Steps
 

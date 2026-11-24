@@ -30,7 +30,8 @@ disable-model-invocation: true
 
 5. **Propose edits.** Each one names the moment that justifies it and passes four
    tests: there is evidence, it deletes more than it adds, a frontier model would
-   not already do it, and it is the smallest change that fixes the failure.
+   not already do it, and it is the smallest change that fixes the failure. Read
+   the `writing` skill before you write the report or the edit.
 
 6. **Gate.** Present the verdict and the edits. Touch no file until the user
    approves.

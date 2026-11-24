@@ -41,6 +41,9 @@ Ask, one at a time, before writing anything:
 
 ### 2. Write the practice, not the questions
 
+Read the `writing` skill before you write the steps, the feedback, and the
+page text.
+
 Decide the *sequence* first: which step is the read-and-explain, which
 is the completion problem (the last step missing), which are theirs.
 Fade the scaffolding. Then write steps, distractors-first: the wrong

@@ -25,6 +25,8 @@ answer: the entry point, the code under change, its tests, one sibling that
 solves a similar problem. State what the code does before what you expect it to
 do, and label an interpretation as an interpretation.
 
+Read the `writing` skill before you write the thread file or a design doc.
+
 Write `.ai/threads/<slug>.md` (create `.ai/threads/` when it is missing):
 
 ```md

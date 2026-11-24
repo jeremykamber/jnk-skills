@@ -18,7 +18,8 @@ anywhere; nothing is remembered unless it is written.
    rejected), what is in flight, the exact next action, and the open questions.
 
 2. **Write it** into `.ai/threads/<slug>.md` under `## Now`, replacing the
-   previous one. A few lines. Durable project facts belong in `docs/`, not here.
+   previous one. Read the `writing` skill first. Keep it to a few lines, decision
+   first. Durable project facts belong in `docs/`, not here.
 
    Bad: a summary of the conversation, with the next step implied.
 

@@ -20,7 +20,7 @@ are not decided in a commit on another machine.
 
 ## The brief
 
-One page, written before anything leaves:
+One page, written before anything leaves. Read the `writing` skill first.
 
 ```md
 # <thread>

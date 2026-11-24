@@ -33,8 +33,8 @@ not for a choice where either answer works.
    Restate what you now know: "So: X stays, Y goes, and the seam is Z."
 
 5. **Stop when the tree is walked.** Write the decisions and their reasons into
-   `.ai/threads/<slug>.md` under `## Decisions`. Then hand back to the blocked
-   skill, with the decision named.
+   `.ai/threads/<slug>.md` under `## Decisions`. Read the `writing` skill before
+   you write them. Then hand back to the blocked skill, with the decision named.
 
 ## Output
 

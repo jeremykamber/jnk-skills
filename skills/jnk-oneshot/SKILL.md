@@ -58,8 +58,8 @@ Escalating costs one skill run; guessing costs a rewrite.
    `jnk-implement/references/review-panel.md` over the diff, and answer every
    finding: fixed, or why it is wrong.
 
-6. **Record** — durable facts go to `docs/`; anything deferred goes in a
-   `[squawk]` line in `.ai/threads/<slug>.md`.
+6. **Record** — read the `writing` skill first. Durable facts go to `docs/`;
+   anything deferred goes in a `[squawk]` line in `.ai/threads/<slug>.md`.
 
 7. **Commit** — a checkpoint now, then `jnk-commit` to shape the history.
 

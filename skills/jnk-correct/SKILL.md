@@ -26,7 +26,8 @@ disable-model-invocation: true
    purpose in a scratch file and watch the check reject it. A guard nobody has
    seen fail is a guard you do not know works.
 
-4. **Pair it with its enforcement** in the project's `AGENTS.md` rule table:
+4. **Pair it with its enforcement** in the project's `AGENTS.md` rule table.
+   Read the `writing` skill before you write the rule line:
 
    | Rule | Enforced by |
    | --- | --- |
